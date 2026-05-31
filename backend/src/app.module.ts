@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AppController } from './app.controller';
@@ -18,12 +19,14 @@ import { BillingModule } from './billing/billing.module';
 import { ReportsModule } from './reports/reports.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { SystemModule } from './system/system.module';
+import { BackupModule } from './backup/backup.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -40,6 +43,7 @@ import { AuditInterceptor } from './audit/audit.interceptor';
     ReportsModule,
     AppointmentsModule,
     SystemModule,
+    BackupModule,
   ],
   controllers: [AppController],
   providers: [

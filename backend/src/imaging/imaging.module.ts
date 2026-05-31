@@ -10,7 +10,8 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 
-const UPLOAD_ROOT = join(process.cwd(), process.env.UPLOAD_DIR || 'uploads', 'patients');
+// UPLOAD_DIR is set to an absolute persistent path at startup (see main.ts).
+const UPLOAD_ROOT = join(process.env.UPLOAD_DIR || join(process.cwd(), 'uploads'), 'patients');
 
 @Injectable()
 class ImagingService {
@@ -45,7 +46,9 @@ class ImagingService {
     const f = await this.prisma.patientFile.findUnique({ where: { id: fileId } });
     if (!f) throw new NotFoundException('File not found');
     try {
-      unlinkSync(join(process.cwd(), f.filePath.replace(/^\//, '')));
+      // filePath is a URL like /uploads/patients/<id>/<file>; map it back to the persistent disk dir.
+      const rel = f.filePath.replace(/^\/uploads\//, '');
+      unlinkSync(join(process.env.UPLOAD_DIR || join(process.cwd(), 'uploads'), rel));
     } catch {
       /* file already gone */
     }

@@ -21,6 +21,9 @@ dist/
 backend/uploads/*
 !backend/uploads/.gitkeep
 
+# runtime persistent data folder (db + uploads + backups) — never commit
+/data/
+
 # e2e artifacts
 e2e/shots/
 e2e/test-results/

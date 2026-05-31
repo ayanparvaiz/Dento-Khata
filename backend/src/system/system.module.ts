@@ -5,14 +5,12 @@ import type { Response } from 'express';
 import { join } from 'path';
 import { existsSync, statSync } from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
+import { dataPaths } from '../data';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 
 function dbPath(): string {
-  // DATABASE_URL like "file:./dental.db" -> resolve relative to cwd
-  const url = process.env.DATABASE_URL || 'file:./dental.db';
-  const rel = url.replace(/^file:/, '');
-  return join(process.cwd(), 'prisma', rel.replace(/^\.\//, ''));
+  return dataPaths().dbFile; // persistent data folder
 }
 
 @Injectable()
