@@ -1,0 +1,98 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from './api';
+
+export interface Procedure {
+  id: string;
+  code: string;
+  name: string;
+  category?: string;
+  defaultFee: number;
+}
+export interface TreatmentItem {
+  id: string;
+  procedureId: string;
+  procedure: Procedure;
+  toothNumber?: string | null;
+  priority: number;
+  status: string;
+  fee: number;
+  completedAt?: string | null;
+  billed?: boolean;
+}
+export interface TreatmentPlan {
+  id: string;
+  title?: string;
+  status: string;
+  createdAt: string;
+  items: TreatmentItem[];
+}
+export interface ClinicalNote {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
+export function useProcedures(search = '') {
+  return useQuery<Procedure[]>({
+    queryKey: ['procedures', search],
+    queryFn: async () => (await api.get('/procedures', { params: { search } })).data,
+  });
+}
+
+export function useTreatment(patientId?: string) {
+  return useQuery<TreatmentPlan[]>({
+    queryKey: ['treatment', patientId],
+    enabled: !!patientId,
+    queryFn: async () => (await api.get(`/patients/${patientId}/treatment`)).data,
+  });
+}
+
+export function useTreatmentMutations(patientId: string) {
+  const qc = useQueryClient();
+  const inval = () => qc.invalidateQueries({ queryKey: ['treatment', patientId] });
+  return {
+    createPlan: useMutation({
+      mutationFn: async (title: string) => (await api.post(`/patients/${patientId}/treatment`, { title })).data,
+      onSuccess: inval,
+    }),
+    deletePlan: useMutation({
+      mutationFn: async (planId: string) => (await api.delete(`/treatment/${planId}`)).data,
+      onSuccess: inval,
+    }),
+    addItem: useMutation({
+      mutationFn: async ({ planId, ...body }: any) => (await api.post(`/treatment/${planId}/items`, body)).data,
+      onSuccess: inval,
+    }),
+    updateItem: useMutation({
+      mutationFn: async ({ itemId, ...body }: any) => (await api.patch(`/treatment/items/${itemId}`, body)).data,
+      onSuccess: inval,
+    }),
+    deleteItem: useMutation({
+      mutationFn: async (itemId: string) => (await api.delete(`/treatment/items/${itemId}`)).data,
+      onSuccess: inval,
+    }),
+  };
+}
+
+export function useNotes(patientId?: string) {
+  return useQuery<ClinicalNote[]>({
+    queryKey: ['notes', patientId],
+    enabled: !!patientId,
+    queryFn: async () => (await api.get(`/patients/${patientId}/notes`)).data,
+  });
+}
+
+export function useNotesMutations(patientId: string) {
+  const qc = useQueryClient();
+  const inval = () => qc.invalidateQueries({ queryKey: ['notes', patientId] });
+  return {
+    add: useMutation({
+      mutationFn: async (content: string) => (await api.post(`/patients/${patientId}/notes`, { content })).data,
+      onSuccess: inval,
+    }),
+    remove: useMutation({
+      mutationFn: async (id: string) => (await api.delete(`/notes/${id}`)).data,
+      onSuccess: inval,
+    }),
+  };
+}
