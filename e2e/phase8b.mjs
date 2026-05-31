@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 
-const BASE = 'http://localhost:5173';
+const BASE = process.env.BASE || 'http://localhost:5173';
 const API = 'http://localhost:3000/api';
 const SHOTS = new URL('./shots/', import.meta.url).pathname;
 const FUTURE = '2026-07-15';

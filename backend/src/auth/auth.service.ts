@@ -23,9 +23,25 @@ export class AuthService {
       role: user.role,
     });
 
+    return { access_token: token, user: this.shape(user) };
+  }
+
+  // Current user incl. granted permissions (admin = all).
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    return this.shape(user);
+  }
+
+  private shape(user: any) {
+    let permissions: string[] = [];
+    try { permissions = JSON.parse(user.permissions || '[]'); } catch { permissions = []; }
     return {
-      access_token: token,
-      user: { id: user.id, username: user.username, fullName: user.fullName, role: user.role },
+      id: user.id,
+      username: user.username,
+      fullName: user.fullName,
+      role: user.role,
+      permissions, // ASSISTANT's granted caps; ADMIN treated as all on the client
     };
   }
 

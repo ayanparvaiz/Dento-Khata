@@ -1,10 +1,17 @@
 import { chromium } from 'playwright';
 
-const BASE = 'http://localhost:5173';
-const SHOTS = new URL('./shots/', import.meta.url).pathname;
+const BASE = process.env.BASE || 'http://localhost:5173';
+const API = 'http://localhost:3000/api';
 const results = [];
 const ok = (n) => { results.push([true, n]); console.log(`  PASS ${n}`); };
 const bad = (n, e) => { results.push([false, n]); console.log(`  FAIL ${n}${e ? ' :: ' + e : ''}`); };
+
+async function api(p, o = {}, t) {
+  const r = await fetch(API + p, { ...o, headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}), ...(o.headers || {}) } });
+  return r.json();
+}
+const token = (await api('/auth/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'admin123' }) })).access_token;
+const pid = (await api('/patients?search=Karim', {}, token)).items[0].id;
 
 const browser = await chromium.launch();
 const page = await browser.newContext({ viewport: { width: 1280, height: 950 } }).then((c) => c.newPage());
@@ -16,43 +23,30 @@ try {
   await page.locator('input[type="password"]').fill('admin123');
   await page.getByRole('button', { name: /sign in/i }).click();
   await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 10000 });
-  await page.getByRole('link', { name: 'Patients' }).click();
-  await page.getByPlaceholder(/search/i).fill('Karim');
-  await page.getByText('Karim Ahmed').first().click();
-  await page.getByRole('button', { name: 'Treatment', exact: true }).click();
+  await page.goto(`${BASE}/patients/${pid}?tab=${encodeURIComponent('Treatment & Billing')}`);
 
-  // new plan with a unique title so we can scope to exactly this card
-  const title = `Fee test ${Date.now().toString().slice(-5)}`;
-  await page.getByPlaceholder(/New treatment plan/i).fill(title);
-  await page.getByRole('button', { name: /new plan/i }).click();
+  const title = `Fee ${Date.now().toString().slice(-5)}`;
+  await page.getByPlaceholder(/Plan title/i).fill(title);
+  await page.getByRole('button', { name: /create plan/i }).click();
   await page.getByText(title).waitFor({ timeout: 10000 });
 
-  // scope all further locators to this plan's card
-  const card = page.locator(`xpath=//h3[normalize-space()="${title}"]/ancestor::div[contains(@class,"space-y-3")][1]`);
+  // pick procedure + OVERRIDE fee in the add box, then Add
+  await page.locator('select').filter({ has: page.locator('option', { hasText: 'Select procedure…' }) }).first().selectOption({ index: 1 });
+  await page.locator('xpath=//label[normalize-space()="Fee ৳"]/following-sibling::input').first().fill('1234');
+  await page.getByRole('button', { name: 'Add', exact: true }).first().click();
+  await page.waitForTimeout(1200);
 
-  // pick procedure, then OVERRIDE the fee with a custom amount
-  await card.locator('select').filter({ has: page.locator('option', { hasText: 'Select procedure…' }) }).first().selectOption({ index: 1 });
-  await card.getByPlaceholder('Fee').fill('1234');
-  await card.getByRole('button', { name: /^Add/ }).click();
-
-  // verify item shows the custom fee (not the procedure default)
-  const itemFee = card.locator('tbody input[type="number"]').first();
-  await itemFee.waitFor({ timeout: 10000 });
-  const val = await itemFee.inputValue();
-  if (val === '1234') ok('staff-entered custom fee 1234 used (not default)');
-  else bad('custom fee used', `got ${val}`);
-
-  // edit the fee inline to 1500
-  await itemFee.fill('1500');
-  await itemFee.blur();
-  await page.waitForTimeout(800);
-  ok('fee edited inline by staff');
+  // verify via API the staff-entered fee saved
+  const plans = await api(`/patients/${pid}/treatment`, {}, token);
+  const plan = plans.find((p) => p.title === title);
+  const fees = (plan?.items || []).map((i) => i.fee);
+  if (fees.includes(1234)) ok('staff-entered custom fee (1234) saved');
+  else bad('custom fee saved', `fees=${JSON.stringify(fees)}`);
 } catch (e) {
   bad('exception', e.message);
 } finally {
   await browser.close();
 }
-
 const passed = results.filter((r) => r[0]).length;
 console.log(`\n==== ${passed}/${results.length} editable-fee checks passed ====`);
 process.exit(passed === results.length ? 0 : 1);

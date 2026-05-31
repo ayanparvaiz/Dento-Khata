@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { usePatient, type MedicalHistory } from '@/lib/patients';
+import { useAuth } from '@/lib/auth';
 import { ageFromDob, fmtDate, splitList } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
@@ -29,6 +30,18 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number];
 
+// Capability needed to see/use each tab (null = always; viewing list/overview is open).
+const TAB_CAP: Record<Tab, string[] | null> = {
+  Overview: null,
+  'Medical History': ['medical.manage'],
+  'Dental Chart': ['charting.manage'],
+  Prescriptions: ['prescriptions.manage'],
+  'Treatment & Billing': ['treatment.manage', 'billing.manage'],
+  Notes: ['notes.manage'],
+  Imaging: ['imaging.manage'],
+  Appointments: ['appointments.manage'],
+};
+
 const FUTURE: Partial<Record<Tab, string>> = {};
 
 function Info({ label, value }: { label: string; value?: string | null }) {
@@ -44,8 +57,11 @@ export function PatientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: p, isLoading } = usePatient(id);
+  const { can } = useAuth();
   const [params] = useSearchParams();
-  const initialTab = (TABS.find((t) => t === params.get('tab')) ?? 'Overview') as Tab;
+  const visibleTabs = TABS.filter((t) => TAB_CAP[t] === null || TAB_CAP[t]!.some((c) => can(c)));
+  const wanted = (TABS.find((t) => t === params.get('tab')) ?? 'Overview') as Tab;
+  const initialTab = visibleTabs.includes(wanted) ? wanted : 'Overview';
   const [tab, setTab] = useState<Tab>(initialTab);
 
   if (isLoading || !p) return <div className="p-6 text-muted-foreground">Loading…</div>;
@@ -110,7 +126,7 @@ export function PatientDetail() {
 
       {/* Tabs — pill segmented control: active = solid teal, inactive = clear dark text */}
       <div className="mb-4 flex flex-wrap gap-1 rounded-xl border border-border bg-muted/60 p-1">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}

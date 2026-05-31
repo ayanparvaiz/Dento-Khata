@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/
 import { ChartingService } from './charting.service';
 import { CreateToothRecordDto, PerioDto, UpdateToothRecordDto } from './dto';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { Requires } from '../auth/permissions.guard';
 
 @Controller()
 export class ChartingController {
@@ -12,21 +13,25 @@ export class ChartingController {
     return this.charting.getChart(id);
   }
 
+  @Requires('charting.manage')
   @Post('patients/:id/chart')
   add(@Param('id') id: string, @Body() dto: CreateToothRecordDto, @CurrentUser() user: AuthUser) {
     return this.charting.addToothRecord(id, dto, user.id);
   }
 
+  @Requires('charting.manage')
   @Patch('chart/:recordId')
   update(@Param('recordId') recordId: string, @Body() dto: UpdateToothRecordDto) {
     return this.charting.updateToothRecord(recordId, dto);
   }
 
+  @Requires('charting.manage')
   @Delete('chart/:recordId')
   remove(@Param('recordId') recordId: string) {
     return this.charting.deleteToothRecord(recordId);
   }
 
+  @Requires('charting.manage')
   @Put('patients/:id/perio')
   savePerio(@Param('id') id: string, @Body() dto: PerioDto) {
     return this.charting.savePerio(id, dto);

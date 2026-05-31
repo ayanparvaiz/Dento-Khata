@@ -21,6 +21,7 @@ import { AppointmentsModule } from './appointments/appointments.module';
 import { SystemModule } from './system/system.module';
 import { BackupModule } from './backup/backup.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { PermissionsGuard } from './auth/permissions.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
 
 @Module({
@@ -49,6 +50,8 @@ import { AuditInterceptor } from './audit/audit.interceptor';
   providers: [
     // Global: every route requires a valid JWT unless marked @Public().
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Global: enforce per-assistant capability on routes marked @Requires(...).
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     // Global: record mutating requests for audit.
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],

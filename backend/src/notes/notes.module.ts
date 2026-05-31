@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Injectable, Module, Param, Post } from '
 import { IsString, MinLength } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { Requires } from '../auth/permissions.guard';
 
 class CreateNoteDto {
   @IsString() @MinLength(1) content: string;
@@ -31,10 +32,12 @@ class NotesController {
   list(@Param('id') id: string) {
     return this.svc.list(id);
   }
+  @Requires('notes.manage')
   @Post('patients/:id/notes')
   create(@Param('id') id: string, @Body() dto: CreateNoteDto, @CurrentUser() user: AuthUser) {
     return this.svc.create(id, dto.content, user.id);
   }
+  @Requires('notes.manage')
   @Delete('notes/:noteId')
   remove(@Param('noteId') noteId: string) {
     return this.svc.remove(noteId);

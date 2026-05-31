@@ -1,6 +1,6 @@
 import { chromium, devices } from 'playwright';
 
-const BASE = 'http://localhost:5173';
+const BASE = process.env.BASE || 'http://localhost:5173';
 const SHOTS = new URL('./shots/', import.meta.url).pathname;
 const uniq = `recep_${Date.now().toString().slice(-6)}`;
 const results = [];
@@ -38,10 +38,9 @@ try {
   await usersNav.click();
   await page.getByRole('heading', { name: /users & roles/i }).waitFor();
   await shot('03-users-before');
-  const form = page.locator('form').first();
-  await form.locator('input').nth(0).fill('Test Receptionist'); // full name
-  await form.locator('input').nth(1).fill(uniq);                 // username
-  await form.locator('input[type="password"]').fill('recep123'); // password
+  await page.locator('xpath=//label[normalize-space()="Full name"]/following-sibling::input').fill('Test Assistant');
+  await page.locator('xpath=//label[normalize-space()="Username"]/following-sibling::input').fill(uniq);
+  await page.locator('xpath=//label[normalize-space()="Password"]/following-sibling::input').fill('recep123');
   await page.getByRole('button', { name: /add user/i }).click();
   await page.getByText(uniq).waitFor({ timeout: 10000 });
   await shot('04-users-after');

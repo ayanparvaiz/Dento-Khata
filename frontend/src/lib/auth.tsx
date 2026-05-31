@@ -5,7 +5,8 @@ export interface AuthUser {
   id: string;
   username: string;
   fullName: string;
-  role: 'ADMIN' | 'DENTIST' | 'RECEPTIONIST' | 'ASSISTANT';
+  role: 'ADMIN' | 'ASSISTANT';
+  permissions?: string[];
 }
 
 interface AuthContextValue {
@@ -13,6 +14,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  can: (cap: string) => boolean; // admin = always; assistant = granted only
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -46,8 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const can = (cap: string) =>
+    !!user && (user.role === 'ADMIN' || (user.permissions ?? []).includes(cap));
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, logout, can }}>{children}</AuthContext.Provider>
   );
 }
 

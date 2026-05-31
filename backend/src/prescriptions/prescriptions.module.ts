@@ -5,6 +5,7 @@ import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { Requires } from '../auth/permissions.guard';
 
 class RxItemDto {
   @IsOptional() @IsString() drugId?: string;
@@ -70,10 +71,12 @@ class PrescriptionsController {
   getOne(@Param('rxId') rxId: string) {
     return this.svc.getOne(rxId);
   }
+  @Requires('prescriptions.manage')
   @Post('patients/:id/prescriptions')
   create(@Param('id') id: string, @Body() dto: CreateRxDto, @CurrentUser() user: AuthUser) {
     return this.svc.create(id, dto, user.id);
   }
+  @Requires('prescriptions.manage')
   @Delete('prescriptions/:rxId')
   remove(@Param('rxId') rxId: string) {
     return this.svc.remove(rxId);

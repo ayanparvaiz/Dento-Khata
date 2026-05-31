@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { writeFileSync } from 'fs';
 
-const BASE = 'http://localhost:5173';
+const BASE = process.env.BASE || 'http://localhost:5173';
 const API = 'http://localhost:3000/api';
 const SHOTS = new URL('./shots/', import.meta.url).pathname;
 const results = [];
@@ -49,8 +49,8 @@ try {
 
   /* ---------- PHASE 5: Prescriptions ---------- */
   await tab('Prescriptions');
-  await page.getByText('New prescription').waitFor({ timeout: 10000 });
-  await page.locator('xpath=//label[normalize-space()="Diagnosis"]/following-sibling::input').fill('Pericoronitis 48');
+  await page.getByPlaceholder(/Search brand or generic/i).waitFor({ timeout: 10000 });
+  await page.getByPlaceholder(/Acute pulpitis/i).fill('Pericoronitis 48');
   // Search "Tory" -> Etoricoxib brands grouped as alternatives
   await page.getByPlaceholder(/Search brand or generic/i).fill('Tory');
   await page.getByText(/alternatives/).first().waitFor({ timeout: 10000 });
@@ -76,18 +76,16 @@ try {
   else bad('imaging upload', `${before} -> ${after}`);
   await shot('p5_02-imaging');
 
-  /* ---------- PHASE 6: Billing ---------- */
-  await tab('Billing');
-  await page.getByText('Total billed').waitFor({ timeout: 10000 });
-  await page.getByPlaceholder('Description').first().fill('Consultation fee');
-  await page.getByPlaceholder('Unit price').first().fill('600');
-  await page.getByRole('button', { name: /create invoice/i }).click();
-  await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: /record payment/i }).first().click();
-  await page.getByRole('button', { name: /^Save$/ }).click();
-  await page.waitForTimeout(1000);
-  if (await page.getByText('PAID').first().isVisible()) ok('billing: invoice created + payment recorded (PAID)');
-  else ok('billing: invoice created + payment recorded');
+  /* ---------- PHASE 6: Treatment & Billing (account / installment) ---------- */
+  await tab('Treatment & Billing');
+  await page.getByText('Total treatment cost').waitFor({ timeout: 10000 });
+  // Collect an installment toward the balance
+  await page.locator('xpath=//label[normalize-space()="Amount ৳"]/following-sibling::input').fill('300');
+  await page.getByRole('button', { name: /^Take/ }).click();
+  // it should appear in payment history
+  await page.getByText(/Payment history \(/).waitFor({ timeout: 10000 });
+  await page.getByText('৳300').first().waitFor({ timeout: 10000 });
+  ok('billing: installment payment recorded against balance');
   await shot('p5_03-billing');
 
   /* ---------- PHASE 8: Appointments ---------- */
@@ -96,7 +94,7 @@ try {
   await page.getByPlaceholder(/Search patient/i).fill('Karim');
   // pick the search RESULT (has patient code), not a schedule row link
   await page.getByRole('button', { name: /P-00001/ }).first().click();
-  await page.getByRole('button', { name: /^Book$/ }).click();
+  await page.getByRole('button', { name: /^Book/ }).click();
   await page.waitForTimeout(1000);
   if (await page.getByText('Karim Ahmed').first().isVisible()) ok('appointment booked & shows on day schedule');
   else bad('appointment booking');

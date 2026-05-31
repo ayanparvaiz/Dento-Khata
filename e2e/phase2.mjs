@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 
-const BASE = 'http://localhost:5173';
+const BASE = process.env.BASE || 'http://localhost:5173';
 const SHOTS = new URL('./shots/', import.meta.url).pathname;
 const name = `Rahim Uddin ${Date.now().toString().slice(-5)}`;
 const results = [];

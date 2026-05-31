@@ -14,10 +14,10 @@ export class AuthController {
     return this.auth.login(dto.username, dto.password);
   }
 
-  // Returns the currently authenticated user (used by the frontend on app load).
+  // Returns the currently authenticated user + granted permissions (used on app load).
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
-    return user;
+    return this.auth.me(user.id);
   }
 
   @Post('change-password')

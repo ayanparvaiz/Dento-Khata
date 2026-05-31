@@ -9,6 +9,7 @@ import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { Requires } from '../auth/permissions.guard';
 
 // UPLOAD_DIR is set to an absolute persistent path at startup (see main.ts).
 const UPLOAD_ROOT = join(process.env.UPLOAD_DIR || join(process.cwd(), 'uploads'), 'patients');
@@ -65,6 +66,7 @@ class ImagingController {
     return this.svc.list(id);
   }
 
+  @Requires('imaging.manage')
   @Post('patients/:id/files')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -88,6 +90,7 @@ class ImagingController {
     return this.svc.create(id, file, body, user.id);
   }
 
+  @Requires('imaging.manage')
   @Delete('files/:fileId')
   remove(@Param('fileId') fileId: string) {
     return this.svc.remove(fileId);

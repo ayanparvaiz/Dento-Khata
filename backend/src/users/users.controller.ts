@@ -4,6 +4,7 @@ import { CreateUserDto, UpdateUserDto } from './dto';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { CAPABILITIES } from '../auth/roles';
 
 // All user management is ADMIN-only.
 @UseGuards(RolesGuard)
@@ -11,6 +12,11 @@ import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 @Controller('users')
 export class UsersController {
   constructor(private users: UsersService) {}
+
+  @Get('capabilities')
+  capabilities() {
+    return CAPABILITIES;
+  }
 
   @Get()
   findAll() {

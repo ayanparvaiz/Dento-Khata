@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
+import { Requires } from '../auth/permissions.guard';
 
 class CreatePlanDto {
   @IsOptional() @IsString() title?: string;
@@ -85,22 +86,27 @@ class TreatmentController {
   getPlans(@Param('id') id: string) {
     return this.svc.getPlans(id);
   }
+  @Requires('treatment.manage')
   @Post('patients/:id/treatment')
   createPlan(@Param('id') id: string, @Body() dto: CreatePlanDto) {
     return this.svc.createPlan(id, dto);
   }
+  @Requires('treatment.manage')
   @Delete('treatment/:planId')
   deletePlan(@Param('planId') planId: string) {
     return this.svc.deletePlan(planId);
   }
+  @Requires('treatment.manage')
   @Post('treatment/:planId/items')
   addItem(@Param('planId') planId: string, @Body() dto: AddItemDto) {
     return this.svc.addItem(planId, dto);
   }
+  @Requires('treatment.manage')
   @Patch('treatment/items/:itemId')
   updateItem(@Param('itemId') itemId: string, @Body() dto: UpdateItemDto) {
     return this.svc.updateItem(itemId, dto);
   }
+  @Requires('treatment.manage')
   @Delete('treatment/items/:itemId')
   deleteItem(@Param('itemId') itemId: string) {
     return this.svc.deleteItem(itemId);

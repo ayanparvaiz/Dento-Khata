@@ -1,5 +1,6 @@
 import { Controller, Get, Injectable, Module, Query } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Requires } from '../auth/permissions.guard';
 
 @Injectable()
 class ReportsService {
@@ -58,10 +59,12 @@ class ReportsService {
 @Controller('reports')
 class ReportsController {
   constructor(private svc: ReportsService) {}
+  @Requires('reports.view')
   @Get('daily-collection')
   daily(@Query('date') date?: string) {
     return this.svc.dailyCollection(date);
   }
+  @Requires('reports.view')
   @Get('outstanding')
   outstanding() {
     return this.svc.outstanding();

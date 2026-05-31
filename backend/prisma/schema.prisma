@@ -19,7 +19,8 @@ model User {
   username     String   @unique
   passwordHash String
   fullName     String
-  role         String   @default("RECEPTIONIST") // ADMIN | DENTIST | RECEPTIONIST | ASSISTANT
+  role         String   @default("ASSISTANT") // ADMIN | ASSISTANT
+  permissions  String?  // JSON array of capability keys granted to an ASSISTANT (ADMIN = all)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 

@@ -8,6 +8,7 @@ const SAFE_SELECT = {
   username: true,
   fullName: true,
   role: true,
+  permissions: true,
   isActive: true,
   createdAt: true,
 };
@@ -16,23 +17,30 @@ const SAFE_SELECT = {
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.user.findMany({ select: SAFE_SELECT, orderBy: { createdAt: 'asc' } });
+  async findAll() {
+    const users = await this.prisma.user.findMany({ select: SAFE_SELECT, orderBy: { createdAt: 'asc' } });
+    return users.map((u) => ({ ...u, permissions: this.parse(u.permissions) }));
+  }
+
+  private parse(p?: string | null): string[] {
+    try { return JSON.parse(p || '[]'); } catch { return []; }
   }
 
   async create(dto: CreateUserDto) {
     const exists = await this.prisma.user.findUnique({ where: { username: dto.username } });
     if (exists) throw new BadRequestException('Username already taken');
 
-    return this.prisma.user.create({
+    const u = await this.prisma.user.create({
       data: {
         username: dto.username,
         passwordHash: await bcrypt.hash(dto.password, 10),
         fullName: dto.fullName,
         role: dto.role,
+        permissions: dto.role === 'ADMIN' ? null : JSON.stringify(dto.permissions ?? []),
       },
       select: SAFE_SELECT,
     });
+    return { ...u, permissions: this.parse(u.permissions) };
   }
 
   async update(id: string, dto: UpdateUserDto) {
@@ -44,8 +52,10 @@ export class UsersService {
     if (dto.role !== undefined) data.role = dto.role;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.password) data.passwordHash = await bcrypt.hash(dto.password, 10);
+    if (dto.permissions !== undefined) data.permissions = JSON.stringify(dto.permissions);
 
-    return this.prisma.user.update({ where: { id }, data, select: SAFE_SELECT });
+    const u = await this.prisma.user.update({ where: { id }, data, select: SAFE_SELECT });
+    return { ...u, permissions: this.parse(u.permissions) };
   }
 
   async remove(id: string, requesterId: string) {

@@ -4,6 +4,7 @@ import {
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { Requires } from '../auth/permissions.guard';
 
 // Patient pays the treatment-plan total in installments across visits.
 class InstallmentDto {
@@ -60,6 +61,7 @@ class BillingController {
   payments(@Param('id') id: string) {
     return this.svc.payments(id);
   }
+  @Requires('billing.manage')
   @Post('patients/:id/payments')
   pay(@Param('id') id: string, @Body() dto: InstallmentDto, @CurrentUser() user: AuthUser) {
     return this.svc.addInstallment(id, dto, user.id);

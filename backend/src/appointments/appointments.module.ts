@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { IsISO8601, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
+import { Requires } from '../auth/permissions.guard';
 
 // Clinic working window for slot generation (24h). Adjust per clinic later via settings.
 const WORK_START = 10; // 10:00
@@ -260,14 +261,17 @@ class AppointmentsController {
   byRange(@Query('date') date?: string, @Query('from') from?: string, @Query('to') to?: string) {
     return this.svc.byRange(date, from, to);
   }
+  @Requires('appointments.manage')
   @Post()
   create(@Body() dto: CreateApptDto) {
     return this.svc.create(dto);
   }
+  @Requires('appointments.manage')
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateApptDto) {
     return this.svc.update(id, dto);
   }
+  @Requires('appointments.manage')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.svc.remove(id);
