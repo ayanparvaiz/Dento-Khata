@@ -175,5 +175,12 @@ export function useDailyCollection(date: string) {
 export function useOutstanding() {
   return useQuery({ queryKey: ['outstanding'], queryFn: async () => (await api.get('/reports/outstanding')).data });
 }
+export interface Revenue {
+  days: number; from: string; total: number; count: number;
+  byMethod: Record<string, number>; series: { date: string; amount: number }[];
+}
+export function useRevenue(days: number) {
+  return useQuery<Revenue>({ queryKey: ['revenue', days], queryFn: async () => (await api.get('/reports/revenue', { params: { days } })).data });
+}
 
 export const taka = (n: number) => `৳${(n || 0).toLocaleString('en-IN')}`;

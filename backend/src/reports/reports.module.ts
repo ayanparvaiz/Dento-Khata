@@ -38,6 +38,29 @@ class ReportsService {
     };
   }
 
+  // Revenue / income collected over the last N days (today, 7, 30, 90, 180, 365).
+  async revenue(days: number) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (Math.max(1, days) - 1)); // inclusive of today
+    const payments = await this.prisma.payment.findMany({
+      where: { paidAt: { gte: start } },
+      orderBy: { paidAt: 'asc' },
+    });
+    const byMethod: Record<string, number> = {};
+    const byDay: Record<string, number> = {};
+    let total = 0;
+    for (const p of payments) {
+      byMethod[p.method] = (byMethod[p.method] || 0) + p.amount;
+      const d = new Date(p.paidAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      byDay[key] = (byDay[key] || 0) + p.amount;
+      total += p.amount;
+    }
+    const series = Object.entries(byDay).map(([date, amount]) => ({ date, amount }));
+    return { days, from: start.toISOString().slice(0, 10), total, count: payments.length, byMethod, series };
+  }
+
   // Patients who still owe: treatment plan total − installments paid > 0.
   async outstanding() {
     const patients = await this.prisma.patient.findMany({
@@ -63,6 +86,11 @@ class ReportsController {
   @Get('daily-collection')
   daily(@Query('date') date?: string) {
     return this.svc.dailyCollection(date);
+  }
+  @Requires('reports.view')
+  @Get('revenue')
+  revenue(@Query('days') days?: string) {
+    return this.svc.revenue(Number(days) || 30);
   }
   @Requires('reports.view')
   @Get('outstanding')
