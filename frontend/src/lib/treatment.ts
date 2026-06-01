@@ -49,7 +49,14 @@ export function useTreatment(patientId?: string) {
 
 export function useTreatmentMutations(patientId: string) {
   const qc = useQueryClient();
-  const inval = () => qc.invalidateQueries({ queryKey: ['treatment', patientId] });
+  // Treatment changes affect the account total/balance + appointment due → refresh those too.
+  const inval = () => {
+    qc.invalidateQueries({ queryKey: ['treatment', patientId] });
+    qc.invalidateQueries({ queryKey: ['ledger', patientId] });
+    qc.invalidateQueries({ queryKey: ['appointments'] });
+    qc.invalidateQueries({ queryKey: ['appointments-range'] });
+    qc.invalidateQueries({ queryKey: ['dashboard'] });
+  };
   return {
     createPlan: useMutation({
       mutationFn: async (title: string) => (await api.post(`/patients/${patientId}/treatment`, { title })).data,
