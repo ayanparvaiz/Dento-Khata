@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -86,6 +86,8 @@ export function Users() {
 function UserRow({ user, caps, onUpdate }: { user: User; caps: Cap[]; onUpdate: (b: any) => void }) {
   const [open, setOpen] = useState(false);
   const [perms, setPerms] = useState<string[]>(user.permissions ?? []);
+  // Reflect the user's saved permissions (re-sync when the list refetches).
+  useEffect(() => { setPerms(user.permissions ?? []); }, [JSON.stringify(user.permissions)]);
   const toggle = (k: string) => setPerms((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
 
   return (

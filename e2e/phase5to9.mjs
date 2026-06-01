@@ -114,8 +114,8 @@ try {
 
   /* ---------- Catalog (admin manual entry) ---------- */
   await page.getByRole('link', { name: 'Catalog' }).click();
-  await page.getByRole('heading', { name: 'Add medicine' }).waitFor({ timeout: 10000 });
-  ok('catalog (manual drug/procedure entry) loads');
+  await page.getByRole('button', { name: /Add medicine/i }).waitFor({ timeout: 10000 });
+  ok('catalog (medicine/procedure CRUD) loads');
 } catch (e) {
   bad('exception', e.message);
 } finally {

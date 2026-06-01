@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Injectable, Module, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Injectable, Module, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../auth/roles.decorator';
@@ -15,7 +15,7 @@ class DrugDto {
 
 @Injectable()
 class DrugsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
   async findAll(search?: string) {
     if (!search) {
       return this.prisma.drug.findMany({
@@ -58,11 +58,15 @@ class DrugsService {
   update(id: string, dto: Partial<DrugDto>) {
     return this.prisma.drug.update({ where: { id }, data: dto });
   }
+  remove(id: string) {
+    // soft-delete: hide from lists but keep references intact
+    return this.prisma.drug.update({ where: { id }, data: { isActive: false } });
+  }
 }
 
 @Controller('drugs')
 class DrugsController {
-  constructor(private svc: DrugsService) {}
+  constructor(private svc: DrugsService) { }
   @Get()
   findAll(@Query('search') search?: string) {
     return this.svc.findAll(search);
@@ -75,7 +79,11 @@ class DrugsController {
   update(@Param('id') id: string, @Body() dto: DrugDto) {
     return this.svc.update(id, dto);
   }
+  @UseGuards(RolesGuard) @Roles('ADMIN') @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.svc.remove(id);
+  }
 }
 
 @Module({ providers: [DrugsService], controllers: [DrugsController] })
-export class DrugsModule {}
+export class DrugsModule { }

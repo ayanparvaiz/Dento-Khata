@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Injectable, Param, Patch, Post, Query, UseGuards, Module } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Injectable, Param, Patch, Post, Query, UseGuards, Module } from '@nestjs/common';
 import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../auth/roles.decorator';
@@ -30,6 +30,9 @@ class ProceduresService {
   update(id: string, dto: Partial<ProcedureDto>) {
     return this.prisma.procedure.update({ where: { id }, data: dto });
   }
+  remove(id: string) {
+    return this.prisma.procedure.update({ where: { id }, data: { isActive: false } });
+  }
 }
 
 @Controller('procedures')
@@ -50,6 +53,12 @@ class ProceduresController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: ProcedureDto) {
     return this.svc.update(id, dto);
+  }
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.svc.remove(id);
   }
 }
 
