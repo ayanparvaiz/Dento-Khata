@@ -6,6 +6,7 @@ import {
   useAppointments, useAppointmentsRange, useApptMutations, useAvailability, useAvailabilityRange, taka, type Appointment,
 } from '@/lib/clinical';
 import { usePatients } from '@/lib/patients';
+import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,8 +60,23 @@ export function Appointments() {
   const week = useAppointmentsRange(wkStart, wkEnd, view === 'week');
 
   const { data: dentists = [] } = useQuery<any[]>({ queryKey: ['dentists'], queryFn: async () => (await api.get('/appointments/dentists')).data });
+  const { can } = useAuth();
   const [psearch, setPsearch] = useState('');
   const { data: pdata } = usePatients(psearch);
+  // Inline new-patient quick-add (so receptionist needn't leave the booking screen).
+  const [quick, setQuick] = useState<{ name: string; phone: string } | null>(null);
+  const [quickBusy, setQuickBusy] = useState(false);
+  const createPatientInline = async () => {
+    if (!quick?.name.trim()) return;
+    setQuickBusy(true);
+    try {
+      const { data } = await api.post('/patients', { fullName: quick.name, phone: quick.phone || undefined });
+      setForm((f) => ({ ...f, patientId: data.id, patientName: data.fullName }));
+      setQuick(null); setPsearch('');
+    } finally {
+      setQuickBusy(false);
+    }
+  };
   const [params] = useSearchParams();
   const [form, setForm] = useState({
     patientId: params.get('patientId') || '',
@@ -165,6 +181,16 @@ export function Appointments() {
                   <span>{form.patientName}</span>
                   <button className="text-xs text-muted-foreground" onClick={() => setForm({ ...form, patientId: '', patientName: '' })}>change</button>
                 </div>
+              ) : quick ? (
+                /* Inline new-patient form — no need to leave the booking screen */
+                <div className="space-y-2 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2">
+                  <Input placeholder="Full name *" value={quick.name} onChange={(e) => setQuick({ ...quick, name: e.target.value })} autoFocus />
+                  <Input placeholder="Phone" value={quick.phone} onChange={(e) => setQuick({ ...quick, phone: e.target.value })} />
+                  <div className="flex gap-2">
+                    <Button size="sm" disabled={!quick.name.trim() || quickBusy} onClick={createPatientInline}>Create &amp; select</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setQuick(null)}>Cancel</Button>
+                  </div>
+                </div>
               ) : (
                 <>
                   <Input placeholder="Search patient…" value={psearch} onChange={(e) => setPsearch(e.target.value)} />
@@ -176,7 +202,14 @@ export function Appointments() {
                           {p.fullName} <span className="text-xs text-muted-foreground">{p.code} · {p.phone || 'no phone'}</span>
                         </button>
                       ))}
+                      {(pdata?.items ?? []).length === 0 && <div className="px-2 py-1 text-xs text-muted-foreground">No match.</div>}
                     </div>
+                  )}
+                  {can('patients.manage') && (
+                    <button className="mt-1 text-xs font-medium text-primary hover:underline"
+                      onClick={() => setQuick({ name: psearch, phone: '' })}>
+                      + New patient
+                    </button>
                   )}
                 </>
               )}
