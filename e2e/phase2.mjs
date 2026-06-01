@@ -62,8 +62,8 @@ try {
 
   // 6. Search finds the patient
   await page.getByRole('link', { name: 'Patients' }).click();
-  await page.getByPlaceholder(/search/i).fill(name.split(' ')[0]);
-  await page.getByText(name).waitFor({ timeout: 10000 });
+  await page.getByPlaceholder(/search/i).fill(name.split(' ')[2]); // unique numeric suffix
+  await page.getByText(name).first().waitFor({ timeout: 10000 });
   await shot('p2-05-search');
   ok('search finds patient');
 } catch (e) {
