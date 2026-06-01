@@ -1,0 +1,15 @@
+{
+  "name": "dentist-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline LAN dental practice management — run scripts",
+  "scripts": {
+    "install:all": "pnpm --dir backend install && pnpm --dir frontend install",
+    "build": "pnpm --dir frontend build && pnpm --dir backend build",
+    "dev": "concurrently -k -n api,web -c green,cyan \"pnpm --dir backend start:dev\" \"pnpm --dir frontend dev\"",
+    "start": "pnpm run build && pnpm --dir backend start:prod"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

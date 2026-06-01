@@ -19,11 +19,23 @@ pnpm --dir frontend build
 pnpm --dir backend build
 ```
 
+## Quick scripts (from project root)
+
+```bash
+pnpm install:all   # one-time: install backend + frontend deps
+pnpm dev           # DEV: backend (watch, :3000) + frontend (HMR, :5173) together — open :5173
+pnpm start         # PROD: builds both, serves the whole app on ONE port → :3000
+```
+
+Both run in the foreground — **closing the terminal (Ctrl+C) stops the server(s)**.
+- `pnpm dev` → develop with hot-reload; open `http://localhost:5173`.
+- `pnpm start` → production/clinic mode; open `http://localhost:3000` (+ phone on `http://<LAN-IP>:3000`).
+
 ## B. Run (every day / on boot)
 
 ```bash
 cd backend
-node dist/main.js
+node dist/main.js     # if already built; or just `pnpm start` from root
 ```
 
 On start the server automatically:
