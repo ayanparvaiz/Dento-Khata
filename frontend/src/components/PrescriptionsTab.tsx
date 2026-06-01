@@ -89,7 +89,7 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
   const numChip = 'flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground';
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
       {/* ---- Builder (left, wider) ---- */}
       <div className="space-y-4 lg:col-span-3">
         {/* 1. Diagnosis */}

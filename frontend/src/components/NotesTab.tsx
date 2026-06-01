@@ -20,7 +20,7 @@ export function NotesTab({ patientId }: { patientId: string }) {
   const [content, setContent] = useState('');
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card>
         <CardContent className="space-y-3 pt-5">
           <div className="flex flex-wrap gap-1">

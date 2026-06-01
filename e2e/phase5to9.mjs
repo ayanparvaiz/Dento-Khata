@@ -102,8 +102,8 @@ try {
 
   /* ---------- PHASE 7: Reports ---------- */
   await page.getByRole('link', { name: 'Reports' }).click();
-  await page.getByText('Daily collection').waitFor({ timeout: 10000 });
-  if (await page.getByText(/Outstanding dues/).isVisible()) ok('reports: daily collection + outstanding dues render');
+  await page.getByText('Revenue trend').first().waitFor({ timeout: 10000 });
+  if (await page.getByText(/Outstanding dues/).isVisible()) ok('reports: revenue analytics + outstanding dues render');
   await shot('p5_05-reports');
 
   /* ---------- PHASE 9: Settings backup (admin) ---------- */

@@ -37,34 +37,59 @@ export function PatientsList() {
 
       <Card>
         <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="p-3">ID</th>
-                <th className="p-3">Name</th>
-                <th className="p-3">Gender</th>
-                <th className="p-3">Age</th>
-                <th className="p-3">Phone</th>
-                <th className="p-3">Registered</th>
-              </tr>
-            </thead>
-            <tbody>
-              {patients.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => navigate(`/patients/${p.id}`)}
-                  className="cursor-pointer border-b border-border/60 hover:bg-muted"
-                >
-                  <td className="p-3 font-mono text-xs">{p.code}</td>
-                  <td className="p-3 font-medium">{p.fullName}</td>
-                  <td className="p-3">{p.gender ?? '—'}</td>
-                  <td className="p-3">{ageFromDob(p.dateOfBirth)}</td>
-                  <td className="p-3">{p.phone ?? '—'}</td>
-                  <td className="p-3 text-muted-foreground">{fmtDate(p.createdAt)}</td>
+          {/* Desktop / tablet: full table */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-muted-foreground">
+                  <th className="p-3">ID</th>
+                  <th className="p-3">Name</th>
+                  <th className="p-3">Gender</th>
+                  <th className="p-3">Age</th>
+                  <th className="p-3">Phone</th>
+                  <th className="p-3">Registered</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {patients.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => navigate(`/patients/${p.id}`)}
+                    className="cursor-pointer border-b border-border/60 hover:bg-muted"
+                  >
+                    <td className="p-3 font-mono text-xs">{p.code}</td>
+                    <td className="p-3 font-medium">{p.fullName}</td>
+                    <td className="p-3">{p.gender ?? '—'}</td>
+                    <td className="p-3">{ageFromDob(p.dateOfBirth)}</td>
+                    <td className="p-3">{p.phone ?? '—'}</td>
+                    <td className="p-3 text-muted-foreground">{fmtDate(p.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile: stacked cards so nothing gets cut off */}
+          <div className="divide-y divide-border/60 md:hidden">
+            {patients.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => navigate(`/patients/${p.id}`)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary">
+                  {p.fullName.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{p.fullName}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    <span className="font-mono">{p.code}</span> · {p.gender ?? '—'} · {ageFromDob(p.dateOfBirth)} · {p.phone ?? 'no phone'}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
           {!isLoading && patients.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
               <UserPlus className="h-8 w-8" />

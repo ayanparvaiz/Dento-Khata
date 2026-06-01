@@ -125,13 +125,13 @@ export function PatientDetail() {
       )}
 
       {/* Tabs — pill segmented control: active = solid teal, inactive = clear dark text */}
-      <div className="mb-4 flex flex-wrap gap-1 rounded-xl border border-border bg-muted/60 p-1">
+      <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl border border-border bg-muted/60 p-1 lg:flex-wrap [&::-webkit-scrollbar]:hidden">
         {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              'rounded-lg px-3 py-1.5 text-sm font-semibold transition-all',
+              'shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold transition-all',
               tab === t
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-slate-600 hover:bg-white hover:text-foreground',
@@ -281,7 +281,7 @@ function PatientAppointments({ patientId, patientName }: { patientId: string; pa
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle>Upcoming ({upcoming.length})</CardTitle>
@@ -345,7 +345,7 @@ function OverviewTab({ patient, onTab }: { patient: import('@/lib/patients').Pat
         <Tile label="Invoices" value={String(c.invoices ?? 0)} onClick={() => onTab('Treatment & Billing')} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card>
           <CardHeader><CardTitle>Personal</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">

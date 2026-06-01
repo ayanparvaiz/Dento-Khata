@@ -120,36 +120,38 @@ export function Appointments() {
   const nav = (dir: number) => setAnchor(addDays(anchor, view === 'week' ? dir * 7 : dir));
 
   const ApptRow = ({ a }: { a: Appointment }) => (
-    <div className="flex items-center gap-3 rounded-md border border-border p-3">
-      <div className="w-24 shrink-0 text-sm font-medium">{hm(a.startTime)}–{hm(a.endTime)}</div>
-      <div className="min-w-0 flex-1">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border p-3">
+      <div className="w-20 shrink-0 text-sm font-medium tabular-nums">{hm(a.startTime)}</div>
+      <div className="min-w-0 flex-1 basis-40">
         <button className="font-medium hover:underline" onClick={() => navigate(`/patients/${a.patientId}`)}>{a.patient?.fullName}</button>
-        <div className="text-xs text-muted-foreground">
+        <div className="truncate text-xs text-muted-foreground">
           {a.patient?.phone || 'no phone'} · {a.chair}{a.dentist ? ` · ${a.dentist.fullName}` : ''}{a.reason ? ` · ${a.reason}` : ''}
         </div>
       </div>
-      {/* Outstanding due → click goes straight to this patient's billing */}
-      {(a.due ?? 0) > 0 ? (
-        <button
-          onClick={() => navigate(`/patients/${a.patientId}?tab=${encodeURIComponent('Treatment & Billing')}`)}
-          className="rounded-full bg-danger/10 px-2 py-1 text-xs font-semibold text-danger hover:bg-danger/20"
-          title="Outstanding due — open billing"
-        >
-          Due {taka(a.due || 0)}
-        </button>
-      ) : (
-        <button
-          onClick={() => navigate(`/patients/${a.patientId}?tab=${encodeURIComponent('Treatment & Billing')}`)}
-          className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground hover:bg-muted/70"
-          title="Open billing"
-        >
-          Billing
-        </button>
-      )}
-      <Select className={`h-8 w-32 text-xs ${STATUS_COLOR[a.status] || ''}`} value={a.status} onChange={(e) => m.update.mutate({ id: a.id, status: e.target.value })}>
-        {STATUSES.map((s) => <option key={s}>{s}</option>)}
-      </Select>
-      <button onClick={() => m.remove.mutate(a.id)} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+      <div className="ml-auto flex items-center gap-2">
+        {/* Outstanding due → click goes straight to this patient's billing */}
+        {(a.due ?? 0) > 0 ? (
+          <button
+            onClick={() => navigate(`/patients/${a.patientId}?tab=${encodeURIComponent('Treatment & Billing')}`)}
+            className="rounded-full bg-danger/10 px-2 py-1 text-xs font-semibold text-danger hover:bg-danger/20"
+            title="Outstanding due — open billing"
+          >
+            Due {taka(a.due || 0)}
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate(`/patients/${a.patientId}?tab=${encodeURIComponent('Treatment & Billing')}`)}
+            className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground hover:bg-muted/70"
+            title="Open billing"
+          >
+            Billing
+          </button>
+        )}
+        <Select className={`h-8 w-28 text-xs ${STATUS_COLOR[a.status] || ''}`} value={a.status} onChange={(e) => m.update.mutate({ id: a.id, status: e.target.value })}>
+          {STATUSES.map((s) => <option key={s}>{s}</option>)}
+        </Select>
+        <button onClick={() => m.remove.mutate(a.id)} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+      </div>
     </div>
   );
 
@@ -157,7 +159,7 @@ export function Appointments() {
     <div className="p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Appointments</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-md border border-border">
             <button onClick={() => setView('day')} className={`px-3 py-1 text-sm ${view === 'day' ? 'bg-primary text-primary-foreground' : ''}`}>Day</button>
             <button onClick={() => setView('week')} className={`px-3 py-1 text-sm ${view === 'week' ? 'bg-primary text-primary-foreground' : ''}`}>Week</button>
@@ -169,7 +171,7 @@ export function Appointments() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Booking */}
         <Card className="lg:col-span-1 self-start">
           <CardHeader><CardTitle>Book appointment</CardTitle></CardHeader>
@@ -251,10 +253,10 @@ export function Appointments() {
                 {dentists.map((d) => <option key={d.id} value={d.id}>{d.fullName}</option>)}
               </Select>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div><Label>Chair</Label><Select value={form.chair} onChange={(e) => setForm({ ...form, chair: e.target.value })}><option>Chair 1</option><option>Chair 2</option></Select></div>
-              <div><Label>Start</Label><Input type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value, end: addMinutes(e.target.value, Number(form.duration)) })} /></div>
-              <div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="min-w-0"><Label>Chair</Label><Select value={form.chair} onChange={(e) => setForm({ ...form, chair: e.target.value })}><option>Chair 1</option><option>Chair 2</option></Select></div>
+              <div className="min-w-0"><Label>Start</Label><Input type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value, end: addMinutes(e.target.value, Number(form.duration)) })} /></div>
+              <div className="min-w-0">
                 <Label>Duration</Label>
                 <Select value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value, end: addMinutes(form.start, Number(e.target.value)) })}>
                   <option value="30">30 min</option>
@@ -308,8 +310,8 @@ export function Appointments() {
           ) : (
             <Card>
               <CardHeader><CardTitle>Week of {new Date(wkStart).toDateString()}</CardTitle></CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-7 gap-1 text-xs">
+              <CardContent className="overflow-x-auto">
+                <div className="grid min-w-[640px] grid-cols-7 gap-1 text-xs">
                   {Array.from({ length: 7 }, (_, i) => addDays(wkStart, i)).map((d) => {
                     const list = (week.data ?? []).filter((a) => iso(new Date(a.startTime)) === d);
                     const isToday = d === today();

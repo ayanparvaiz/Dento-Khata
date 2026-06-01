@@ -37,7 +37,7 @@ export function Users() {
       <h1 className="mb-1 text-2xl font-bold">Users &amp; Roles</h1>
       <p className="mb-6 text-sm text-muted-foreground">Admin can do everything. An assistant can only do what you tick below.</p>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Add user */}
         <Card className="lg:col-span-1 self-start">
           <CardHeader><CardTitle>Add user</CardTitle></CardHeader>

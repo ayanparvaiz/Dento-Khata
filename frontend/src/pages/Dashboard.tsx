@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useDashboard, taka } from '@/lib/clinical';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserPlus, CalendarDays, CalendarRange, Stethoscope, CheckCircle2, Wallet, AlertCircle } from 'lucide-react';
+import { Users, CalendarDays, CalendarRange, Stethoscope, Wallet, AlertCircle } from 'lucide-react';
 
 const fmtTime = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const STATUS_TONE: Record<string, string> = {
@@ -22,7 +22,7 @@ function Stat({ icon: Icon, label, value, sub, tone, onClick }: any) {
       <CardContent className="flex items-center gap-3 p-4">
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tones[tone]}`}><Icon className="h-5 w-5" /></div>
         <div className="min-w-0">
-          <div className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className="truncate text-sm font-medium text-muted-foreground">{label}</div>
           <div className="truncate text-2xl font-bold leading-tight">{value}</div>
           {sub && <div className="truncate text-xs text-muted-foreground">{sub}</div>}
         </div>
@@ -60,18 +60,16 @@ export function Dashboard() {
       </p>
 
       {/* KPI grid */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat icon={Users} tone="primary" label="Patients" value={data?.patients ?? '—'} sub={`+${data?.newPatientsMonth ?? 0} this month`} onClick={() => navigate('/patients')} />
-        <Stat icon={CalendarDays} tone="blue" label="Today's Appts" value={data?.todayAppointments ?? '—'} sub={`${data?.weekAppointments ?? 0} this week`} onClick={() => navigate('/appointments')} />
-        <Stat icon={Wallet} tone="green" label="Revenue Today" value={data ? taka(data.revenueToday) : '—'} sub={`${data?.paymentsToday ?? 0} payments`} onClick={() => navigate('/reports')} />
-        <Stat icon={AlertCircle} tone="red" label="Outstanding" value={data ? taka(data.outstanding) : '—'} sub={`${data?.topDues?.length ?? 0}+ patients owe`} onClick={() => navigate('/reports')} />
-        <Stat icon={UserPlus} tone="violet" label="New (month)" value={data?.newPatientsMonth ?? '—'} onClick={() => navigate('/patients')} />
-        <Stat icon={Stethoscope} tone="amber" label="Pending Tx" value={data?.pendingTreatments ?? '—'} sub="planned items" onClick={() => navigate('/patients')} />
-        <Stat icon={CheckCircle2} tone="green" label="Completed Tx" value={data?.completedTreatments ?? '—'} onClick={() => navigate('/patients')} />
-        <Stat icon={CalendarRange} tone="blue" label="Revenue (month)" value={data ? taka(data.revenueMonth) : '—'} sub={`total ${data ? taka(data.revenueTotal) : '—'}`} onClick={() => navigate('/reports')} />
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Stat icon={Users} tone="primary" label="Total Patients" value={data?.patients ?? '—'} sub={`${data?.newPatientsMonth ?? 0} new this month`} onClick={() => navigate('/patients')} />
+        <Stat icon={CalendarDays} tone="blue" label="Today's Appointments" value={data?.todayAppointments ?? '—'} sub={`${data?.weekAppointments ?? 0} this week`} onClick={() => navigate('/appointments')} />
+        <Stat icon={Wallet} tone="green" label="Revenue Today" value={data ? taka(data.revenueToday) : '—'} sub={`${data?.paymentsToday ?? 0} payments collected`} onClick={() => navigate('/reports')} />
+        <Stat icon={CalendarRange} tone="violet" label="Revenue This Month" value={data ? taka(data.revenueMonth) : '—'} sub={`${data ? taka(data.revenueTotal) : '—'} all-time`} onClick={() => navigate('/reports')} />
+        <Stat icon={Stethoscope} tone="amber" label="Pending Treatments" value={data?.pendingTreatments ?? '—'} sub={`${data?.completedTreatments ?? 0} completed`} onClick={() => navigate('/patients')} />
+        <Stat icon={AlertCircle} tone="red" label="Outstanding Dues" value={data ? taka(data.outstanding) : '—'} sub={`${data?.topDues?.length ?? 0} patients owe`} onClick={() => navigate('/reports')} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Today's schedule */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">

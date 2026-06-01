@@ -14,7 +14,7 @@ export function Catalog() {
     <div className="p-6">
       <h1 className="mb-1 text-2xl font-bold">Catalog</h1>
       <p className="mb-6 text-sm text-muted-foreground">Search, add, edit or remove medicines and procedures. Ships with 8,900+ BD dental medicines.</p>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Medicines />
         <Procedures />
       </div>
