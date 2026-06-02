@@ -11,11 +11,11 @@
 set -euo pipefail
 
 # ===================== config (override via env) =====================
-SSH_TARGET="${SSH_TARGET:-ubuntu@dentist.devcenter.dev}"   # who/where to deploy
+SSH_TARGET="${SSH_TARGET:-dentist@dentist.devcenter.dev}"  # who/where to deploy
 DOMAIN="${DOMAIN:-dentist.devcenter.dev}"                  # A-record points here
 PORT="${PORT:-4100}"                                       # internal port (NOT ichat's)
-APP_DIR="${APP_DIR:-/home/ubuntu/apps/dentist-app}"        # code lives here (ubuntu owns it)
-DATA_DIR="${DATA_DIR:-/home/ubuntu/dentist-data}"          # DB+uploads+backups (survive redeploys)
+APP_DIR="${APP_DIR:-/home/dentist/apps/dentist-app}"       # code lives here (dentist owns it)
+DATA_DIR="${DATA_DIR:-/home/dentist/dentist-data}"         # DB+uploads+backups (survive redeploys)
 PM2_NAME="${PM2_NAME:-dentist-api}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-contact@finallyfreeproductions.com}"
 SEED="${SEED:-auto}"                                       # auto | force | never
