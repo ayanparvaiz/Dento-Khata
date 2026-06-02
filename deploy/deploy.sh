@@ -69,6 +69,8 @@ npm --prefix frontend install --legacy-peer-deps --no-audit --no-fund
 ( cd backend  && ./node_modules/.bin/nest build )
 
 # --- database (persistent, outside the app dir) ---
+# Stop the running app first so it releases the SQLite file (else: "database is locked").
+pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true
 mkdir -p "$DATA_DIR"
 FRESH=0; [ -s "$DATA_DIR/dental.db" ] || FRESH=1
 export DATABASE_URL="file:$DATA_DIR/dental.db"
