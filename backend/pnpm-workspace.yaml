@@ -1,0 +1,7 @@
+# pnpm 10 reads build-script allowlist from here (not package.json's "pnpm" field).
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - prisma
+  - '@nestjs/core'
+  - bcryptjs

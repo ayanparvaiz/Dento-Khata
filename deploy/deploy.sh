@@ -58,19 +58,24 @@ command -v rsync >/dev/null || sudo apt-get install -y rsync
 cd "$APP_DIR"
 
 # --- install + build ---
-pnpm --dir backend install --prod=false
-pnpm --dir frontend install --prod=false
-VITE_API_URL=/api pnpm --dir frontend build      # same-origin API -> goes through nginx
-pnpm --dir backend build
+# Use npm on the server: pnpm 10 hard-aborts on "ignored build scripts" and won't run
+# Prisma's engine build non-interactively. npm runs lifecycle scripts by default.
+rm -rf backend/node_modules frontend/node_modules
+npm --prefix backend  install --legacy-peer-deps --no-audit --no-fund
+npm --prefix frontend install --legacy-peer-deps --no-audit --no-fund
+
+( cd backend  && ./node_modules/.bin/prisma generate )                       # query engine + client
+( cd frontend && ./node_modules/.bin/tsc -b && VITE_API_URL=/api ./node_modules/.bin/vite build )  # same-origin API
+( cd backend  && ./node_modules/.bin/nest build )
 
 # --- database (persistent, outside the app dir) ---
 mkdir -p "$DATA_DIR"
 FRESH=0; [ -s "$DATA_DIR/dental.db" ] || FRESH=1
 export DATABASE_URL="file:$DATA_DIR/dental.db"
-pnpm --dir backend exec prisma migrate deploy
+( cd backend && ./node_modules/.bin/prisma migrate deploy )
 if [ "$SEED" = "force" ] || { [ "$SEED" = "auto" ] && [ "$FRESH" = "1" ]; }; then
   echo "   seeding demo data…"
-  pnpm --dir backend exec ts-node prisma/seed.ts || echo "   (seed skipped/failed — continuing)"
+  ( cd backend && ./node_modules/.bin/ts-node prisma/seed.ts ) || echo "   (seed skipped/failed — continuing)"
 fi
 
 # --- run via pm2 (cwd=backend so it can serve ../frontend/dist) ---
