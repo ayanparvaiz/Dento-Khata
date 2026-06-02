@@ -33,7 +33,7 @@ ssh "$SSH_TARGET" "mkdir -p '$APP_DIR' '$DATA_DIR'"
 rsync -az --delete \
   --exclude '.git' --exclude 'node_modules' \
   --exclude 'frontend/dist' --exclude 'backend/dist' \
-  --exclude 'data' --exclude 'backend/prisma/data' --exclude '*.db' --exclude '*.db-*' \
+  --exclude '/data' --exclude '*.db' --exclude '*.db-*' \
   --exclude 'e2e/shots' --exclude 'e2e/node_modules' \
   "$REPO/" "$SSH_TARGET:$APP_DIR/"
 

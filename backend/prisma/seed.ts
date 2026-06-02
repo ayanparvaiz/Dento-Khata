@@ -140,6 +140,233 @@ async function main() {
   }
   const totalDrugs = await prisma.drug.count();
   console.log(`Seed complete: ${procedures.length} procedures, ${totalDrugs} drugs (dental, MedEx BD, all brands).`);
+
+  await seedDemo();
+}
+
+// ---------------------------------------------------------------------------
+// Demo data — realistic patients, treatments, payments, appointments, charting,
+// prescriptions & notes so the app isn't empty for a demo.
+// Idempotent: only runs on a fresh DB (no patients yet), so redeploys never dupe.
+// ---------------------------------------------------------------------------
+async function seedDemo() {
+  const existing = await prisma.patient.count();
+  if (existing > 0) {
+    console.log(`Demo seed skipped — ${existing} patient(s) already present.`);
+    return;
+  }
+
+  const dentist = await prisma.user.upsert({
+    where: { username: 'dr.rahman' },
+    update: {},
+    create: { username: 'dr.rahman', passwordHash: await bcrypt.hash('dentist123', 10), fullName: 'Dr. S. Rahman', role: 'ADMIN' },
+  });
+
+  const P = Object.fromEntries((await prisma.procedure.findMany()).map((p) => [p.code, p] as const));
+  const now = new Date();
+  const day = (n: number) => { const d = new Date(now); d.setDate(d.getDate() + n); return d; };
+  const at = (d: Date, h: number, m = 0) => { const x = new Date(d); x.setHours(h, m, 0, 0); return x; };
+  let seq = 0;
+  const code = () => `P-${String(++seq).padStart(5, '0')}`;
+
+  const item = (c: string, o: { tooth?: string; status?: string; doneDaysAgo?: number; priority?: number } = {}) => ({
+    procedureId: P[c].id,
+    fee: P[c].defaultFee,
+    toothNumber: o.tooth ?? null,
+    priority: o.priority ?? 0,
+    status: o.status ?? 'PLANNED',
+    completedAt: o.status === 'COMPLETED' ? day(-(o.doneDaysAgo ?? 7)) : null,
+    billed: o.status === 'COMPLETED',
+  });
+  const rx = async (name: string, dosage: string, frequency: string, duration: string, instruction?: string) => {
+    const d = await prisma.drug.findFirst({ where: { name } });
+    return { drugId: d?.id ?? null, drugName: d?.name ?? name, generic: d?.generic ?? null, dosage, frequency, duration, route: 'Oral', instruction };
+  };
+
+  async function patient(data: any, opts: {
+    medical?: any; teeth?: any[]; plans?: any[]; notes?: string[];
+    prescriptions?: { diagnosis: string; advice?: string; items: any[] }[];
+    appts?: { start: Date; dur?: number; status: string; reason?: string; chair?: string }[];
+    payments?: { amount: number; method: string; daysAgo: number; note?: string }[];
+  }) {
+    const p = await prisma.patient.create({
+      data: {
+        code: code(),
+        ...data,
+        medicalHistory: opts.medical ? { create: opts.medical } : undefined,
+        toothRecords: opts.teeth ? { create: opts.teeth } : undefined,
+        clinicalNotes: opts.notes ? { create: opts.notes.map((content) => ({ content, authorId: dentist.id })) } : undefined,
+        treatmentPlans: opts.plans
+          ? { create: opts.plans.map((pl) => ({ title: pl.title, status: pl.status, items: { create: pl.items } })) }
+          : undefined,
+      },
+    });
+    let completedAppt: string | undefined;
+    for (const a of opts.appts ?? []) {
+      const ap = await prisma.appointment.create({
+        data: {
+          patientId: p.id, dentistId: dentist.id, chair: a.chair ?? 'Chair 1',
+          startTime: a.start, endTime: new Date(a.start.getTime() + (a.dur ?? 30) * 60000),
+          status: a.status, reason: a.reason,
+        },
+      });
+      if (a.status === 'COMPLETED') completedAppt = ap.id;
+    }
+    for (const pay of opts.payments ?? []) {
+      await prisma.payment.create({
+        data: {
+          patientId: p.id, amount: pay.amount, method: pay.method, note: pay.note,
+          paidAt: at(day(-pay.daysAgo), 11 + (seq % 6), (seq * 7) % 60),
+          appointmentId: completedAppt, receivedBy: dentist.fullName,
+        },
+      });
+    }
+    for (const r of opts.prescriptions ?? []) {
+      await prisma.prescription.create({
+        data: { patientId: p.id, dentistId: dentist.id, diagnosis: r.diagnosis, advice: r.advice, items: { create: r.items } },
+      });
+    }
+    return p;
+  }
+
+  // 1) Karim Ahmed — RCT + crown in progress, penicillin allergy (alert), part-paid
+  await patient(
+    { fullName: 'Karim Ahmed', gender: 'MALE', dateOfBirth: new Date('1989-04-12'), phone: '01711111111', address: 'Dhanmondi, Dhaka', bloodGroup: 'B+', occupation: 'Banker', maritalStatus: 'MARRIED' },
+    {
+      medical: { allergies: 'Penicillin, Latex', conditions: 'Hypertension', medications: 'Amlodipine 5mg', habits: 'Occasional smoking', premedRequired: true },
+      teeth: [
+        { toothNumber: '46', condition: 'RCT', status: 'COMPLETED', note: 'RCT done, crown pending' },
+        { toothNumber: '36', surface: 'O', condition: 'CARIES', status: 'EXISTING' },
+        { toothNumber: '16', condition: 'FILLED', status: 'EXISTING' },
+      ],
+      plans: [{ title: 'RCT & crown — lower right molar', status: 'IN_PROGRESS', items: [
+        item('D0120', { status: 'COMPLETED', doneDaysAgo: 34 }),
+        item('D3330', { tooth: '46', status: 'COMPLETED', doneDaysAgo: 20 }),
+        item('D2750', { tooth: '46', status: 'PLANNED' }),
+      ] }],
+      payments: [
+        { amount: 2000, method: 'CASH', daysAgo: 34, note: 'Consultation + part RCT' },
+        { amount: 3000, method: 'BKASH', daysAgo: 20 },
+        { amount: 2000, method: 'CASH', daysAgo: 6 },
+      ],
+      prescriptions: [{ diagnosis: 'Irreversible pulpitis 46 — post RCT', advice: 'Avoid chewing on the treated side until crown is placed.', items: [
+        await rx('Moxacil', '1+0+1', 'Twice daily', '7 days', 'After meal'),
+        await rx('Tory', '0+0+1', 'Once daily', '5 days', 'After meal — for pain'),
+        await rx('Orobex', '10 ml', 'Rinse twice daily', '7 days', 'Do not swallow'),
+      ] }],
+      appts: [
+        { start: at(day(-20), 11, 0), dur: 60, status: 'COMPLETED', reason: 'Root canal — molar' },
+        { start: at(day(4), 17, 0), dur: 60, status: 'CONFIRMED', reason: 'Crown fitting' },
+      ],
+      notes: ['Patient tolerated RCT well. Crown impression to be taken next visit.'],
+    },
+  );
+
+  // 2) Fatema Begum — braces, monthly installments (big revenue), regular adjustments
+  await patient(
+    { fullName: 'Fatema Begum', gender: 'FEMALE', dateOfBirth: new Date('2002-09-23'), phone: '01822222222', address: 'Uttara, Dhaka', bloodGroup: 'O+', occupation: 'Student', maritalStatus: 'SINGLE' },
+    {
+      medical: { conditions: '', habits: '' },
+      teeth: [{ toothNumber: '21', condition: 'CARIES', status: 'EXISTING', surface: 'M' }],
+      plans: [{ title: 'Orthodontic treatment (fixed braces)', status: 'IN_PROGRESS', items: [
+        item('D0120', { status: 'COMPLETED', doneDaysAgo: 33 }),
+        item('D0210', { status: 'COMPLETED', doneDaysAgo: 33 }),
+        item('D8080', { status: 'PLANNED', priority: 1 }),
+      ] }],
+      payments: [
+        { amount: 8000, method: 'BKASH', daysAgo: 33, note: 'Braces down payment' },
+        { amount: 5000, method: 'CASH', daysAgo: 26 },
+        { amount: 5000, method: 'NAGAD', daysAgo: 12 },
+        { amount: 5000, method: 'CASH', daysAgo: 2 },
+      ],
+      appts: [
+        { start: at(day(-5), 13, 0), dur: 30, status: 'COMPLETED', reason: 'Monthly adjustment' },
+        { start: at(day(0), 16, 0), dur: 30, status: 'CONFIRMED', reason: 'Wire adjustment', chair: 'Chair 2' },
+      ],
+      notes: ['Good oral hygiene. Continue monthly adjustments.'],
+    },
+  );
+
+  // 3) Rahim Uddin — extraction + upper denture, fully paid
+  await patient(
+    { fullName: 'Rahim Uddin', gender: 'MALE', dateOfBirth: new Date('1958-01-05'), phone: '01933333333', address: 'Mirpur, Dhaka', bloodGroup: 'A+', occupation: 'Retired', maritalStatus: 'MARRIED' },
+    {
+      medical: { conditions: 'Diabetes (Type 2)', medications: 'Metformin 500mg', habits: 'Betel nut' },
+      teeth: [
+        { toothNumber: '26', condition: 'EXTRACTED', status: 'COMPLETED' },
+        { toothNumber: '11', condition: 'MISSING', status: 'EXISTING' },
+      ],
+      plans: [{ title: 'Extraction & complete upper denture', status: 'COMPLETED', items: [
+        item('D7140', { tooth: '26', status: 'COMPLETED', doneDaysAgo: 28 }),
+        item('D5110', { status: 'COMPLETED', doneDaysAgo: 8 }),
+      ] }],
+      payments: [
+        { amount: 1500, method: 'CASH', daysAgo: 28, note: 'Extraction' },
+        { amount: 15000, method: 'NAGAD', daysAgo: 18, note: 'Denture — advance' },
+        { amount: 10000, method: 'CASH', daysAgo: 8, note: 'Denture — balance' },
+      ],
+      appts: [{ start: at(day(-8), 12, 0), dur: 60, status: 'COMPLETED', reason: 'Denture delivery' }],
+      notes: ['Denture fit checked, patient comfortable. Recall in 6 months.'],
+    },
+  );
+
+  // 4) Ayesha Siddika — pregnant (alert), scaling done + filling planned
+  await patient(
+    { fullName: 'Ayesha Siddika', gender: 'FEMALE', dateOfBirth: new Date('1995-07-19'), phone: '01644444444', address: 'Banani, Dhaka', bloodGroup: 'AB+', occupation: 'Teacher', maritalStatus: 'MARRIED' },
+    {
+      medical: { isPregnant: true, conditions: '', notes: 'Second trimester — defer elective radiographs.' },
+      teeth: [{ toothNumber: '37', surface: 'O', condition: 'CARIES', status: 'EXISTING' }],
+      plans: [{ title: 'Cleaning & restoration', status: 'IN_PROGRESS', items: [
+        item('D1110', { status: 'COMPLETED', doneDaysAgo: 3 }),
+        item('D2391', { tooth: '37', status: 'PLANNED' }),
+      ] }],
+      payments: [{ amount: 1500, method: 'CASH', daysAgo: 3, note: 'Scaling & polishing' }],
+      appts: [
+        { start: at(day(-3), 10, 30), dur: 30, status: 'COMPLETED', reason: 'Scaling' },
+        { start: at(day(7), 11, 0), dur: 30, status: 'BOOKED', reason: 'Composite filling 37' },
+      ],
+      notes: ['Pregnant — avoided x-ray. Scaling done. Filling next visit.'],
+    },
+  );
+
+  // 5) Tanvir Hasan — implant consult (proposed, unpaid), appointment TODAY
+  await patient(
+    { fullName: 'Tanvir Hasan', gender: 'MALE', dateOfBirth: new Date('1986-11-30'), phone: '01555555555', address: 'Gulshan, Dhaka', bloodGroup: 'O-', occupation: 'Engineer', maritalStatus: 'MARRIED', referralSource: 'Google' },
+    {
+      medical: { conditions: '', habits: '' },
+      teeth: [{ toothNumber: '36', condition: 'MISSING', status: 'EXISTING', note: 'Lost 1 year ago' }],
+      plans: [{ title: 'Single tooth implant — 36', status: 'PROPOSED', items: [
+        item('D0210', { status: 'PLANNED' }),
+        item('D6010', { tooth: '36', status: 'PLANNED', priority: 1 }),
+      ] }],
+      appts: [{ start: at(day(0), 15, 0), dur: 60, status: 'ARRIVED', reason: 'Implant consultation' }],
+      notes: ['New patient. Discussed implant vs bridge. CBCT advised.'],
+    },
+  );
+
+  // 6) Nusrat Jahan — ceramic crown, part-paid by card
+  await patient(
+    { fullName: 'Nusrat Jahan', gender: 'FEMALE', dateOfBirth: new Date('1992-03-08'), phone: '01366666666', address: 'Bashundhara, Dhaka', bloodGroup: 'B-', occupation: 'Doctor', maritalStatus: 'SINGLE' },
+    {
+      medical: { allergies: '', conditions: '' },
+      teeth: [{ toothNumber: '24', condition: 'CROWN', status: 'PLANNED' }],
+      plans: [{ title: 'Ceramic crown — upper left premolar', status: 'IN_PROGRESS', items: [
+        item('D0120', { status: 'COMPLETED', doneDaysAgo: 10 }),
+        item('D2740', { tooth: '24', status: 'PLANNED' }),
+      ] }],
+      payments: [
+        { amount: 500, method: 'CARD', daysAgo: 10, note: 'Examination' },
+        { amount: 4000, method: 'CARD', daysAgo: 4, note: 'Crown — advance' },
+      ],
+      appts: [
+        { start: at(day(-10), 14, 0), dur: 30, status: 'COMPLETED', reason: 'Examination' },
+        { start: at(day(2), 13, 30), dur: 60, status: 'BOOKED', reason: 'Crown prep & impression' },
+      ],
+    },
+  );
+
+  const [pc, ac, payc] = await Promise.all([prisma.patient.count(), prisma.appointment.count(), prisma.payment.count()]);
+  console.log(`Demo seeded: ${pc} patients, ${ac} appointments, ${payc} payments, + treatments/charting/prescriptions.`);
 }
 
 main()
