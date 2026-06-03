@@ -108,7 +108,8 @@ export function AnatomicalTooth({
         {/* crown outline (filled with whole-tooth tint if any) */}
         <path d={crownPath(type, x0, x1, incY, gumY)} fill={wholeTint ? wholeTint + '40' : '#ffffff'} stroke={STROKE} strokeWidth="1.3" strokeLinejoin="round" />
 
-        {/* surface hit-zones — coloured when a surface has a finding, else transparent */}
+        {/* surface hit-zones — faint grid always visible so the user sees where to click;
+            fills in with colour once a surface has a finding */}
         {(Object.keys(zones) as Zone[]).map((zone) => {
           const surf = surfaceForZone(fdi, zone);
           const c = surfaceColor[surf];
@@ -117,8 +118,9 @@ export function AnatomicalTooth({
               key={zone}
               points={zones[zone]}
               fill={c ? c + 'cc' : 'transparent'}
-              stroke={c ? c : 'none'}
-              strokeWidth="0.5"
+              stroke={c || '#cbd5e1'}
+              strokeWidth="0.6"
+              className={c ? '' : 'transition-colors hover:fill-primary/20'}
               style={{ cursor: 'pointer', pointerEvents: 'all' }}
               onClick={(e) => { e.stopPropagation(); onZone(zone); }}
             />
