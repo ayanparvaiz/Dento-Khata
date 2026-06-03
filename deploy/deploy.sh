@@ -98,7 +98,15 @@ echo "==> [3/3] nginx vhost + certbot…"
 ssh "$SSH_TARGET" DOMAIN="$DOMAIN" PORT="$PORT" CERTBOT_EMAIL="$CERTBOT_EMAIL" 'bash -s' <<'REMOTE'
 set -euo pipefail
 CONF="/etc/nginx/sites-available/$DOMAIN"
-sudo tee "$CONF" >/dev/null <<EOF
+
+if [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+  # Already provisioned: certbot owns the vhost (443 + redirect). Don't rewrite it
+  # (that would strip HTTPS and force certbot to reconfigure every deploy). Just reload.
+  echo "   HTTPS already set up — leaving nginx/certbot as-is (auto-renews)."
+  sudo systemctl reload nginx
+else
+  # First time: write the http vhost, then let certbot add 443 + http->https redirect.
+  sudo tee "$CONF" >/dev/null <<EOF
 server {
     listen 80;
     server_name $DOMAIN;
@@ -113,13 +121,12 @@ server {
     }
 }
 EOF
-sudo ln -sf "$CONF" "/etc/nginx/sites-enabled/$DOMAIN"
-sudo nginx -t && sudo systemctl reload nginx
-
-# HTTPS (auto-redirects http->https). Needs port 80 open + DNS pointing here.
-command -v certbot >/dev/null || sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$CERTBOT_EMAIL" --redirect \
-  || echo "!! certbot failed — site is live on http:// only (check DNS/port 80)"
+  sudo ln -sf "$CONF" "/etc/nginx/sites-enabled/$DOMAIN"
+  sudo nginx -t && sudo systemctl reload nginx
+  command -v certbot >/dev/null || sudo apt-get install -y certbot python3-certbot-nginx
+  sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$CERTBOT_EMAIL" --redirect \
+    || echo "!! certbot failed — site is live on http:// only (check DNS/port 80)"
+fi
 REMOTE
 
 echo ""
