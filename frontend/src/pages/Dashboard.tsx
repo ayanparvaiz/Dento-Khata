@@ -101,7 +101,7 @@ export function Dashboard() {
           <Card>
             <CardHeader><CardTitle className="text-sm">Revenue · last 14 days</CardTitle></CardHeader>
             <CardContent>
-              <div className="mb-2 text-2xl font-bold">{data ? taka(data.revenueMonth) : '—'} <span className="text-sm font-normal text-muted-foreground">this month</span></div>
+              <div className="mb-2 text-2xl font-bold">{data ? taka((data.spark ?? []).reduce((s: number, d: any) => s + d.amount, 0)) : '—'} <span className="text-sm font-normal text-muted-foreground">last 14 days</span></div>
               {data?.spark && <Spark data={data.spark} />}
             </CardContent>
           </Card>
