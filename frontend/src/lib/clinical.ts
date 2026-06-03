@@ -95,6 +95,11 @@ export function useBillingMutations(patientId: string) {
     qc.invalidateQueries({ queryKey: ['payments', patientId] });
     qc.invalidateQueries({ queryKey: ['appointments'] });
     qc.invalidateQueries({ queryKey: ['appointments-range'] });
+    // income/analytics depend on payments → keep dashboard chart + reports accurate
+    qc.invalidateQueries({ queryKey: ['dashboard'] });
+    qc.invalidateQueries({ queryKey: ['revenue'] });
+    qc.invalidateQueries({ queryKey: ['daily'] });
+    qc.invalidateQueries({ queryKey: ['outstanding'] });
   };
   return {
     // Collect one installment toward the patient's balance.

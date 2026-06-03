@@ -56,6 +56,7 @@ export function useTreatmentMutations(patientId: string) {
     qc.invalidateQueries({ queryKey: ['appointments'] });
     qc.invalidateQueries({ queryKey: ['appointments-range'] });
     qc.invalidateQueries({ queryKey: ['dashboard'] });
+    qc.invalidateQueries({ queryKey: ['outstanding'] });
   };
   return {
     createPlan: useMutation({
