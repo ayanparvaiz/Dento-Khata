@@ -99,7 +99,7 @@ ssh "$SSH_TARGET" DOMAIN="$DOMAIN" PORT="$PORT" CERTBOT_EMAIL="$CERTBOT_EMAIL" '
 set -euo pipefail
 CONF="/etc/nginx/sites-available/$DOMAIN"
 
-if [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+if sudo test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
   # Already provisioned: certbot owns the vhost (443 + redirect). Don't rewrite it
   # (that would strip HTTPS and force certbot to reconfigure every deploy). Just reload.
   echo "   HTTPS already set up — leaving nginx/certbot as-is (auto-renews)."
