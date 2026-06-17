@@ -162,6 +162,7 @@ export function useApptMutations(_key?: string) {
     qc.invalidateQueries({ queryKey: ['patient-appointments'] });
     qc.invalidateQueries({ queryKey: ['availability'] });
     qc.invalidateQueries({ queryKey: ['availability-range'] });
+    qc.invalidateQueries({ queryKey: ['dashboard'] }); // today's schedule + counts
   };
   return {
     create: useMutation({ mutationFn: async (b: any) => (await api.post('/appointments', b)).data, onSuccess: inval }),

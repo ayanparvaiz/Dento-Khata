@@ -56,8 +56,9 @@ model Patient {
   appointments   Appointment[]
   toothRecords   ToothRecord[]
   perioRecords   PerioRecord[]
-  treatmentPlans TreatmentPlan[]
-  clinicalNotes  ClinicalNote[]
+  treatmentPlans   TreatmentPlan[]
+  treatmentRecords TreatmentRecord[]
+  clinicalNotes    ClinicalNote[]
   prescriptions  Prescription[]
   invoices       Invoice[]
   payments       Payment[]
@@ -162,7 +163,24 @@ model TreatmentPlan {
   status    String   @default("PROPOSED") // PROPOSED | ACCEPTED | IN_PROGRESS | COMPLETED
   createdAt DateTime @default(now())
 
-  items TreatmentItem[]
+  items   TreatmentItem[]
+  records TreatmentRecord[]
+}
+
+// Per-visit treatment log: a dated one-line note of what was done (e.g. RCT day 2).
+// Linked to a plan so the statement/invoice shows which treatment it was for.
+model TreatmentRecord {
+  id        String         @id @default(cuid())
+  patientId String
+  patient   Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  planId    String?
+  plan      TreatmentPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  content   String
+  visitDate DateTime       @default(now())
+  authorId  String?
+  createdAt DateTime       @default(now())
+
+  @@index([patientId])
 }
 
 model TreatmentItem {

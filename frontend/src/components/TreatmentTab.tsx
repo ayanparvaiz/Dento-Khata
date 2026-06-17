@@ -2,13 +2,17 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import {
   useProcedures, useTreatment, useTreatmentMutations,
-  type TreatmentPlan,
+  useTreatmentRecords, useTreatmentRecordMutations,
+  type TreatmentPlan, type TreatmentRecord,
 } from '@/lib/treatment';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Plus, Printer, Trash2 } from 'lucide-react';
+import { Plus, Printer, Trash2, Check, X, Pencil } from 'lucide-react';
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const dDate = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const dt = (s?: string | null) =>
   s ? new Date(s).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
@@ -54,7 +58,9 @@ async function printEstimate(plan: TreatmentPlan, patientName: string) {
 export function TreatmentTab({ patientId, patientName }: { patientId: string; patientName: string }) {
   const { data: plans = [] } = useTreatment(patientId);
   const { data: procedures = [] } = useProcedures();
+  const { data: records = [] } = useTreatmentRecords(patientId);
   const m = useTreatmentMutations(patientId);
+  const rm = useTreatmentRecordMutations(patientId);
   const [newTitle, setNewTitle] = useState('');
 
   return (
@@ -147,6 +153,9 @@ export function TreatmentTab({ patientId, patientName }: { patientId: string; pa
               {/* Add procedure — clearly separated input area */}
               <AddItemRow planId={plan.id} procedures={procedures} onAdd={(body) => m.addItem.mutate(body)} />
 
+              {/* Treatment record — dated per-visit log for this plan */}
+              <VisitLog planId={plan.id} records={records.filter((r) => r.planId === plan.id)} rm={rm} />
+
               <div className="flex justify-end gap-6 border-t border-border pt-3 text-sm">
                 <span className="text-muted-foreground">Completed: <b className="text-success">{money(done)}</b></span>
                 <span>Total estimate: <b>{money(total)}</b></span>
@@ -202,6 +211,67 @@ function AddItemRow({
         >
           <Plus className="h-4 w-4" /> Add
         </Button>
+      </div>
+    </div>
+  );
+}
+
+// Per-visit treatment record (dated one-line log). Easy add: type a line + date → Add.
+function VisitLog({
+  planId, records, rm,
+}: {
+  planId: string;
+  records: TreatmentRecord[];
+  rm: ReturnType<typeof useTreatmentRecordMutations>;
+}) {
+  const [content, setContent] = useState('');
+  const [date, setDate] = useState(todayISO());
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+
+  const add = () => {
+    if (!content.trim()) return;
+    rm.add.mutate(
+      { content: content.trim(), planId, visitDate: new Date(date).toISOString() },
+      { onSuccess: () => { setContent(''); setDate(todayISO()); } },
+    );
+  };
+
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="mb-2 text-sm font-semibold">Treatment record (visit log)</div>
+
+      {records.length === 0 && <p className="mb-2 text-xs text-muted-foreground">No visits logged yet. Add what was done each visit below.</p>}
+      <div className="mb-3 space-y-1">
+        {records.map((r) => (
+          <div key={r.id} className="flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1.5 text-sm">
+            <span className="w-24 shrink-0 text-xs font-medium text-muted-foreground tabular-nums">{dDate(r.visitDate)}</span>
+            {editId === r.id ? (
+              <>
+                <Input className="h-8 flex-1" value={editText} onChange={(e) => setEditText(e.target.value)} autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter' && editText.trim()) { rm.update.mutate({ id: r.id, content: editText.trim() }); setEditId(null); } }} />
+                <button className="text-success" onClick={() => { if (editText.trim()) { rm.update.mutate({ id: r.id, content: editText.trim() }); setEditId(null); } }}><Check className="h-4 w-4" /></button>
+                <button className="text-muted-foreground" onClick={() => setEditId(null)}><X className="h-4 w-4" /></button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1">{r.content}</span>
+                <button className="text-muted-foreground hover:text-primary" onClick={() => { setEditId(r.id); setEditText(r.content); }}><Pencil className="h-3.5 w-3.5" /></button>
+                <button className="text-muted-foreground hover:text-danger" onClick={() => rm.remove.mutate(r.id)}><Trash2 className="h-3.5 w-3.5" /></button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-end gap-2">
+        <div className="w-36"><Label>Visit date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="flex-1"><Label>What was done</Label>
+          <Input placeholder="e.g. RCT — cleaned & shaped canals, dressing placed"
+            value={content} onChange={(e) => setContent(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
+        </div>
+        <Button disabled={!content.trim() || rm.add.isPending} onClick={add}><Plus className="h-4 w-4" /> Add</Button>
       </div>
     </div>
   );

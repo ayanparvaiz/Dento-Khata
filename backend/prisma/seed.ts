@@ -188,6 +188,7 @@ async function seedDemo() {
     prescriptions?: { diagnosis: string; advice?: string; items: any[] }[];
     appts?: { start: Date; dur?: number; status: string; reason?: string; chair?: string }[];
     payments?: { amount: number; method: string; daysAgo: number; note?: string }[];
+    records?: { content: string; daysAgo: number; planIdx?: number }[];
   }) {
     const p = await prisma.patient.create({
       data: {
@@ -226,6 +227,14 @@ async function seedDemo() {
         data: { patientId: p.id, dentistId: dentist.id, diagnosis: r.diagnosis, advice: r.advice, items: { create: r.items } },
       });
     }
+    if (opts.records?.length) {
+      const pls = await prisma.treatmentPlan.findMany({ where: { patientId: p.id }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+      for (const r of opts.records) {
+        await prisma.treatmentRecord.create({
+          data: { patientId: p.id, content: r.content, planId: pls[r.planIdx ?? 0]?.id ?? null, visitDate: day(-r.daysAgo), authorId: dentist.id },
+        });
+      }
+    }
     return p;
   }
 
@@ -258,6 +267,12 @@ async function seedDemo() {
         { start: at(day(-20), 11, 0), dur: 60, status: 'COMPLETED', reason: 'Root canal — molar' },
         { start: at(day(4), 17, 0), dur: 60, status: 'CONFIRMED', reason: 'Crown fitting' },
       ],
+      records: [
+        { content: 'Examination + IOPA x-ray of 46; diagnosed irreversible pulpitis.', daysAgo: 34 },
+        { content: 'RCT 46 — access opened, canals cleaned & shaped, calcium hydroxide dressing.', daysAgo: 27 },
+        { content: 'RCT 46 — obturation done (gutta-percha). Tooth asymptomatic.', daysAgo: 20 },
+        { content: 'Crown 46 — tooth prepared, shade selected, impression taken.', daysAgo: 6 },
+      ],
       notes: ['Patient tolerated RCT well. Crown impression to be taken next visit.'],
     },
   );
@@ -282,6 +297,10 @@ async function seedDemo() {
       appts: [
         { start: at(day(-5), 13, 0), dur: 30, status: 'COMPLETED', reason: 'Monthly adjustment' },
         { start: at(day(0), 16, 0), dur: 30, status: 'CONFIRMED', reason: 'Wire adjustment', chair: 'Chair 2' },
+      ],
+      records: [
+        { content: 'Braces bonded (upper & lower), initial NiTi archwire placed.', daysAgo: 33 },
+        { content: 'Monthly adjustment — archwire changed, oral hygiene reinforced.', daysAgo: 5 },
       ],
       notes: ['Good oral hygiene. Continue monthly adjustments.'],
     },

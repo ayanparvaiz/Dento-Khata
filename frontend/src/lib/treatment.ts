@@ -31,6 +31,42 @@ export interface ClinicalNote {
   content: string;
   createdAt: string;
 }
+export interface TreatmentRecord {
+  id: string;
+  content: string;
+  visitDate: string;
+  planId?: string | null;
+  plan?: { id: string; title?: string } | null;
+}
+
+export function useTreatmentRecords(patientId?: string) {
+  return useQuery<TreatmentRecord[]>({
+    queryKey: ['treatment-records', patientId],
+    enabled: !!patientId,
+    queryFn: async () => (await api.get(`/patients/${patientId}/treatment-records`)).data,
+  });
+}
+
+export function useTreatmentRecordMutations(patientId: string) {
+  const qc = useQueryClient();
+  const inval = () => qc.invalidateQueries({ queryKey: ['treatment-records', patientId] });
+  return {
+    add: useMutation({
+      mutationFn: async (body: { content: string; planId?: string; visitDate?: string }) =>
+        (await api.post(`/patients/${patientId}/treatment-records`, body)).data,
+      onSuccess: inval,
+    }),
+    update: useMutation({
+      mutationFn: async ({ id, ...body }: { id: string; content?: string; planId?: string; visitDate?: string }) =>
+        (await api.patch(`/treatment-records/${id}`, body)).data,
+      onSuccess: inval,
+    }),
+    remove: useMutation({
+      mutationFn: async (id: string) => (await api.delete(`/treatment-records/${id}`)).data,
+      onSuccess: inval,
+    }),
+  };
+}
 
 export function useProcedures(search = '') {
   return useQuery<Procedure[]>({

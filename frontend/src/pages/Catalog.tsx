@@ -114,7 +114,11 @@ function Procedures() {
     queryKey: ['procedures', search],
     queryFn: async () => (await api.get('/procedures', { params: { search } })).data,
   });
-  const inval = () => qc.invalidateQueries({ queryKey: ['procedures'] });
+  // Procedure name shows live inside treatment plans → refresh those too on edit.
+  const inval = () => {
+    qc.invalidateQueries({ queryKey: ['procedures'] });
+    qc.invalidateQueries({ queryKey: ['treatment'] });
+  };
   const create = useMutation({ mutationFn: async (b: any) => (await api.post('/procedures', b)).data, onSuccess: inval });
   const update = useMutation({ mutationFn: async ({ id, ...b }: any) => (await api.patch(`/procedures/${id}`, b)).data, onSuccess: inval });
   const remove = useMutation({ mutationFn: async (id: string) => (await api.delete(`/procedures/${id}`)).data, onSuccess: inval });
