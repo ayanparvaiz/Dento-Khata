@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Plus, Printer, Trash2, Pencil, Check, X, Receipt } from 'lucide-react';
+import { Plus, Printer, Trash2, Pencil, Check, X } from 'lucide-react';
 import type { Patient } from '@/lib/patients';
 
 const METHODS = ['CASH', 'BKASH', 'NAGAD', 'CARD', 'OTHER'];
@@ -158,14 +158,14 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
           </div>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          {/* LEFT — procedures (the charge) */}
-          <div>
-            <div className="mb-2 text-sm font-semibold">Procedures (charge)</div>
+        <div className="grid gap-5 md:grid-cols-12">
+          {/* LEFT — procedures (the charge) — narrow */}
+          <div className="rounded-lg bg-slate-100 p-3 md:col-span-5">
+            <div className="mb-2 text-sm font-semibold text-slate-700">Procedures (charge)</div>
             {plan.items.length === 0 && <p className="text-sm text-muted-foreground">No procedures yet.</p>}
             <div className="space-y-2">
               {plan.items.map((i: any) => (
-                <div key={i.id} className={cn('rounded-md border p-2 text-sm', i.status === 'COMPLETED' ? 'border-success/30 bg-success/5' : 'border-border')}>
+                <div key={i.id} className={cn('rounded-md border bg-white p-2 text-sm', i.status === 'COMPLETED' ? 'border-success/40' : 'border-border')}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium">{i.procedure.name}</span>
                     <span className="font-semibold">{taka(i.fee)}</span>
@@ -188,9 +188,9 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
             {canTx && <AddProcedure planId={plan.id} procedures={procedures} onAdd={(b: any) => m.addItem.mutate(b)} />}
           </div>
 
-          {/* RIGHT — visits (treatment record) + per-visit payment */}
-          <div>
-            <div className="mb-2 text-sm font-semibold">Visits / treatment record</div>
+          {/* RIGHT — visits (treatment record) + per-visit payment — wide */}
+          <div className="rounded-lg bg-teal-50 p-3 md:col-span-7">
+            <div className="mb-2 text-sm font-semibold text-teal-800">Visits / treatment record</div>
             {recs.length === 0 && <p className="text-sm text-muted-foreground">No visits logged yet.</p>}
             <div className="space-y-2">
               {recs.map((r) => {
@@ -218,42 +218,43 @@ function VisitRow({ patient, plan, record, recPays, paid, canTx, canBill, rm, bm
   const [method, setMethod] = useState('CASH');
 
   return (
-    <div className="rounded-md border border-border p-2 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-muted-foreground tabular-nums">{dDate(record.visitDate)}</div>
-          {edit ? (
-            <div className="mt-1 flex items-center gap-1">
-              <Input className="h-8" value={text} onChange={(e) => setText(e.target.value)} autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) { rm.update.mutate({ id: record.id, content: text.trim() }); setEdit(false); } }} />
-              <button className="text-success" onClick={() => { if (text.trim()) { rm.update.mutate({ id: record.id, content: text.trim() }); setEdit(false); } }}><Check className="h-4 w-4" /></button>
-              <button className="text-muted-foreground" onClick={() => { setText(record.content); setEdit(false); }}><X className="h-4 w-4" /></button>
-            </div>
-          ) : (
-            <div className="font-medium">{record.content}</div>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {paid > 0 && <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">{taka(paid)}</span>}
-          {canBill && <button title="Visit invoice" className="text-muted-foreground hover:text-primary" onClick={() => printInvoice(patient, plan, record, recPays)}><Receipt className="h-4 w-4" /></button>}
-          {canTx && !edit && <button className="text-muted-foreground hover:text-primary" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" /></button>}
-          {canTx && <button className="text-muted-foreground hover:text-danger" onClick={() => rm.remove.mutate(record.id)}><Trash2 className="h-3.5 w-3.5" /></button>}
-        </div>
+    <div className="rounded-md border border-teal-200 bg-white p-2.5 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground tabular-nums">{dDate(record.visitDate)}</span>
+        {paid > 0 && <span className="rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">{taka(paid)} paid</span>}
       </div>
 
-      {/* per-visit payment collection (billing access) */}
-      {canBill && (
-        collect ? (
-          <div className="mt-2 flex flex-wrap items-end gap-1.5 border-t border-border/60 pt-2">
-            <div className="w-24"><Label>Amount ৳</Label><Input className="h-8" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
-            <div className="w-28"><Label>Method</Label><Select className="h-8" value={method} onChange={(e) => setMethod(e.target.value)}>{METHODS.map((x) => <option key={x}>{x}</option>)}</Select></div>
-            <Button size="sm" disabled={!Number(amount) || bm.pay.isPending}
-              onClick={() => bm.pay.mutate({ amount: Number(amount), method, treatmentRecordId: record.id, note: record.content.slice(0, 40) }, { onSuccess: () => { setAmount(''); setCollect(false); } })}>Take</Button>
-            <Button size="sm" variant="ghost" onClick={() => setCollect(false)}>Cancel</Button>
+      {edit ? (
+        <div className="mt-1 flex items-center gap-1">
+          <Input className="h-8" value={text} onChange={(e) => setText(e.target.value)} autoFocus
+            onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) { rm.update.mutate({ id: record.id, content: text.trim() }); setEdit(false); } }} />
+          <button className="text-success" onClick={() => { if (text.trim()) { rm.update.mutate({ id: record.id, content: text.trim() }); setEdit(false); } }}><Check className="h-4 w-4" /></button>
+          <button className="text-muted-foreground" onClick={() => { setText(record.content); setEdit(false); }}><X className="h-4 w-4" /></button>
+        </div>
+      ) : (
+        <div className="mt-0.5 font-medium leading-snug">{record.content}</div>
+      )}
+
+      {/* footer actions — money on the left, clinical edit on the right */}
+      <div className="mt-2 flex items-center gap-3 text-xs">
+        {canBill && !collect && <button className="font-medium text-primary hover:underline" onClick={() => setCollect(true)}>+ Collect payment</button>}
+        {canBill && <button className="text-muted-foreground hover:text-primary" onClick={() => printInvoice(patient, plan, record, recPays)}>Invoice</button>}
+        {canTx && !edit && (
+          <div className="ml-auto flex items-center gap-2">
+            <button className="text-muted-foreground hover:text-primary" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" /></button>
+            <button className="text-muted-foreground hover:text-danger" onClick={() => rm.remove.mutate(record.id)}><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
-        ) : (
-          <button className="mt-1.5 text-xs font-medium text-primary hover:underline" onClick={() => setCollect(true)}>+ Collect payment for this visit</button>
-        )
+        )}
+      </div>
+
+      {canBill && collect && (
+        <div className="mt-2 flex flex-wrap items-end gap-1.5 border-t border-border/60 pt-2">
+          <div className="w-24"><Label>Amount ৳</Label><Input className="h-8" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
+          <div className="w-28"><Label>Method</Label><Select className="h-8" value={method} onChange={(e) => setMethod(e.target.value)}>{METHODS.map((x) => <option key={x}>{x}</option>)}</Select></div>
+          <Button size="sm" disabled={!Number(amount) || bm.pay.isPending}
+            onClick={() => bm.pay.mutate({ amount: Number(amount), method, treatmentRecordId: record.id, note: record.content.slice(0, 40) }, { onSuccess: () => { setAmount(''); setCollect(false); } })}>Take</Button>
+          <Button size="sm" variant="ghost" onClick={() => setCollect(false)}>Cancel</Button>
+        </div>
       )}
     </div>
   );
@@ -265,7 +266,7 @@ function AddProcedure({ planId, procedures, onAdd }: { planId: string; procedure
   const [fee, setFee] = useState('');
   const pick = (id: string) => { setProcedureId(id); const p = procedures.find((x) => x.id === id); setFee(p ? String(p.defaultFee) : ''); };
   return (
-    <div className="mt-2 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2">
+    <div className="mt-2 rounded-md border border-dashed border-primary/40 bg-white p-2">
       <div className="space-y-1.5">
         <Select value={procedureId} onChange={(e) => pick(e.target.value)}>
           <option value="">+ Add procedure…</option>
@@ -288,10 +289,16 @@ function AddVisit({ planId, onAdd }: { planId: string; onAdd: (b: any) => void }
   const [date, setDate] = useState(todayISO());
   const add = () => { if (!content.trim()) return; onAdd({ content: content.trim(), planId, visitDate: new Date(date).toISOString() }); setContent(''); setDate(todayISO()); };
   return (
-    <div className="mt-2 flex items-end gap-1.5 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2">
-      <div className="w-32"><Label>Visit date</Label><Input className="h-8" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-      <div className="flex-1"><Label>What was done</Label><Input className="h-8" placeholder="e.g. RCT started, basic clean" value={content} onChange={(e) => setContent(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} /></div>
-      <Button size="sm" disabled={!content.trim()} onClick={add}><Plus className="h-4 w-4" /></Button>
+    <div className="mt-2 space-y-2 rounded-md border border-dashed border-primary/40 bg-white p-2.5">
+      <div>
+        <Label>What was done this visit</Label>
+        <Input placeholder="e.g. RCT 46 — access opened, canals cleaned & shaped" value={content}
+          onChange={(e) => setContent(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
+      </div>
+      <div className="flex items-end gap-2">
+        <div className="w-40"><Label>Visit date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <Button disabled={!content.trim()} onClick={add}><Plus className="mr-1 h-4 w-4" /> Add visit</Button>
+      </div>
     </div>
   );
 }
