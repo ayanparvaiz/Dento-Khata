@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { DentalChart } from '@/components/DentalChart';
 import { TreatmentBillingTab } from '@/components/TreatmentBillingTab';
-import { NotesTab } from '@/components/NotesTab';
 import { PrescriptionsTab } from '@/components/PrescriptionsTab';
 import { ImagingTab } from '@/components/ImagingTab';
 import { usePatientAppointments, useLedger, taka } from '@/lib/clinical';
@@ -24,7 +23,6 @@ const TABS = [
   'Dental Chart',
   'Prescriptions',
   'Treatment & Billing',
-  'Notes',
   'Imaging',
   'Appointments',
 ] as const;
@@ -37,7 +35,6 @@ const TAB_CAP: Record<Tab, string[] | null> = {
   'Dental Chart': ['charting.manage'],
   Prescriptions: ['prescriptions.manage'],
   'Treatment & Billing': ['treatment.manage', 'billing.manage'],
-  Notes: ['notes.manage'],
   Imaging: ['imaging.manage'],
   Appointments: ['appointments.manage'],
 };
@@ -149,8 +146,6 @@ export function PatientDetail() {
       {tab === 'Dental Chart' && <DentalChart patientId={p.id} />}
 
       {tab === 'Treatment & Billing' && <TreatmentBillingTab patient={p} />}
-
-      {tab === 'Notes' && <NotesTab patientId={p.id} />}
 
       {tab === 'Prescriptions' && <PrescriptionsTab patient={p} />}
 

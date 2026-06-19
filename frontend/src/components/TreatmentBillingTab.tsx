@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Plus, Printer, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Plus, Printer, Trash2, Pencil, Check, X, Receipt } from 'lucide-react';
 import type { Patient } from '@/lib/patients';
 
 const METHODS = ['CASH', 'BKASH', 'NAGAD', 'CARD', 'OTHER'];
@@ -235,10 +235,18 @@ function VisitRow({ patient, plan, record, recPays, paid, canTx, canBill, rm, bm
         <div className="mt-0.5 font-medium leading-snug">{record.content}</div>
       )}
 
-      {/* footer actions — money on the left, clinical edit on the right */}
-      <div className="mt-2 flex items-center gap-3 text-xs">
-        {canBill && !collect && <button className="font-medium text-primary hover:underline" onClick={() => setCollect(true)}>+ Collect payment</button>}
-        {canBill && <button className="text-muted-foreground hover:text-primary" onClick={() => printInvoice(patient, plan, record, recPays)}>Invoice</button>}
+      {/* footer actions — money buttons on the left, clinical edit on the right */}
+      <div className="mt-2 flex items-center gap-2">
+        {canBill && !collect && (
+          <Button size="sm" className="h-7 px-2 text-xs" onClick={() => setCollect(true)}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Collect payment
+          </Button>
+        )}
+        {canBill && (
+          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => printInvoice(patient, plan, record, recPays)}>
+            <Receipt className="mr-1 h-3.5 w-3.5" /> Invoice
+          </Button>
+        )}
         {canTx && !edit && (
           <div className="ml-auto flex items-center gap-2">
             <button className="text-muted-foreground hover:text-primary" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" /></button>
