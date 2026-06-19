@@ -141,6 +141,11 @@ async function main() {
   const totalDrugs = await prisma.drug.count();
   console.log(`Seed complete: ${procedures.length} procedures, ${totalDrugs} drugs (dental, MedEx BD, all brands).`);
 
+  // `DEMO_RESET=1` wipes patient data and reloads the full demo (local only — see every state).
+  if (process.env.DEMO_RESET) {
+    await prisma.patient.deleteMany({}); // cascades appts, plans, items, records, rx, charting, notes, payments
+    console.log('DEMO_RESET: cleared patient data — reseeding fresh demo.');
+  }
   await seedDemo();
 }
 
@@ -187,7 +192,7 @@ async function seedDemo() {
     medical?: any; teeth?: any[]; plans?: any[]; notes?: string[];
     prescriptions?: { diagnosis: string; advice?: string; items: any[] }[];
     appts?: { start: Date; dur?: number; status: string; reason?: string; chair?: string }[];
-    payments?: { amount: number; method: string; daysAgo: number; note?: string }[];
+    payments?: { amount: number; method: string; daysAgo: number; note?: string; recordIdx?: number }[];
     records?: { content: string; daysAgo: number; planIdx?: number }[];
   }) {
     const p = await prisma.patient.create({
@@ -213,12 +218,25 @@ async function seedDemo() {
       });
       if (a.status === 'COMPLETED') completedAppt = ap.id;
     }
+    // records first, so payments can attach to a visit
+    const recIds: string[] = [];
+    if (opts.records?.length) {
+      const pls = await prisma.treatmentPlan.findMany({ where: { patientId: p.id }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+      for (const r of opts.records) {
+        const rec = await prisma.treatmentRecord.create({
+          data: { patientId: p.id, content: r.content, planId: pls[r.planIdx ?? 0]?.id ?? null, visitDate: day(-r.daysAgo), authorId: dentist.id },
+        });
+        recIds.push(rec.id);
+      }
+    }
     for (const pay of opts.payments ?? []) {
       await prisma.payment.create({
         data: {
           patientId: p.id, amount: pay.amount, method: pay.method, note: pay.note,
           paidAt: at(day(-pay.daysAgo), 11 + (seq % 6), (seq * 7) % 60),
-          appointmentId: completedAppt, receivedBy: dentist.fullName,
+          appointmentId: completedAppt,
+          treatmentRecordId: pay.recordIdx != null ? recIds[pay.recordIdx] ?? null : null,
+          receivedBy: dentist.fullName,
         },
       });
     }
@@ -226,14 +244,6 @@ async function seedDemo() {
       await prisma.prescription.create({
         data: { patientId: p.id, dentistId: dentist.id, diagnosis: r.diagnosis, advice: r.advice, items: { create: r.items } },
       });
-    }
-    if (opts.records?.length) {
-      const pls = await prisma.treatmentPlan.findMany({ where: { patientId: p.id }, orderBy: { createdAt: 'asc' }, select: { id: true } });
-      for (const r of opts.records) {
-        await prisma.treatmentRecord.create({
-          data: { patientId: p.id, content: r.content, planId: pls[r.planIdx ?? 0]?.id ?? null, visitDate: day(-r.daysAgo), authorId: dentist.id },
-        });
-      }
     }
     return p;
   }
@@ -254,9 +264,9 @@ async function seedDemo() {
         item('D2750', { tooth: '46', status: 'PLANNED' }),
       ] }],
       payments: [
-        { amount: 2000, method: 'CASH', daysAgo: 34, note: 'Consultation + part RCT' },
-        { amount: 3000, method: 'BKASH', daysAgo: 20 },
-        { amount: 2000, method: 'CASH', daysAgo: 6 },
+        { amount: 2000, method: 'CASH', daysAgo: 34, note: 'Consultation + part RCT', recordIdx: 0 },
+        { amount: 3000, method: 'BKASH', daysAgo: 20, recordIdx: 2 },
+        { amount: 2000, method: 'CASH', daysAgo: 6, recordIdx: 3 },
       ],
       prescriptions: [{ diagnosis: 'Irreversible pulpitis 46 — post RCT', advice: 'Avoid chewing on the treated side until crown is placed.', items: [
         await rx('Moxacil', '1+0+1', 'Twice daily', '7 days', 'After meal'),
@@ -289,10 +299,10 @@ async function seedDemo() {
         item('D8080', { status: 'PLANNED', priority: 1 }),
       ] }],
       payments: [
-        { amount: 8000, method: 'BKASH', daysAgo: 33, note: 'Braces down payment' },
-        { amount: 5000, method: 'CASH', daysAgo: 26 },
-        { amount: 5000, method: 'NAGAD', daysAgo: 12 },
-        { amount: 5000, method: 'CASH', daysAgo: 2 },
+        { amount: 8000, method: 'BKASH', daysAgo: 33, note: 'Braces down payment', recordIdx: 0 },
+        { amount: 5000, method: 'CASH', daysAgo: 26, recordIdx: 0 },
+        { amount: 5000, method: 'NAGAD', daysAgo: 12, recordIdx: 1 },
+        { amount: 5000, method: 'CASH', daysAgo: 2, recordIdx: 1 },
       ],
       appts: [
         { start: at(day(-5), 13, 0), dur: 30, status: 'COMPLETED', reason: 'Monthly adjustment' },
@@ -319,10 +329,15 @@ async function seedDemo() {
         item('D7140', { tooth: '26', status: 'COMPLETED', doneDaysAgo: 28 }),
         item('D5110', { status: 'COMPLETED', doneDaysAgo: 8 }),
       ] }],
+      records: [
+        { content: 'Extraction of 26 done under LA. Healing advised.', daysAgo: 28 },
+        { content: 'Denture impressions taken (upper).', daysAgo: 18 },
+        { content: 'Complete upper denture delivered, fit checked.', daysAgo: 8 },
+      ],
       payments: [
-        { amount: 1500, method: 'CASH', daysAgo: 28, note: 'Extraction' },
-        { amount: 15000, method: 'NAGAD', daysAgo: 18, note: 'Denture — advance' },
-        { amount: 10000, method: 'CASH', daysAgo: 8, note: 'Denture — balance' },
+        { amount: 1500, method: 'CASH', daysAgo: 28, note: 'Extraction', recordIdx: 0 },
+        { amount: 15000, method: 'NAGAD', daysAgo: 18, note: 'Denture — advance', recordIdx: 1 },
+        { amount: 10000, method: 'CASH', daysAgo: 8, note: 'Denture — balance', recordIdx: 2 },
       ],
       appts: [{ start: at(day(-8), 12, 0), dur: 60, status: 'COMPLETED', reason: 'Denture delivery' }],
       notes: ['Denture fit checked, patient comfortable. Recall in 6 months.'],
@@ -339,7 +354,8 @@ async function seedDemo() {
         item('D1110', { status: 'COMPLETED', doneDaysAgo: 3 }),
         item('D2391', { tooth: '37', status: 'PLANNED' }),
       ] }],
-      payments: [{ amount: 1500, method: 'CASH', daysAgo: 3, note: 'Scaling & polishing' }],
+      records: [{ content: 'Full-mouth scaling & polishing done. Oral hygiene instructions given.', daysAgo: 3 }],
+      payments: [{ amount: 1500, method: 'CASH', daysAgo: 3, note: 'Scaling & polishing', recordIdx: 0 }],
       appts: [
         { start: at(day(-3), 10, 30), dur: 30, status: 'COMPLETED', reason: 'Scaling' },
         { start: at(day(7), 11, 0), dur: 30, status: 'BOOKED', reason: 'Composite filling 37' },
@@ -373,9 +389,13 @@ async function seedDemo() {
         item('D0120', { status: 'COMPLETED', doneDaysAgo: 10 }),
         item('D2740', { tooth: '24', status: 'PLANNED' }),
       ] }],
+      records: [
+        { content: 'Examination of 24; crown indicated. Shade selected.', daysAgo: 10 },
+        { content: 'Tooth 24 prepared for ceramic crown, impression taken.', daysAgo: 4 },
+      ],
       payments: [
-        { amount: 500, method: 'CARD', daysAgo: 10, note: 'Examination' },
-        { amount: 4000, method: 'CARD', daysAgo: 4, note: 'Crown — advance' },
+        { amount: 500, method: 'CARD', daysAgo: 10, note: 'Examination', recordIdx: 0 },
+        { amount: 4000, method: 'CARD', daysAgo: 4, note: 'Crown — advance', recordIdx: 1 },
       ],
       appts: [
         { start: at(day(-10), 14, 0), dur: 30, status: 'COMPLETED', reason: 'Examination' },
@@ -383,6 +403,32 @@ async function seedDemo() {
       ],
     },
   );
+
+  // Extra appointments spread across the month covering every status, so the schedule
+  // (and the upcoming calendar view) shows all states: completed/arrived, no-show/cancelled, upcoming.
+  const pts = await prisma.patient.findMany({ select: { id: true } });
+  const cal: { d: number; h: number; st: string; reason: string }[] = [
+    { d: -12, h: 10, st: 'COMPLETED', reason: 'Scaling' },
+    { d: -9, h: 11, st: 'NO_SHOW', reason: 'Filling' },
+    { d: -7, h: 12, st: 'COMPLETED', reason: 'Review' },
+    { d: -5, h: 15, st: 'CANCELLED', reason: 'Extraction' },
+    { d: -3, h: 16, st: 'COMPLETED', reason: 'Crown prep' },
+    { d: -1, h: 10, st: 'ARRIVED', reason: 'Checkup' },
+    { d: 1, h: 11, st: 'BOOKED', reason: 'Follow-up' },
+    { d: 3, h: 14, st: 'CONFIRMED', reason: 'RCT' },
+    { d: 6, h: 16, st: 'BOOKED', reason: 'Cleaning' },
+    { d: 10, h: 12, st: 'CONFIRMED', reason: 'Crown fitting' },
+  ];
+  for (let i = 0; i < cal.length && pts.length; i++) {
+    const c = cal[i];
+    const start = at(day(c.d), c.h);
+    await prisma.appointment.create({
+      data: {
+        patientId: pts[i % pts.length].id, dentistId: dentist.id, chair: i % 2 ? 'Chair 2' : 'Chair 1',
+        startTime: start, endTime: new Date(start.getTime() + 30 * 60000), status: c.st, reason: c.reason,
+      },
+    });
+  }
 
   const [pc, ac, payc] = await Promise.all([prisma.patient.count(), prisma.appointment.count(), prisma.payment.count()]);
   console.log(`Demo seeded: ${pc} patients, ${ac} appointments, ${payc} payments, + treatments/charting/prescriptions.`);

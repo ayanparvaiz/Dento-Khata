@@ -1,108 +1,297 @@
+import { useState } from 'react';
 import { api } from '@/lib/api';
-import { TreatmentTab } from '@/components/TreatmentTab';
-import { BillingTab } from '@/components/BillingTab';
-import { useTreatment, useTreatmentRecords } from '@/lib/treatment';
-import { useLedger, usePayments } from '@/lib/clinical';
+import { useAuth } from '@/lib/auth';
+import {
+  useProcedures, useTreatment, useTreatmentMutations,
+  useTreatmentRecords, useTreatmentRecordMutations,
+  type TreatmentPlan, type TreatmentRecord,
+} from '@/lib/treatment';
+import { useLedger, usePayments, useBillingMutations, taka, type Payment } from '@/lib/clinical';
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { Input, Label, Select } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { Plus, Printer, Trash2, Pencil, Check, X, Receipt } from 'lucide-react';
 import type { Patient } from '@/lib/patients';
 
+const METHODS = ['CASH', 'BKASH', 'NAGAD', 'CARD', 'OTHER'];
 const num = (n: number) => (n || 0).toLocaleString('en-IN');
+const todayISO = () => new Date().toISOString().slice(0, 10);
 const dDate = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+const openHtml = (html: string) => { const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); } };
 
-// Full patient statement: clinic header → per treatment-plan (items + dated visit log)
-// → payments → totals. Built live from current data (no stored copy), then printed.
-async function printStatement(patient: Patient, plans: any[], records: any[], payments: any[], ledger: any) {
-  const s = (await api.get('/settings')).data;
-  const cur = s.currency || 'BDT';
-
-  const planBlocks = plans.map((pl) => {
-    const items = pl.items
-      .map((i: any, n: number) =>
-        `<tr><td>${n + 1}</td><td>${i.procedure?.name ?? ''}</td><td>${i.toothNumber || '-'}</td><td>${i.status}${i.completedAt ? ' · ' + dDate(i.completedAt) : ''}</td><td style="text-align:right">${num(i.fee)}</td></tr>`)
-      .join('');
-    const subtotal = pl.items.reduce((a: number, i: any) => a + i.fee, 0);
-    const recs = records.filter((r) => r.planId === pl.id);
-    const visitRows = recs.length
-      ? `<table class="log"><thead><tr><th style="width:110px">Visit date</th><th>Treatment record</th></tr></thead><tbody>${recs
-          .map((r) => `<tr><td>${dDate(r.visitDate)}</td><td>${r.content}</td></tr>`).join('')}</tbody></table>`
-      : '';
-    return `<div class="plan"><h3>${pl.title || 'Treatment plan'} <span class="badge">${pl.status}</span></h3>
-      <table><thead><tr><th>#</th><th>Procedure</th><th>Tooth</th><th>Status</th><th style="text-align:right">Fee (${cur})</th></tr></thead>
-      <tbody>${items || '<tr><td colspan=5 style="color:#94a3b8">No procedures</td></tr>'}</tbody></table>
-      <div class="sub">Plan subtotal: ${cur} ${num(subtotal)}</div>
-      ${visitRows ? `<div class="logwrap"><div class="logh">Visit log</div>${visitRows}</div>` : ''}
-    </div>`;
-  }).join('');
-
-  const otherRecs = records.filter((r) => !r.planId);
-  const otherBlock = otherRecs.length
-    ? `<div class="plan"><h3>Other visits</h3><table class="log"><thead><tr><th style="width:110px">Date</th><th>Treatment record</th></tr></thead><tbody>${otherRecs
-        .map((r) => `<tr><td>${dDate(r.visitDate)}</td><td>${r.content}</td></tr>`).join('')}</tbody></table></div>`
-    : '';
-
-  const payRows = payments
-    .map((p) => `<tr><td>${dDate(p.paidAt)}</td><td>${p.method}</td><td>${p.note || ''}</td><td style="text-align:right">${num(p.amount)}</td></tr>`)
-    .join('');
-
+const wrap = (title: string, s: any, patient: Patient, body: string) => {
   const age = patient.dateOfBirth ? Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / 3.15576e10) + ' yr' : '';
-  const html = `<html><head><title>Patient statement — ${patient.fullName}</title><style>
+  return `<html><head><title>${title} — ${patient.fullName}</title><style>
     body{font-family:system-ui,sans-serif;padding:28px;color:#0f172a}
     .top{display:flex;justify-content:space-between;border-bottom:2px solid #0f766e;padding-bottom:8px}
-    h1{margin:0;color:#0f766e;font-size:22px} .muted{color:#64748b;font-size:12px}
-    .pinfo{margin:14px 0;font-size:14px} .pinfo b{color:#0f172a}
-    .plan{margin:16px 0;page-break-inside:avoid} h3{margin:0 0 6px;font-size:15px}
+    h1{margin:0;color:#0f766e;font-size:22px}.muted{color:#64748b;font-size:12px}
+    .pinfo{margin:14px 0;font-size:14px}.plan{margin:16px 0;page-break-inside:avoid}h3{margin:0 0 6px;font-size:15px}
     .badge{font-size:11px;background:#e2e8f0;border-radius:10px;padding:1px 8px;color:#475569;font-weight:600}
-    table{width:100%;border-collapse:collapse;margin-top:4px}
-    th,td{border:1px solid #e2e8f0;padding:5px 8px;font-size:13px;text-align:left}
-    th{background:#f8fafc} .sub{text-align:right;font-weight:600;margin-top:4px;font-size:13px}
-    .logwrap{margin-top:6px} .logh{font-size:12px;font-weight:600;color:#475569} .log th,.log td{font-size:12px}
-    .totals{margin-top:18px;border-top:2px solid #0f766e;padding-top:10px;text-align:right;font-size:14px}
-    .totals .bal{font-size:18px;font-weight:800}
+    table{width:100%;border-collapse:collapse;margin-top:4px}th,td{border:1px solid #e2e8f0;padding:5px 8px;font-size:13px;text-align:left}
+    th{background:#f8fafc}.sub{text-align:right;font-weight:600;margin-top:4px;font-size:13px}
+    .logh{font-size:12px;font-weight:600;color:#475569;margin-top:6px}
+    .totals{margin-top:18px;border-top:2px solid #0f766e;padding-top:10px;text-align:right;font-size:14px}.totals .bal{font-size:18px;font-weight:800}
     @media print{button{display:none}}</style></head><body>
     <div class="top"><div><h1>${s.name || 'Dental Clinic'}</h1><div class="muted">${s.address || ''} ${s.phone ? '· ' + s.phone : ''}</div></div>
-    <div class="muted" style="text-align:right">Statement<br/>${dDate(new Date().toISOString())}</div></div>
-    <div class="pinfo"><b>${patient.fullName}</b> &nbsp; <span class="muted">${patient.code}</span><br/>
+    <div class="muted" style="text-align:right">${title}<br/>${dDate(new Date().toISOString())}</div></div>
+    <div class="pinfo"><b>${patient.fullName}</b> <span class="muted">${patient.code}</span><br/>
     ${patient.gender || ''} ${age ? '· ' + age : ''} ${patient.phone ? '· ' + patient.phone : ''}</div>
-    <h2 style="font-size:16px">Treatment &amp; account statement</h2>
-    ${planBlocks || '<p class="muted">No treatment plans.</p>'}
-    ${otherBlock}
-    <h3 style="margin-top:18px">Payments received</h3>
-    <table><thead><tr><th>Date</th><th>Method</th><th>Note</th><th style="text-align:right">Amount (${cur})</th></tr></thead>
-    <tbody>${payRows || '<tr><td colspan=4 style="color:#94a3b8">No payments yet</td></tr>'}</tbody></table>
-    <div class="totals">
-      Total treatment cost: ${cur} ${num(ledger?.total || 0)}<br/>
-      Paid: ${cur} ${num(ledger?.paid || 0)}<br/>
-      <span class="bal">Balance due: ${cur} ${num(ledger?.balance || 0)}</span>
-    </div>
-    <p class="muted" style="margin-top:24px">Generated by ${s.name || 'Dental Manager'} · Thank you.</p>
-    </body></html>`;
-  const w = window.open('', '_blank');
-  if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
+    ${body}<p class="muted" style="margin-top:24px">Generated by ${s.name || 'Dental Manager'} · Thank you.</p></body></html>`;
+};
+
+const planBlock = (pl: TreatmentPlan, records: TreatmentRecord[], payments: Payment[], cur: string) => {
+  const items = pl.items.map((i, n) =>
+    `<tr><td>${n + 1}</td><td>${i.procedure?.name ?? ''}</td><td>${i.toothNumber || '-'}</td><td>${i.status}${i.completedAt ? ' · ' + dDate(i.completedAt) : ''}</td><td style="text-align:right">${num(i.fee)}</td></tr>`).join('');
+  const subtotal = pl.items.reduce((a, i) => a + i.fee, 0);
+  const recs = records.filter((r) => r.planId === pl.id);
+  const recIds = new Set(recs.map((r) => r.id));
+  const planPaid = payments.filter((p) => p.treatmentRecordId && recIds.has(p.treatmentRecordId)).reduce((a, p) => a + p.amount, 0);
+  const visitRows = recs.map((r) => {
+    const paid = payments.filter((p) => p.treatmentRecordId === r.id).reduce((a, p) => a + p.amount, 0);
+    return `<tr><td>${dDate(r.visitDate)}</td><td>${r.content}</td><td style="text-align:right">${paid ? num(paid) : '-'}</td></tr>`;
+  }).join('');
+  return `<div class="plan"><h3>${pl.title || 'Treatment plan'} <span class="badge">${pl.status}</span></h3>
+    <table><thead><tr><th>#</th><th>Procedure</th><th>Tooth</th><th>Status</th><th style="text-align:right">Fee (${cur})</th></tr></thead>
+    <tbody>${items || '<tr><td colspan=5 style="color:#94a3b8">No procedures</td></tr>'}</tbody></table>
+    <div class="sub">Plan total: ${cur} ${num(subtotal)} · Paid: ${cur} ${num(planPaid)} · Due: ${cur} ${num(subtotal - planPaid)}</div>
+    ${recs.length ? `<div class="logh">Visit log (treatment record)</div><table><thead><tr><th style="width:110px">Date</th><th>Treatment done</th><th style="text-align:right">Paid (${cur})</th></tr></thead><tbody>${visitRows}</tbody></table>` : ''}</div>`;
+};
+
+async function printStatement(patient: Patient, plans: TreatmentPlan[], records: TreatmentRecord[], payments: Payment[], ledger: any, onlyPlan?: TreatmentPlan) {
+  const s = (await api.get('/settings')).data; const cur = s.currency || 'BDT';
+  const list = onlyPlan ? [onlyPlan] : plans;
+  const blocks = list.map((pl) => planBlock(pl, records, payments, cur)).join('');
+  const payRows = payments.map((p) => `<tr><td>${dDate(p.paidAt)}</td><td>${p.method}</td><td>${p.note || ''}</td><td style="text-align:right">${num(p.amount)}</td></tr>`).join('');
+  const body = `<h2 style="font-size:16px">${onlyPlan ? 'Treatment plan statement' : 'Full treatment & account statement'}</h2>
+    ${blocks || '<p class="muted">No treatment plans.</p>'}
+    ${onlyPlan ? '' : `<h3 style="margin-top:18px">All payments received</h3><table><thead><tr><th>Date</th><th>Method</th><th>Note</th><th style="text-align:right">Amount (${cur})</th></tr></thead><tbody>${payRows || '<tr><td colspan=4 style="color:#94a3b8">No payments</td></tr>'}</tbody></table>
+    <div class="totals">Total treatment cost: ${cur} ${num(ledger?.total || 0)}<br/>Paid: ${cur} ${num(ledger?.paid || 0)}<br/><span class="bal">Balance due: ${cur} ${num(ledger?.balance || 0)}</span></div>`}`;
+  openHtml(wrap(onlyPlan ? 'Plan statement' : 'Statement', s, patient, body));
 }
 
-// One tab: plan procedures (total = the charge/due) → collect payment in installments below.
+async function printInvoice(patient: Patient, plan: TreatmentPlan, record: TreatmentRecord, recPays: Payment[]) {
+  const s = (await api.get('/settings')).data; const cur = s.currency || 'BDT';
+  const paidToday = recPays.reduce((a, p) => a + p.amount, 0);
+  const body = `<h2 style="font-size:16px">Visit invoice</h2>
+    <div class="pinfo">Plan: <b>${plan.title || ''}</b> &nbsp; Visit date: <b>${dDate(record.visitDate)}</b></div>
+    <table><thead><tr><th>Treatment done this visit</th><th style="text-align:right">Amount received (${cur})</th></tr></thead>
+    <tbody><tr><td>${record.content}</td><td style="text-align:right">${num(paidToday)}</td></tr>
+    ${recPays.map((p) => `<tr><td class="muted" style="padding-left:16px">↳ ${p.method}${p.note ? ' · ' + p.note : ''}</td><td style="text-align:right" class="muted">${num(p.amount)}</td></tr>`).join('')}</tbody></table>
+    <div class="totals"><span class="bal">Received this visit: ${cur} ${num(paidToday)}</span></div>`;
+  openHtml(wrap('Invoice', s, patient, body));
+}
+
 export function TreatmentBillingTab({ patient }: { patient: Patient }) {
+  const { can } = useAuth();
+  const canTx = can('treatment.manage');
+  const canBill = can('billing.manage');
   const { data: plans = [] } = useTreatment(patient.id);
   const { data: records = [] } = useTreatmentRecords(patient.id);
   const { data: payments = [] } = usePayments(patient.id);
   const { data: ledger } = useLedger(patient.id);
+  const { data: procedures = [] } = useProcedures();
+  const m = useTreatmentMutations(patient.id);
+  const rm = useTreatmentRecordMutations(patient.id);
+  const bm = useBillingMutations(patient.id);
+  const [newTitle, setNewTitle] = useState('');
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">Treatment plan</h2>
-        <Button size="sm" variant="outline" onClick={() => printStatement(patient, plans, records, payments, ledger)}>
-          <Printer className="mr-1.5 h-4 w-4" /> Print statement
-        </Button>
+    <div className="space-y-5">
+      {/* Account summary + full statement */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4">
+        <div className="flex flex-wrap gap-6 text-sm">
+          <div><div className="text-xs text-muted-foreground">Total treatment cost</div><div className="text-lg font-bold">{taka(ledger?.total || 0)}</div></div>
+          <div><div className="text-xs text-muted-foreground">Paid</div><div className="text-lg font-bold text-success">{taka(ledger?.paid || 0)}</div></div>
+          <div><div className="text-xs text-muted-foreground">Balance due</div><div className={cn('text-lg font-bold', (ledger?.balance || 0) > 0 ? 'text-danger' : 'text-success')}>{taka(ledger?.balance || 0)}</div></div>
+        </div>
+        {canBill && (
+          <Button size="sm" variant="outline" onClick={() => printStatement(patient, plans, records, payments, ledger)}>
+            <Printer className="mr-1.5 h-4 w-4" /> Full statement
+          </Button>
+        )}
       </div>
-      <section>
-        <TreatmentTab patientId={patient.id} patientName={patient.fullName} />
-      </section>
-      <section>
-        <h2 className="mb-3 text-lg font-bold">Account &amp; payments</h2>
-        <BillingTab patient={patient} />
-      </section>
+
+      {/* Create plan (treatment access) */}
+      {canTx && (
+        <div className="flex items-end gap-2">
+          <Input className="flex-1" placeholder="New treatment plan title (e.g. Root canal — tooth 46)" value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && newTitle.trim()) { m.createPlan.mutate(newTitle); setNewTitle(''); } }} />
+          <Button disabled={!newTitle.trim()} onClick={() => { m.createPlan.mutate(newTitle); setNewTitle(''); }}><Plus className="h-4 w-4" /> Create plan</Button>
+        </div>
+      )}
+
+      {plans.length === 0 && <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No treatment plans yet.</CardContent></Card>}
+
+      {plans.map((plan) => (
+        <PlanCard key={plan.id} patient={patient} plan={plan}
+          records={records} payments={payments} procedures={procedures}
+          canTx={canTx} canBill={canBill} m={m} rm={rm} bm={bm} />
+      ))}
+    </div>
+  );
+}
+
+function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill, m, rm, bm }: any) {
+  const recs: TreatmentRecord[] = records.filter((r: TreatmentRecord) => r.planId === plan.id)
+    .sort((a: TreatmentRecord, b: TreatmentRecord) => +new Date(a.visitDate) - +new Date(b.visitDate));
+  const recIds = new Set(recs.map((r) => r.id));
+  const total = plan.items.reduce((s: number, i: any) => s + i.fee, 0);
+  const planPaid = payments.filter((p: Payment) => p.treatmentRecordId && recIds.has(p.treatmentRecordId)).reduce((s: number, p: Payment) => s + p.amount, 0);
+  const due = total - planPaid;
+
+  return (
+    <Card>
+      <CardContent className="pt-5">
+        {/* header */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+          <div>
+            <div className="font-bold">{plan.title}</div>
+            <div className="text-xs text-muted-foreground">
+              Total {taka(total)} · <span className="text-success">Paid {taka(planPaid)}</span> · <span className={due > 0 ? 'text-danger' : 'text-success'}>Due {taka(due)}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {canBill && <Button size="sm" variant="outline" onClick={() => printStatement(patient, [plan], records, payments, null, plan)}><Printer className="mr-1.5 h-4 w-4" /> Statement</Button>}
+            {canTx && <Button size="sm" variant="ghost" onClick={() => { if (confirm(`Delete plan "${plan.title}"?`)) m.deletePlan.mutate(plan.id); }}><Trash2 className="h-4 w-4" /></Button>}
+          </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          {/* LEFT — procedures (the charge) */}
+          <div>
+            <div className="mb-2 text-sm font-semibold">Procedures (charge)</div>
+            {plan.items.length === 0 && <p className="text-sm text-muted-foreground">No procedures yet.</p>}
+            <div className="space-y-2">
+              {plan.items.map((i: any) => (
+                <div key={i.id} className={cn('rounded-md border p-2 text-sm', i.status === 'COMPLETED' ? 'border-success/30 bg-success/5' : 'border-border')}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{i.procedure.name}</span>
+                    <span className="font-semibold">{taka(i.fee)}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">Tooth {i.toothNumber || '—'}</span>
+                    {canTx ? (
+                      <div className="flex items-center gap-1">
+                        <Select className="h-7 w-32 text-xs" value={i.status} onChange={(e) => m.updateItem.mutate({ itemId: i.id, status: e.target.value })}>
+                          <option value="PLANNED">PLANNED</option>
+                          <option value="COMPLETED">COMPLETED ✓</option>
+                        </Select>
+                        <button className="text-muted-foreground hover:text-danger" onClick={() => { if (confirm('Remove procedure?')) m.deleteItem.mutate(i.id); }}><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    ) : <span className="text-xs">{i.status}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {canTx && <AddProcedure planId={plan.id} procedures={procedures} onAdd={(b: any) => m.addItem.mutate(b)} />}
+          </div>
+
+          {/* RIGHT — visits (treatment record) + per-visit payment */}
+          <div>
+            <div className="mb-2 text-sm font-semibold">Visits / treatment record</div>
+            {recs.length === 0 && <p className="text-sm text-muted-foreground">No visits logged yet.</p>}
+            <div className="space-y-2">
+              {recs.map((r) => {
+                const recPays = payments.filter((p: Payment) => p.treatmentRecordId === r.id);
+                const paid = recPays.reduce((s: number, p: Payment) => s + p.amount, 0);
+                return (
+                  <VisitRow key={r.id} patient={patient} plan={plan} record={r} recPays={recPays} paid={paid}
+                    canTx={canTx} canBill={canBill} rm={rm} bm={bm} />
+                );
+              })}
+            </div>
+            {canTx && <AddVisit planId={plan.id} onAdd={(b: any) => rm.add.mutate(b)} />}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function VisitRow({ patient, plan, record, recPays, paid, canTx, canBill, rm, bm }: any) {
+  const [edit, setEdit] = useState(false);
+  const [text, setText] = useState(record.content);
+  const [collect, setCollect] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState('CASH');
+
+  return (
+    <div className="rounded-md border border-border p-2 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-medium text-muted-foreground tabular-nums">{dDate(record.visitDate)}</div>
+          {edit ? (
+            <div className="mt-1 flex items-center gap-1">
+              <Input className="h-8" value={text} onChange={(e) => setText(e.target.value)} autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) { rm.update.mutate({ id: record.id, content: text.trim() }); setEdit(false); } }} />
+              <button className="text-success" onClick={() => { if (text.trim()) { rm.update.mutate({ id: record.id, content: text.trim() }); setEdit(false); } }}><Check className="h-4 w-4" /></button>
+              <button className="text-muted-foreground" onClick={() => { setText(record.content); setEdit(false); }}><X className="h-4 w-4" /></button>
+            </div>
+          ) : (
+            <div className="font-medium">{record.content}</div>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {paid > 0 && <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">{taka(paid)}</span>}
+          {canBill && <button title="Visit invoice" className="text-muted-foreground hover:text-primary" onClick={() => printInvoice(patient, plan, record, recPays)}><Receipt className="h-4 w-4" /></button>}
+          {canTx && !edit && <button className="text-muted-foreground hover:text-primary" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" /></button>}
+          {canTx && <button className="text-muted-foreground hover:text-danger" onClick={() => rm.remove.mutate(record.id)}><Trash2 className="h-3.5 w-3.5" /></button>}
+        </div>
+      </div>
+
+      {/* per-visit payment collection (billing access) */}
+      {canBill && (
+        collect ? (
+          <div className="mt-2 flex flex-wrap items-end gap-1.5 border-t border-border/60 pt-2">
+            <div className="w-24"><Label>Amount ৳</Label><Input className="h-8" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
+            <div className="w-28"><Label>Method</Label><Select className="h-8" value={method} onChange={(e) => setMethod(e.target.value)}>{METHODS.map((x) => <option key={x}>{x}</option>)}</Select></div>
+            <Button size="sm" disabled={!Number(amount) || bm.pay.isPending}
+              onClick={() => bm.pay.mutate({ amount: Number(amount), method, treatmentRecordId: record.id, note: record.content.slice(0, 40) }, { onSuccess: () => { setAmount(''); setCollect(false); } })}>Take</Button>
+            <Button size="sm" variant="ghost" onClick={() => setCollect(false)}>Cancel</Button>
+          </div>
+        ) : (
+          <button className="mt-1.5 text-xs font-medium text-primary hover:underline" onClick={() => setCollect(true)}>+ Collect payment for this visit</button>
+        )
+      )}
+    </div>
+  );
+}
+
+function AddProcedure({ planId, procedures, onAdd }: { planId: string; procedures: any[]; onAdd: (b: any) => void }) {
+  const [procedureId, setProcedureId] = useState('');
+  const [tooth, setTooth] = useState('');
+  const [fee, setFee] = useState('');
+  const pick = (id: string) => { setProcedureId(id); const p = procedures.find((x) => x.id === id); setFee(p ? String(p.defaultFee) : ''); };
+  return (
+    <div className="mt-2 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2">
+      <div className="space-y-1.5">
+        <Select value={procedureId} onChange={(e) => pick(e.target.value)}>
+          <option value="">+ Add procedure…</option>
+          {procedures.map((p) => <option key={p.id} value={p.id}>{p.name} (৳{num(p.defaultFee)})</option>)}
+        </Select>
+        {procedureId && (
+          <div className="flex items-end gap-1.5">
+            <div className="w-16"><Label>Tooth</Label><Input className="h-8" value={tooth} onChange={(e) => setTooth(e.target.value)} /></div>
+            <div className="w-24"><Label>Fee ৳</Label><Input className="h-8" type="number" value={fee} onChange={(e) => setFee(e.target.value)} /></div>
+            <Button size="sm" onClick={() => { onAdd({ planId, procedureId, toothNumber: tooth || undefined, fee: fee === '' ? undefined : Number(fee) }); setProcedureId(''); setTooth(''); setFee(''); }}>Add</Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AddVisit({ planId, onAdd }: { planId: string; onAdd: (b: any) => void }) {
+  const [content, setContent] = useState('');
+  const [date, setDate] = useState(todayISO());
+  const add = () => { if (!content.trim()) return; onAdd({ content: content.trim(), planId, visitDate: new Date(date).toISOString() }); setContent(''); setDate(todayISO()); };
+  return (
+    <div className="mt-2 flex items-end gap-1.5 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2">
+      <div className="w-32"><Label>Visit date</Label><Input className="h-8" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+      <div className="flex-1"><Label>What was done</Label><Input className="h-8" placeholder="e.g. RCT started, basic clean" value={content} onChange={(e) => setContent(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} /></div>
+      <Button size="sm" disabled={!content.trim()} onClick={add}><Plus className="h-4 w-4" /></Button>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export function useFileMutations(patientId: string) {
 }
 
 /* ---------------- Billing (patient account + installments) ---------------- */
-export interface Payment { id: string; amount: number; method: string; paidAt: string; note?: string; appointmentId?: string; }
+export interface Payment { id: string; amount: number; method: string; paidAt: string; note?: string; appointmentId?: string; treatmentRecordId?: string | null; }
 // total = treatment plan total (the charge/due); paid = installments; balance = total − paid.
 export interface Ledger { total: number; completed: number; paid: number; balance: number; }
 
@@ -104,7 +104,7 @@ export function useBillingMutations(patientId: string) {
   return {
     // Collect one installment toward the patient's balance.
     pay: useMutation({
-      mutationFn: async (body: { amount: number; method: string; appointmentId?: string; note?: string }) =>
+      mutationFn: async (body: { amount: number; method: string; appointmentId?: string; treatmentRecordId?: string; note?: string }) =>
         (await api.post(`/patients/${patientId}/payments`, body)).data,
       onSuccess: inval,
     }),

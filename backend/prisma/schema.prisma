@@ -180,6 +180,8 @@ model TreatmentRecord {
   authorId  String?
   createdAt DateTime       @default(now())
 
+  payments Payment[]
+
   @@index([patientId])
 }
 
@@ -294,6 +296,8 @@ model Payment {
   patient       Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
   appointmentId String? // which visit it was collected at
   appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  treatmentRecordId String? // which treatment-record visit this payment is for (per-visit invoice)
+  treatmentRecord   TreatmentRecord? @relation(fields: [treatmentRecordId], references: [id], onDelete: SetNull)
   invoiceId     String? // legacy / optional invoice link
   invoice       Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   amount        Float

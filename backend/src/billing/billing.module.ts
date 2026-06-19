@@ -11,6 +11,7 @@ class InstallmentDto {
   @IsNumber() amount: number;
   @IsString() method: string; // CASH | BKASH | NAGAD | CARD | OTHER
   @IsOptional() @IsString() appointmentId?: string; // visit it was collected at
+  @IsOptional() @IsString() treatmentRecordId?: string; // treatment-record visit (per-visit invoice)
   @IsOptional() @IsString() note?: string;
 }
 
@@ -40,6 +41,7 @@ class BillingService {
       data: {
         patientId,
         appointmentId: dto.appointmentId,
+        treatmentRecordId: dto.treatmentRecordId,
         amount: dto.amount,
         method: dto.method,
         note: dto.note,
