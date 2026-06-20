@@ -466,7 +466,11 @@ export function Appointments() {
                               return (
                                 <button key={i} style={{ top: i * ROW, height: ROW }}
                                   onClick={() => pickSlot(d, hour)}
-                                  className={cn('absolute inset-x-0 border-b border-border/60', sel ? 'bg-primary/15 ring-1 ring-inset ring-primary' : 'hover:bg-primary/5')} />
+                                  className={cn('group absolute inset-x-0 flex items-center justify-center border-b border-border/60', sel ? 'bg-primary/15 ring-1 ring-inset ring-primary' : 'hover:bg-primary/5')}>
+                                  <span className={cn('pointer-events-none text-[9px]', sel ? 'text-primary' : 'text-primary/60 opacity-0 group-hover:opacity-100')}>
+                                    {label(startM + i * 60)}
+                                  </span>
+                                </button>
                               );
                             })}
                             {/* appointments — height = duration */}
