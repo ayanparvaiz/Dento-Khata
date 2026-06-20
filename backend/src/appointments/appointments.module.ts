@@ -6,8 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Requires } from '../auth/permissions.guard';
 
 // Clinic working window for slot generation (24h). Adjust per clinic later via settings.
-const WORK_START = 10; // 10:00
-const WORK_END = 22; // 22:00
+const WORK_START = 8; // 8:00 AM
+const WORK_END = 23; // 11:00 PM (last session 10–11 PM)
 const SLOT_MIN = 30;
 const pad = (n: number) => String(n).padStart(2, '0');
 const hmStr = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;

@@ -124,6 +124,11 @@ export function Appointments() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const cancelReschedule = () => { setEditingId(null); setForm((f) => ({ ...f, patientId: '', patientName: '', reason: '' })); setPsearch(''); };
+  // Click an empty calendar cell → preselect that date + 1-hour slot in the booking panel.
+  const pickSlot = (dateStr: string, hour: number) => {
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    setForm((f) => ({ ...f, date: dateStr, start: `${p2(hour)}:00`, end: `${p2(hour + 1)}:00`, duration: '60' }));
+  };
   // Live free/busy slots for the chosen date + chair + dentist.
   const avail = useAvailability(form.date, form.chair, form.dentistId || undefined, Number(form.duration), !!form.date);
   // Next 14 days free-slot counts for the "which date has openings" strip.
@@ -454,10 +459,16 @@ export function Appointments() {
                         </div>
                         {days.map((d) => (
                           <div key={d} className="relative flex-1 border-l border-border" style={{ height: gridH }}>
-                            {/* hour lines */}
-                            {Array.from({ length: slots }).map((_, i) => (
-                              <div key={i} style={{ top: i * ROW, height: ROW }} className="absolute inset-x-0 border-b border-border/60" />
-                            ))}
+                            {/* clickable hour cells — empty cell selects that slot in the booking panel */}
+                            {Array.from({ length: slots }).map((_, i) => {
+                              const hour = Math.floor((startM + i * 60) / 60);
+                              const sel = d === form.date && Number(form.start.split(':')[0]) === hour;
+                              return (
+                                <button key={i} style={{ top: i * ROW, height: ROW }}
+                                  onClick={() => pickSlot(d, hour)}
+                                  className={cn('absolute inset-x-0 border-b border-border/60', sel ? 'bg-primary/15 ring-1 ring-inset ring-primary' : 'hover:bg-primary/5')} />
+                              );
+                            })}
                             {/* appointments — height = duration */}
                             {appts.filter((a) => iso(new Date(a.startTime)) === d).map((a) => {
                               const s = toMin(a.startTime), e = toMin(a.endTime);
