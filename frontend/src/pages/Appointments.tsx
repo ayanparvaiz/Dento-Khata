@@ -67,7 +67,7 @@ const ATT_COLOR: Record<string, string> = {
 };
 
 export function Appointments() {
-  const [view, setView] = useState<'day' | 'week' | 'month'>('day');
+  const [view, setView] = useState<'day' | 'week' | 'month'>('week');
   const [anchor, setAnchor] = useState(today());
   const navigate = useNavigate();
   const m = useApptMutations();
