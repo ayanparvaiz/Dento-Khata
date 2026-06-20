@@ -11,7 +11,39 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, CalendarClock } from 'lucide-react';
+
+// Inline reschedule: change an appointment's date/time (keeps its duration).
+function Reschedule({ a, onSave }: { a: any; onSave: (startISO: string, endISO: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const d = new Date(a.startTime);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dur = Math.max(15, Math.round((+new Date(a.endTime) - +d) / 60000));
+  const [date, setDate] = useState(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+  const [tm, setTm] = useState(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+  const save = () => {
+    const s = new Date(`${date}T${tm}:00`);
+    onSave(s.toISOString(), new Date(s.getTime() + dur * 60000).toISOString());
+    setOpen(false);
+  };
+  return (
+    <div className="relative">
+      <button title="Reschedule" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-primary" onClick={() => setOpen((o) => !o)}>
+        <CalendarClock className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-border bg-card p-2 shadow-lg">
+          <div className="mb-1.5 text-xs font-semibold">Reschedule appointment</div>
+          <div className="space-y-1.5">
+            <Input type="date" className="h-8" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Input type="time" className="h-8" value={tm} onChange={(e) => setTm(e.target.value)} />
+            <div className="flex gap-1.5"><Button size="sm" onClick={save}>Save</Button><Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STATUSES = ['BOOKED', 'COMPLETED', 'NO_SHOW', 'CANCELLED'];
 const STATUS_COLOR: Record<string, string> = {
@@ -174,7 +206,8 @@ export function Appointments() {
         <Select className={`h-8 w-28 text-xs ${STATUS_COLOR[a.status] || ''}`} value={a.status} onChange={(e) => m.update.mutate({ id: a.id, status: e.target.value })}>
           {[...new Set([...STATUSES, a.status])].map((s) => <option key={s}>{s}</option>)}
         </Select>
-        <button onClick={() => m.remove.mutate(a.id)} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+        <Reschedule a={a} onSave={(s, e) => m.update.mutate({ id: a.id, startTime: s, endTime: e })} />
+        <button title="Delete" onClick={() => { if (confirm('Delete this appointment?')) m.remove.mutate(a.id); }} className="rounded-md p-1.5 text-muted-foreground hover:bg-rose-50 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
       </div>
     </div>
   );
