@@ -314,16 +314,9 @@ export function Appointments() {
                 {dentists.map((d) => <option key={d.id} value={d.id}>{d.fullName}</option>)}
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2">
               <div className="min-w-0"><Label>Chair</Label><Select value={form.chair} onChange={(e) => setForm({ ...form, chair: e.target.value })}><option>Chair 1</option><option>Chair 2</option></Select></div>
-              <div className="min-w-0"><Label>Start</Label><Input type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value, end: addMinutes(e.target.value, Number(form.duration)) })} /></div>
-              <div className="min-w-0">
-                <Label>Duration</Label>
-                <Select value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value, end: addMinutes(form.start, Number(e.target.value)) })}>
-                  <option value="30">30 min</option>
-                  <option value="60">1 hour</option>
-                </Select>
-              </div>
+              <div className="min-w-0"><Label>Start (1 hour session)</Label><Input type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value, end: addMinutes(e.target.value, 60) })} /></div>
             </div>
             {/* Live availability — green = free, red = taken (hover to see by whom) */}
             <div>
@@ -419,10 +412,10 @@ export function Appointments() {
               const days = Array.from({ length: 7 }, (_, i) => addDays(wkStart, i));
               const appts = week.data ?? [];
               const toMin = (s: string) => { const d = new Date(s); return d.getHours() * 60 + d.getMinutes(); };
-              const startM = Math.min(8 * 60, ...appts.map((a) => toMin(a.startTime))); // 8 AM (or earlier)
-              const endM = Math.max(23 * 60, ...appts.map((a) => toMin(a.endTime)));    // 11 PM (or later)
-              const ROW = 30;            // px per 30-min slot
-              const slots = (endM - startM) / 30;
+              const startM = Math.floor(Math.min(8 * 60, ...appts.map((a) => toMin(a.startTime))) / 60) * 60; // 8 AM (or earlier), on the hour
+              const endM = Math.ceil(Math.max(23 * 60, ...appts.map((a) => toMin(a.endTime))) / 60) * 60;     // 11 PM (or later), on the hour
+              const ROW = 48;            // px per 1-hour cell
+              const slots = (endM - startM) / 60;
               const gridH = slots * ROW;
               const label = (m: number) => { const h = Math.floor(m / 60); return `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`; };
               return (
@@ -455,23 +448,21 @@ export function Appointments() {
                       <div className="flex">
                         {/* hour labels */}
                         <div className="relative w-14 shrink-0" style={{ height: gridH }}>
-                          {Array.from({ length: slots + 1 }).map((_, i) => {
-                            const m = startM + i * 30;
-                            return m % 60 === 0 ? <div key={i} style={{ top: i * ROW - 6 }} className="absolute right-2 text-[11px] text-muted-foreground">{label(m)}</div> : null;
-                          })}
+                          {Array.from({ length: slots + 1 }).map((_, i) => (
+                            <div key={i} style={{ top: i * ROW - 6 }} className="absolute right-2 text-[11px] text-muted-foreground">{label(startM + i * 60)}</div>
+                          ))}
                         </div>
                         {days.map((d) => (
                           <div key={d} className="relative flex-1 border-l border-border" style={{ height: gridH }}>
-                            {/* slot lines */}
-                            {Array.from({ length: slots }).map((_, i) => {
-                              const m = startM + i * 30;
-                              return <div key={i} style={{ top: i * ROW, height: ROW }} className={cn('absolute inset-x-0 border-b', m % 60 === 0 ? 'border-border/70' : 'border-border/25')} />;
-                            })}
+                            {/* hour lines */}
+                            {Array.from({ length: slots }).map((_, i) => (
+                              <div key={i} style={{ top: i * ROW, height: ROW }} className="absolute inset-x-0 border-b border-border/60" />
+                            ))}
                             {/* appointments — height = duration */}
                             {appts.filter((a) => iso(new Date(a.startTime)) === d).map((a) => {
                               const s = toMin(a.startTime), e = toMin(a.endTime);
-                              const top = ((s - startM) / 30) * ROW;
-                              const h = ((e - s) / 30) * ROW; // fill the full slot height
+                              const top = ((s - startM) / 60) * ROW;
+                              const h = ((e - s) / 60) * ROW; // fill the full hour cell
                               return (
                                 <button key={a.id} style={{ top, height: h }} title={`${hm(a.startTime)}–${hm(a.endTime)} ${a.patient?.fullName} · ${a.status}`}
                                   onClick={() => { setAnchor(d); setView('day'); }}

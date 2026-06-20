@@ -212,7 +212,7 @@ async function seedDemo() {
       const ap = await prisma.appointment.create({
         data: {
           patientId: p.id, dentistId: dentist.id, chair: a.chair ?? 'Chair 1',
-          startTime: a.start, endTime: new Date(a.start.getTime() + (a.dur ?? 30) * 60000),
+          startTime: a.start, endTime: new Date(a.start.getTime() + (a.dur ?? 60) * 60000),
           status: a.status, reason: a.reason,
         },
       });
@@ -305,8 +305,8 @@ async function seedDemo() {
         { amount: 5000, method: 'CASH', daysAgo: 2, recordIdx: 1 },
       ],
       appts: [
-        { start: at(day(-5), 13, 0), dur: 30, status: 'COMPLETED', reason: 'Monthly adjustment' },
-        { start: at(day(0), 16, 0), dur: 30, status: 'CONFIRMED', reason: 'Wire adjustment', chair: 'Chair 2' },
+        { start: at(day(-5), 13, 0), dur: 60, status: 'COMPLETED', reason: 'Monthly adjustment' },
+        { start: at(day(0), 16, 0), dur: 60, status: 'CONFIRMED', reason: 'Wire adjustment', chair: 'Chair 2' },
       ],
       records: [
         { content: 'Braces bonded (upper & lower), initial NiTi archwire placed.', daysAgo: 33 },
@@ -357,8 +357,8 @@ async function seedDemo() {
       records: [{ content: 'Full-mouth scaling & polishing done. Oral hygiene instructions given.', daysAgo: 3 }],
       payments: [{ amount: 1500, method: 'CASH', daysAgo: 3, note: 'Scaling & polishing', recordIdx: 0 }],
       appts: [
-        { start: at(day(-3), 10, 30), dur: 30, status: 'COMPLETED', reason: 'Scaling' },
-        { start: at(day(7), 11, 0), dur: 30, status: 'BOOKED', reason: 'Composite filling 37' },
+        { start: at(day(-3), 10, 30), dur: 60, status: 'COMPLETED', reason: 'Scaling' },
+        { start: at(day(7), 11, 0), dur: 60, status: 'BOOKED', reason: 'Composite filling 37' },
       ],
       notes: ['Pregnant — avoided x-ray. Scaling done. Filling next visit.'],
     },
@@ -398,7 +398,7 @@ async function seedDemo() {
         { amount: 4000, method: 'CARD', daysAgo: 4, note: 'Crown — advance', recordIdx: 1 },
       ],
       appts: [
-        { start: at(day(-10), 14, 0), dur: 30, status: 'COMPLETED', reason: 'Examination' },
+        { start: at(day(-10), 14, 0), dur: 60, status: 'COMPLETED', reason: 'Examination' },
         { start: at(day(2), 13, 30), dur: 60, status: 'BOOKED', reason: 'Crown prep & impression' },
       ],
     },
@@ -425,7 +425,7 @@ async function seedDemo() {
     await prisma.appointment.create({
       data: {
         patientId: pts[i % pts.length].id, dentistId: dentist.id, chair: i % 2 ? 'Chair 2' : 'Chair 1',
-        startTime: start, endTime: new Date(start.getTime() + 30 * 60000), status: c.st, reason: c.reason,
+        startTime: start, endTime: new Date(start.getTime() + 60 * 60000), status: c.st, reason: c.reason,
       },
     });
   }
