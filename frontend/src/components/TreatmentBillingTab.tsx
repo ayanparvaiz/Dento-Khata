@@ -124,11 +124,14 @@ export function TreatmentBillingTab({ patient }: { patient: Patient }) {
 
       {plans.length === 0 && <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No treatment plans yet.</CardContent></Card>}
 
-      {plans.map((plan) => (
-        <PlanCard key={plan.id} patient={patient} plan={plan}
-          records={records} payments={payments} procedures={procedures}
-          canTx={canTx} canBill={canBill} m={m} rm={rm} bm={bm} />
-      ))}
+      {/* bigger gap between plans so each treatment plan is clearly separated */}
+      <div className="space-y-8">
+        {plans.map((plan) => (
+          <PlanCard key={plan.id} patient={patient} plan={plan}
+            records={records} payments={payments} procedures={procedures}
+            canTx={canTx} canBill={canBill} m={m} rm={rm} bm={bm} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -157,7 +160,7 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
         </div>
       </div>
 
-      <CardContent className="bg-emerald-50/60 pt-4">
+      <CardContent className="bg-emerald-100 pt-4">
         <div className="grid gap-5 md:grid-cols-12">
           {/* LEFT — procedures (the charge) — narrow */}
           <div className="rounded-lg bg-slate-100 p-3 md:col-span-5">
