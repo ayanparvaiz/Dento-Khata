@@ -145,7 +145,7 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
   const due = total - planPaid;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border border-border shadow-md">
       {/* solid header strip — clearly separates each plan */}
       <div className="flex flex-wrap items-center justify-between gap-2 bg-primary px-4 py-3 text-primary-foreground">
         <div>
@@ -160,7 +160,7 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
         </div>
       </div>
 
-      <CardContent className="bg-emerald-100 pt-4">
+      <CardContent className="pt-4">
         <div className="grid gap-5 md:grid-cols-12">
           {/* LEFT — procedures (the charge) — narrow */}
           <div className="rounded-lg bg-slate-100 p-3 md:col-span-5">
