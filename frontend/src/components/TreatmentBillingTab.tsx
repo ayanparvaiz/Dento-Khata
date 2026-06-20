@@ -99,7 +99,7 @@ export function TreatmentBillingTab({ patient }: { patient: Patient }) {
   return (
     <div className="space-y-5">
       {/* Account summary + full statement */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
         <div className="flex flex-wrap gap-6 text-sm">
           <div><div className="text-xs text-muted-foreground">Total treatment cost</div><div className="text-lg font-bold">{taka(ledger?.total || 0)}</div></div>
           <div><div className="text-xs text-muted-foreground">Paid</div><div className="text-lg font-bold text-success">{taka(ledger?.paid || 0)}</div></div>
@@ -142,22 +142,22 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
   const due = total - planPaid;
 
   return (
-    <Card>
-      <CardContent className="pt-5">
-        {/* header */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-          <div>
-            <div className="font-bold">{plan.title}</div>
-            <div className="text-xs text-muted-foreground">
-              Total {taka(total)} · <span className="text-success">Paid {taka(planPaid)}</span> · <span className={due > 0 ? 'text-danger' : 'text-success'}>Due {taka(due)}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {canBill && <Button size="sm" variant="outline" onClick={() => printStatement(patient, [plan], records, payments, null, plan)}><Printer className="mr-1.5 h-4 w-4" /> Statement</Button>}
-            {canTx && <Button size="sm" variant="ghost" onClick={() => { if (confirm(`Delete plan "${plan.title}"?`)) m.deletePlan.mutate(plan.id); }}><Trash2 className="h-4 w-4" /></Button>}
+    <Card className="overflow-hidden">
+      {/* solid header strip — clearly separates each plan */}
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-primary px-4 py-3 text-primary-foreground">
+        <div>
+          <div className="font-bold leading-tight">{plan.title}</div>
+          <div className="text-xs text-primary-foreground/90">
+            Total {taka(total)} · Paid {taka(planPaid)} · <span className={due > 0 ? 'font-semibold text-amber-200' : 'font-semibold'}>Due {taka(due)}</span>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          {canBill && <Button size="sm" className="h-8 bg-white px-2.5 text-primary hover:bg-white/90" onClick={() => printStatement(patient, [plan], records, payments, null, plan)}><Printer className="mr-1.5 h-4 w-4" /> Statement</Button>}
+          {canTx && <button className="rounded p-1.5 text-primary-foreground/80 hover:bg-white/15 hover:text-white" onClick={() => { if (confirm(`Delete plan "${plan.title}"?`)) m.deletePlan.mutate(plan.id); }}><Trash2 className="h-4 w-4" /></button>}
+        </div>
+      </div>
 
+      <CardContent className="pt-4">
         <div className="grid gap-5 md:grid-cols-12">
           {/* LEFT — procedures (the charge) — narrow */}
           <div className="rounded-lg bg-slate-100 p-3 md:col-span-5">
