@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import { useDrugs, usePrescriptions, useRxMutations, type RxItem } from '@/lib/clinical';
 import { useTreatment } from '@/lib/treatment';
 import { splitList, fmtDate, ageFromDob } from '@/lib/format';
+import { letterheadHead, letterheadFoot, LETTERHEAD_CSS } from '@/lib/letterhead';
 import type { Patient } from '@/lib/patients';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
@@ -35,15 +36,12 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
   const gridRows = (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL)
     ? `<table class="grid"><tr><td>${d.grid.UR || ''}</td><td>${d.grid.UL || ''}</td></tr><tr><td>${d.grid.LR || ''}</td><td>${d.grid.LL || ''}</td></tr></table>` : '';
   const followUp = d.followNum ? `<p><b>${bn(d.followNum)} ${d.followUnit}</b> পর আসবেন।</p>` : '';
-  const header = withHeader
-    ? `<div class="hd"><h1>${s.name || 'Dental Clinic'}</h1>
-        ${s.letterhead ? `<div class="ql">${s.letterhead}</div>` : ''}
-        <div class="muted">${s.address || ''}${s.phone ? ' · ' + s.phone : ''}</div></div>`
-    : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka jaiga
+  const header = withHeader ? letterheadHead(s) : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka
+  const footer = withHeader ? letterheadFoot(s) : '';
   const html = `<html><head><meta charset="utf-8"/><title>প্রেসক্রিপশন — ${patient.fullName}</title><style>
     *{box-sizing:border-box} body{font-family:'Nirmala UI','SolaimanLipi','Segoe UI',system-ui,sans-serif;padding:28px;color:#0f172a;font-size:13px}
-    .hd{text-align:center;border-bottom:2px solid #0f766e;padding-bottom:6px;margin-bottom:8px}
-    .hd h1{margin:0;color:#0f766e;font-size:22px} .ql{font-size:12px;color:#334155} .muted{color:#64748b;font-size:12px}
+    ${LETTERHEAD_CSS}
+    .muted{color:#64748b;font-size:12px}
     .pt{display:flex;justify-content:space-between;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
     .body{display:flex;margin-top:10px} .left{width:34%;border-right:1px solid #94a3b8;padding-right:10px}
     .right{flex:1;padding-left:14px} .fld{margin-bottom:16px;line-height:1.45} .fld .l{font-weight:700;font-size:11px;color:#475569;margin-bottom:3px}
@@ -69,7 +67,8 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
         ${d.advice ? `<div class="adv"><b>উপদেশঃ</b> ${d.advice}</div>` : ''}
         ${followUp}
       </div>
-    </div></body></html>`;
+    </div>
+    ${footer}</body></html>`;
   const w = window.open('', '_blank');
   if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
 }

@@ -358,6 +358,12 @@ model ClinicSettings {
   phone         String?
   logoPath      String?
   letterhead    String?
+  // Shared letterhead template for prescription + invoice print
+  headerTitle    String? // big title (doctor/clinic name)
+  headerSubtitle String? // designation / qualifications
+  headerExtra    String? // extra header line
+  footerLeft     String? // multi-line (clinic name, address)
+  footerRight    String? // multi-line (phone, visit hours)
   toothNotation String  @default("FDI") // FDI | UNIVERSAL | PALMER
   currency      String  @default("BDT")
 }
