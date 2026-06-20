@@ -374,33 +374,66 @@ export function Appointments() {
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardHeader><CardTitle>Week of {new Date(wkStart).toDateString()}</CardTitle></CardHeader>
-              <CardContent className="overflow-x-auto">
-                <div className="grid min-w-[640px] grid-cols-7 gap-1 text-xs">
-                  {Array.from({ length: 7 }, (_, i) => addDays(wkStart, i)).map((d) => {
-                    const list = (week.data ?? []).filter((a) => iso(new Date(a.startTime)) === d);
-                    const isToday = d === today();
-                    return (
-                      <div key={d} className="min-h-[120px] rounded border border-border p-1">
-                        <button
-                          onClick={() => { setAnchor(d); setView('day'); }}
-                          className={`mb-1 w-full rounded px-1 text-center font-semibold ${isToday ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
-                        >
-                          {new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit' })}
-                        </button>
-                        {list.map((a) => (
-                          <button key={a.id} onClick={() => { setAnchor(d); setView('day'); }}
-                            className={`mb-0.5 block w-full truncate rounded px-1 py-0.5 text-left ${STATUS_COLOR[a.status] || 'bg-muted'}`}>
-                            {hm(a.startTime)} {a.patient?.fullName}
-                          </button>
-                        ))}
+            (() => {
+              const days = Array.from({ length: 7 }, (_, i) => addDays(wkStart, i));
+              const appts = week.data ?? [];
+              const hrs = appts.map((a) => new Date(a.startTime).getHours());
+              const startH = Math.min(9, ...hrs);
+              const endH = Math.max(19, ...hrs);
+              const hours = Array.from({ length: endH - startH + 1 }, (_, i) => startH + i);
+              const hLabel = (h: number) => `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`;
+              const cols = '52px repeat(7, minmax(96px, 1fr))';
+              return (
+                <Card>
+                  <CardHeader className="flex-row items-center justify-between">
+                    <CardTitle>Week of {new Date(wkStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</CardTitle>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-green-300 bg-green-100" /> Came</span>
+                      <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-red-300 bg-red-100" /> No-show</span>
+                      <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-slate-300 bg-slate-200" /> Upcoming</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <div className="min-w-[760px]">
+                      {/* day headers */}
+                      <div className="grid" style={{ gridTemplateColumns: cols }}>
+                        <div />
+                        {days.map((d) => {
+                          const isToday = d === today();
+                          return (
+                            <button key={d} onClick={() => { setAnchor(d); setView('day'); }}
+                              className={cn('border-b border-border py-1 text-center text-xs font-semibold hover:bg-muted', isToday ? 'text-primary' : 'text-muted-foreground')}>
+                              {new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short' })}<br />
+                              <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full', isToday ? 'bg-primary text-primary-foreground' : '')}>{new Date(d + 'T00:00:00').getDate()}</span>
+                            </button>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                      {/* hour rows */}
+                      {hours.map((h) => (
+                        <div key={h} className="grid border-t border-border/60" style={{ gridTemplateColumns: cols }}>
+                          <div className="py-1 pr-2 text-right text-[11px] text-muted-foreground">{hLabel(h)}</div>
+                          {days.map((d) => {
+                            const cell = appts.filter((a) => iso(new Date(a.startTime)) === d && new Date(a.startTime).getHours() === h);
+                            return (
+                              <div key={d} className="min-h-[44px] space-y-0.5 border-l border-border/60 p-0.5">
+                                {cell.map((a) => (
+                                  <button key={a.id} title={`${hm(a.startTime)} ${a.patient?.fullName} · ${a.status}`}
+                                    onClick={() => { setAnchor(d); setView('day'); }}
+                                    className={cn('block w-full truncate rounded border px-1 py-0.5 text-left text-[11px]', ATT_COLOR[attendance(a.status)])}>
+                                    {hm(a.startTime)} {a.patient?.fullName}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()
           )}
         </div>
       </div>
