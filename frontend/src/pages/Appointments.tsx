@@ -102,7 +102,7 @@ export function Appointments() {
   const [form, setForm] = useState({
     patientId: params.get('patientId') || '',
     patientName: params.get('patientName') || '',
-    date: anchor, dentistId: '', chair: 'Chair 1', start: '10:00', end: '10:30', duration: '30', reason: '',
+    date: anchor, dentistId: '', chair: 'Chair 1', start: '10:00', end: '11:00', duration: '60', reason: '',
   });
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null); // rescheduling an existing appt
@@ -471,13 +471,12 @@ export function Appointments() {
                             {appts.filter((a) => iso(new Date(a.startTime)) === d).map((a) => {
                               const s = toMin(a.startTime), e = toMin(a.endTime);
                               const top = ((s - startM) / 30) * ROW;
-                              const h = Math.max(ROW - 3, ((e - s) / 30) * ROW - 3);
+                              const h = ((e - s) / 30) * ROW; // fill the full slot height
                               return (
                                 <button key={a.id} style={{ top, height: h }} title={`${hm(a.startTime)}–${hm(a.endTime)} ${a.patient?.fullName} · ${a.status}`}
                                   onClick={() => { setAnchor(d); setView('day'); }}
-                                  className={cn('absolute inset-x-1 overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight', ATT_COLOR[attendance(a.status)])}>
-                                  <div className="truncate font-medium">{hm(a.startTime)} {a.patient?.fullName}</div>
-                                  {a.reason && h > 30 && <div className="truncate opacity-80">{a.reason}</div>}
+                                  className={cn('absolute inset-x-0 flex items-center overflow-hidden border-y px-1.5 text-left text-[11px] font-semibold leading-tight', ATT_COLOR[attendance(a.status)])}>
+                                  <span className="truncate">{a.patient?.fullName}</span>
                                 </button>
                               );
                             })}
