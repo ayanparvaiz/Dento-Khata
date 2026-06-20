@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Plus, Printer, Trash2, Pencil, Check, X, Receipt } from 'lucide-react';
+import { Plus, Printer, Trash2, Pencil, Check, X, Receipt, CalendarPlus } from 'lucide-react';
 import type { Patient } from '@/lib/patients';
 
 const METHODS = ['CASH', 'BKASH', 'NAGAD', 'CARD', 'OTHER'];
@@ -119,8 +120,11 @@ async function printInvoice(patient: Patient, plan: TreatmentPlan, record: Treat
 
 export function TreatmentBillingTab({ patient }: { patient: Patient }) {
   const { can } = useAuth();
+  const navigate = useNavigate();
   const canTx = can('treatment.manage');
   const canBill = can('billing.manage');
+  const canAppt = can('appointments.manage');
+  const bookNext = () => navigate(`/appointments?patientId=${patient.id}&patientName=${encodeURIComponent(patient.fullName)}`);
   const { data: plans = [] } = useTreatment(patient.id);
   const { data: records = [] } = useTreatmentRecords(patient.id);
   const { data: payments = [] } = usePayments(patient.id);
@@ -140,11 +144,18 @@ export function TreatmentBillingTab({ patient }: { patient: Patient }) {
           <div><div className="text-xs text-muted-foreground">Paid</div><div className="text-lg font-bold text-success">{taka(ledger?.paid || 0)}</div></div>
           <div><div className="text-xs text-muted-foreground">Balance due</div><div className={cn('text-lg font-bold', (ledger?.balance || 0) > 0 ? 'text-danger' : 'text-success')}>{taka(ledger?.balance || 0)}</div></div>
         </div>
-        {canBill && (
-          <Button size="sm" variant="outline" onClick={() => printStatement(patient, plans, records, payments, ledger)}>
-            <Printer className="mr-1.5 h-4 w-4" /> Full statement
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canAppt && (
+            <Button size="sm" onClick={bookNext}>
+              <CalendarPlus className="mr-1.5 h-4 w-4" /> Book next appointment
+            </Button>
+          )}
+          {canBill && (
+            <Button size="sm" variant="outline" onClick={() => printStatement(patient, plans, records, payments, ledger)}>
+              <Printer className="mr-1.5 h-4 w-4" /> Full statement
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Create plan (treatment access) */}
