@@ -40,7 +40,8 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
   const header = withHeader ? letterheadHead(s) : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka
   const footer = withHeader ? letterheadFoot(s) : '';
   const html = `<html><head><meta charset="utf-8"/><title>প্রেসক্রিপশন — ${patient.fullName}</title><style>
-    *{box-sizing:border-box} body{font-family:'Nirmala UI','SolaimanLipi','Segoe UI',system-ui,sans-serif;padding:28px 28px 120px;color:#0f172a;font-size:13px}
+    @page{margin:0}
+    *{box-sizing:border-box} body{font-family:'Nirmala UI','SolaimanLipi','Segoe UI',system-ui,sans-serif;margin:0;padding:14mm 14mm 40mm;color:#0f172a;font-size:13px}
     ${LETTERHEAD_CSS}
     .muted{color:#64748b;font-size:12px}
     .pt{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
@@ -72,9 +73,10 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
         ${followUp}
       </div>
     </div>
-    ${footer}</body></html>`;
+    ${footer}
+    <script>window.onload=function(){setTimeout(function(){window.print()},120)}</script></body></html>`;
   const w = window.open('', '_blank');
-  if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
+  if (w) { w.document.write(html); w.document.close(); w.focus(); }
 }
 
 export function PrescriptionsTab({ patient }: { patient: Patient }) {

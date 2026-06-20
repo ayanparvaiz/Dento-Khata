@@ -20,15 +20,21 @@ const METHODS = ['CASH', 'BKASH', 'NAGAD', 'CARD', 'OTHER'];
 const num = (n: number) => (n || 0).toLocaleString('en-IN');
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const dDate = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-const openHtml = (html: string) => { const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); } };
+const openHtml = (html: string) => {
+  // print after the page (incl. logo image) has loaded
+  const withScript = html.replace('</body>', '<script>window.onload=function(){setTimeout(function(){window.print()},120)}</script></body>');
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(withScript); w.document.close(); w.focus(); }
+};
 
 const wrap = (kind: string, s: any, patient: Patient, body: string, docDate?: string, docMeta?: string) => {
   const age = patient.dateOfBirth ? Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / 3.15576e10) + ' yr' : '';
   const c = themeOf(s);
   const foot = letterheadFoot(s);
   return `<html><head><meta charset="utf-8"/><title>${kind} — ${patient.fullName}</title><style>
+    @page{margin:0}
     *{box-sizing:border-box}
-    body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;padding:36px;color:#1e293b;font-size:13px;line-height:1.5}
+    body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;padding:14mm 14mm 40mm;color:#1e293b;font-size:13px;line-height:1.5}
     ${LETTERHEAD_CSS}
     .muted{color:#64748b;font-size:12px}
     .docrow{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 16px}
@@ -50,7 +56,7 @@ const wrap = (kind: string, s: any, patient: Patient, body: string, docDate?: st
     .totbox .row+.row{border-top:1px solid #eef2f6}
     .totbox .bal{background:${c};color:#fff;font-weight:800;font-size:15px}
     .foot{margin-top:30px;border-top:1px solid #e2e8f0;padding-top:10px;color:#94a3b8;font-size:11px;text-align:center}
-    @media print{body{padding:18px}button{display:none}}</style></head><body>
+    @media print{button{display:none}}</style></head><body>
     ${letterheadHead(s)}
     <div class="docrow"><span class="k">${kind}</span><span class="muted">${docMeta ? docMeta + ' · ' : ''}Date: ${dDate(docDate || new Date().toISOString())}</span></div>
     <div class="bill">
