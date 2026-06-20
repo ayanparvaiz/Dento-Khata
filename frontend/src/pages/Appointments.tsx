@@ -13,38 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Trash2, CalendarClock } from 'lucide-react';
 
-// Inline reschedule: change an appointment's date/time (keeps its duration).
-function Reschedule({ a, onSave }: { a: any; onSave: (startISO: string, endISO: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const d = new Date(a.startTime);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const dur = Math.max(15, Math.round((+new Date(a.endTime) - +d) / 60000));
-  const [date, setDate] = useState(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
-  const [tm, setTm] = useState(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
-  const save = () => {
-    const s = new Date(`${date}T${tm}:00`);
-    onSave(s.toISOString(), new Date(s.getTime() + dur * 60000).toISOString());
-    setOpen(false);
-  };
-  return (
-    <div className="relative">
-      <button title="Reschedule" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-primary" onClick={() => setOpen((o) => !o)}>
-        <CalendarClock className="h-4 w-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-border bg-card p-2 shadow-lg">
-          <div className="mb-1.5 text-xs font-semibold">Reschedule appointment</div>
-          <div className="space-y-1.5">
-            <Input type="date" className="h-8" value={date} onChange={(e) => setDate(e.target.value)} />
-            <Input type="time" className="h-8" value={tm} onChange={(e) => setTm(e.target.value)} />
-            <div className="flex gap-1.5"><Button size="sm" onClick={save}>Save</Button><Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button></div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const STATUSES = ['BOOKED', 'COMPLETED', 'NO_SHOW', 'CANCELLED'];
 const STATUS_COLOR: Record<string, string> = {
   BOOKED: 'bg-slate-200 text-slate-700',
@@ -137,6 +105,25 @@ export function Appointments() {
     date: anchor, dentistId: '', chair: 'Chair 1', start: '10:00', end: '10:30', duration: '30', reason: '',
   });
   const [error, setError] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null); // rescheduling an existing appt
+  // Load an existing appointment into the booking panel to reschedule it (reuses free-slot + overlap checks).
+  const startReschedule = (a: Appointment) => {
+    const d = new Date(a.startTime);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dur = Math.max(15, Math.round((+new Date(a.endTime) - +d) / 60000));
+    setEditingId(a.id);
+    setForm({
+      patientId: a.patientId, patientName: a.patient?.fullName || '',
+      date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+      dentistId: (a as any).dentistId || '', chair: a.chair || 'Chair 1',
+      start: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      end: addMinutes(`${pad(d.getHours())}:${pad(d.getMinutes())}`, dur),
+      duration: String(dur), reason: a.reason || '',
+    });
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const cancelReschedule = () => { setEditingId(null); setForm((f) => ({ ...f, patientId: '', patientName: '', reason: '' })); setPsearch(''); };
   // Live free/busy slots for the chosen date + chair + dentist.
   const avail = useAvailability(form.date, form.chair, form.dentistId || undefined, Number(form.duration), !!form.date);
   // Next 14 days free-slot counts for the "which date has openings" strip.
@@ -157,17 +144,26 @@ export function Appointments() {
   const book = () => {
     if (!form.patientId) return;
     setError('');
-    m.create.mutate({
+    const body = {
       patientId: form.patientId,
       dentistId: form.dentistId || undefined,
       chair: form.chair,
       startTime: new Date(`${form.date}T${form.start}:00`).toISOString(),
       endTime: new Date(`${form.date}T${form.end}:00`).toISOString(),
       reason: form.reason || undefined,
-    }, {
-      onSuccess: () => { setForm({ ...form, patientId: '', patientName: '', reason: '' }); setPsearch(''); },
-      onError: (e: any) => setError(e?.response?.data?.message || 'Could not book — time may be taken'),
-    });
+    };
+    const onError = (e: any) => setError(e?.response?.data?.message || 'Could not save — time may be taken');
+    if (editingId) {
+      m.update.mutate({ id: editingId, ...body }, {
+        onSuccess: () => { setEditingId(null); setForm({ ...form, patientId: '', patientName: '', reason: '' }); setPsearch(''); },
+        onError,
+      });
+    } else {
+      m.create.mutate(body, {
+        onSuccess: () => { setForm({ ...form, patientId: '', patientName: '', reason: '' }); setPsearch(''); },
+        onError,
+      });
+    }
   };
 
   const nav = (dir: number) => {
@@ -204,9 +200,10 @@ export function Appointments() {
           </button>
         )}
         <Select className={`h-8 w-28 text-xs ${STATUS_COLOR[a.status] || ''}`} value={a.status} onChange={(e) => m.update.mutate({ id: a.id, status: e.target.value })}>
-          {[...new Set([...STATUSES, a.status])].map((s) => <option key={s}>{s}</option>)}
+          {/* NO_SHOW only once the appointment time has passed */}
+          {[...new Set([...STATUSES.filter((s) => s !== 'NO_SHOW' || new Date(a.endTime) < new Date()), a.status])].map((s) => <option key={s}>{s}</option>)}
         </Select>
-        <Reschedule a={a} onSave={(s, e) => m.update.mutate({ id: a.id, startTime: s, endTime: e })} />
+        <button title="Reschedule" onClick={() => startReschedule(a)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><CalendarClock className="h-4 w-4" /></button>
         <button title="Delete" onClick={() => { if (confirm('Delete this appointment?')) m.remove.mutate(a.id); }} className="rounded-md p-1.5 text-muted-foreground hover:bg-rose-50 hover:text-danger"><Trash2 className="h-4 w-4" /></button>
       </div>
     </div>
@@ -231,9 +228,15 @@ export function Appointments() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Booking */}
-        <Card className="lg:col-span-1 self-start">
-          <CardHeader><CardTitle>Book appointment</CardTitle></CardHeader>
+        <Card className={cn('lg:col-span-1 self-start', editingId && 'ring-2 ring-amber-400')}>
+          <CardHeader><CardTitle>{editingId ? '🔄 Reschedule appointment' : 'Book appointment'}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
+            {editingId && (
+              <div className="flex items-center justify-between rounded-md bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+                Moving {form.patientName}'s appointment — pick a new free slot.
+                <button className="font-semibold hover:underline" onClick={cancelReschedule}>Cancel</button>
+              </div>
+            )}
             <div>
               <Label>Patient</Label>
               {form.patientId ? (
@@ -349,8 +352,8 @@ export function Appointments() {
             </div>
             <div><Label>Reason</Label><Input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></div>
             {error && <p className="rounded bg-danger/10 p-2 text-sm text-danger">{error}</p>}
-            <Button className="w-full" onClick={book} disabled={!form.patientId || m.create.isPending}>
-              Book {to12h(form.start)}–{to12h(form.end)}
+            <Button className="w-full" onClick={book} disabled={!form.patientId || m.create.isPending || m.update.isPending}>
+              {editingId ? 'Save reschedule' : 'Book'} {to12h(form.start)}–{to12h(form.end)}
             </Button>
           </CardContent>
         </Card>
