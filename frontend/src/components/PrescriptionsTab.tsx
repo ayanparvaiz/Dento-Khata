@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { AlertTriangle, Plus, Printer, Trash2, Eye, Save } from 'lucide-react';
 
-// English digits -> Bangla
+// English digits -> Bangla, and back
 const bn = (s: string | number) => String(s).replace(/[0-9]/g, (x) => '০১২৩৪৫৬৭৮৯'[+x]);
+const enDigits = (s: string) => s.replace(/[০-৯]/g, (x) => String('০১২৩৪৫৬৭৮৯'.indexOf(x)));
 const DOSES = ['১+০+১', '১+১+১', '১+০+০', '০+০+১', '১+১+১+১', '০+০+০+১', 'প্রয়োজনে', '২ চামচ', '১ চামচ'];
 const TIMINGS = ['খাবার পর', 'খাবার আগে', 'ভরা পেটে', 'খালি পেটে'];
 const NUMS = Array.from({ length: 30 }, (_, i) => String(i + 1)); // 1–30
@@ -27,8 +28,10 @@ const emptyDraft: Draft = {
 async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean) {
   const s = (await api.get('/settings')).data;
   const age = patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '';
-  const meds = items.map((i, n) => `<div class="med"><div><b>${bn(n + 1)}. ${i.drugName}</b></div>
-    <div class="sub">${i.dosage}${i.timing ? ` — ${i.timing}` : ''}${i.duration ? ` — ${i.duration}` : ''}${i.instruction ? ` — ${i.instruction}` : ''}</div></div>`).join('');
+  const meds = items.map((i, n) => {
+    const parts = [i.dosage, i.timing, i.duration, i.instruction].filter(Boolean).map((p) => `<span>${p}</span>`).join('');
+    return `<div class="med"><div class="nm"><b>${bn(n + 1)}. ${i.drugName}</b></div><div class="sub">${parts}</div></div>`;
+  }).join('');
   const gridRows = (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL)
     ? `<table class="grid"><tr><td>${d.grid.UR || ''}</td><td>${d.grid.UL || ''}</td></tr><tr><td>${d.grid.LR || ''}</td><td>${d.grid.LL || ''}</td></tr></table>` : '';
   const followUp = d.followNum ? `<p><b>${bn(d.followNum)} ${d.followUnit}</b> পর আসবেন।</p>` : '';
@@ -44,7 +47,8 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
     .pt{display:flex;justify-content:space-between;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
     .body{display:flex;margin-top:10px} .left{width:34%;border-right:1px solid #94a3b8;padding-right:10px}
     .right{flex:1;padding-left:14px} .fld{margin-bottom:8px} .fld .l{font-weight:700;font-size:11px;color:#475569}
-    .rx{font-size:30px;color:#0f766e;font-weight:700;line-height:1} .med{margin:8px 0} .med .sub{color:#334155;font-size:12px}
+    .rx{font-size:30px;color:#0f766e;font-weight:700;line-height:1} .med{margin:12px 0} .med .nm{font-size:14px}
+    .med .sub{display:flex;flex-wrap:wrap;gap:6px 32px;color:#334155;font-size:12px;margin-top:3px;padding-left:14px}
     .grid{border-collapse:collapse;margin-top:2px} .grid td{width:60px;height:24px;text-align:center;font-size:12px}
     .grid td:first-child{border-right:1px solid #475569} .grid tr:first-child td{border-bottom:1px solid #475569}
     .adv{margin-top:14px;border-top:1px dashed #cbd5e1;padding-top:6px}
@@ -115,6 +119,23 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
     items,
   });
   const reset = () => { setItems([]); setD(emptyDraft); };
+  // Click a past prescription → load everything back into the form to reuse/edit.
+  const loadRx = (rx: any) => {
+    const fu = (rx.followUp || '').split(' ');
+    setD({
+      dx: rx.diagnosis || '', cc: rx.chiefComplaint || '', oe: rx.onExam || '',
+      grid: rx.examGrid ? JSON.parse(rx.examGrid) : { UR: '', UL: '', LR: '', LL: '' },
+      ix: rx.investigation || '', notes: rx.notes || '', advice: rx.advice || '',
+      followNum: fu[0] ? enDigits(fu[0]) : '', followUnit: fu[1] || 'দিন',
+      planId: rx.planId || '',
+    });
+    setItems((rx.items || []).map((i: any) => ({
+      drugId: i.drugId, drugName: i.drugName, generic: i.generic,
+      dosage: i.dosage, timing: i.timing, duration: i.duration, instruction: i.instruction,
+    })));
+    setPicked(null); setQuery('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const save = (then?: () => void) => {
     if (items.length === 0) return;
     m.create.mutate(buildPayload(), { onSuccess: () => { then?.(); reset(); } });
@@ -251,19 +272,20 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
             {history.length === 0 && <p className="text-sm text-muted-foreground">এখনো নেই।</p>}
             <div className="space-y-2">
               {history.map((rx) => (
-                <div key={rx.id} className="rounded-md border border-border p-2">
+                <button key={rx.id} type="button" onClick={() => loadRx(rx)} title="ক্লিক করে ফর্মে আনুন (এডিট/পুনরায় ব্যবহার)"
+                  className="block w-full rounded-md border border-border p-2 text-left hover:border-primary/50 hover:bg-primary/5">
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{fmtDate(rx.createdAt)}</span>
                     <div className="flex gap-1.5">
-                      <button title="প্রিন্ট" onClick={() => printRx(patient, { ...emptyDraft, dx: rx.diagnosis || '', cc: rx.chiefComplaint || '', oe: rx.onExam || '', ix: rx.investigation || '', advice: rx.advice || '', grid: rx.examGrid ? JSON.parse(rx.examGrid) : emptyDraft.grid }, rx.items, true)} className="text-muted-foreground hover:text-primary"><Printer className="h-4 w-4" /></button>
-                      <button title="মুছুন" onClick={() => { if (confirm('এই প্রেসক্রিপশন মুছবেন?')) m.remove.mutate(rx.id); }} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                      <button title="প্রিন্ট" onClick={(e) => { e.stopPropagation(); printRx(patient, { ...emptyDraft, dx: rx.diagnosis || '', cc: rx.chiefComplaint || '', oe: rx.onExam || '', ix: rx.investigation || '', advice: rx.advice || '', grid: rx.examGrid ? JSON.parse(rx.examGrid) : emptyDraft.grid }, rx.items, true); }} className="text-muted-foreground hover:text-primary"><Printer className="h-4 w-4" /></button>
+                      <button title="মুছুন" onClick={(e) => { e.stopPropagation(); if (confirm('এই প্রেসক্রিপশন মুছবেন?')) m.remove.mutate(rx.id); }} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </div>
                   {rx.diagnosis && <p className="text-sm font-medium">ডা: {rx.diagnosis}</p>}
                   <ul className="mt-0.5 space-y-0.5 text-xs">
                     {rx.items.map((it, i) => <li key={i}>• {it.drugName} <span className="text-muted-foreground">{it.dosage}{it.duration ? ` · ${it.duration}` : ''}</span></li>)}
                   </ul>
-                </div>
+                </button>
               ))}
             </div>
           </div>
