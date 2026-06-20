@@ -47,9 +47,27 @@ function weekStart(dateStr: string) {
   d.setDate(d.getDate() - d.getDay()); // Sunday start
   return iso(d);
 }
+// First cell of the month grid = the Sunday on/before the 1st of the month.
+function monthGridStart(dateStr: string) {
+  const d = new Date(dateStr);
+  d.setDate(1);
+  d.setDate(d.getDate() - d.getDay());
+  return iso(d);
+}
+// Attendance bucket: green = came, red = no-show/cancelled, grey = upcoming/unmarked.
+function attendance(status: string): 'came' | 'noshow' | 'upcoming' {
+  if (['COMPLETED', 'ARRIVED', 'IN_CHAIR'].includes(status)) return 'came';
+  if (['NO_SHOW', 'CANCELLED'].includes(status)) return 'noshow';
+  return 'upcoming';
+}
+const ATT_COLOR: Record<string, string> = {
+  came: 'bg-green-100 text-green-800 border-green-300',
+  noshow: 'bg-red-100 text-red-700 border-red-300 line-through',
+  upcoming: 'bg-slate-200 text-slate-600 border-slate-300',
+};
 
 export function Appointments() {
-  const [view, setView] = useState<'day' | 'week'>('day');
+  const [view, setView] = useState<'day' | 'week' | 'month'>('day');
   const [anchor, setAnchor] = useState(today());
   const navigate = useNavigate();
   const m = useApptMutations();
@@ -58,6 +76,9 @@ export function Appointments() {
   const wkEnd = addDays(wkStart, 6);
   const day = useAppointments(anchor);
   const week = useAppointmentsRange(wkStart, wkEnd, view === 'week');
+  const moGridStart = monthGridStart(anchor);
+  const moGridEnd = addDays(moGridStart, 41); // 6 weeks
+  const month = useAppointmentsRange(moGridStart, moGridEnd, view === 'month');
 
   const { data: dentists = [] } = useQuery<any[]>({ queryKey: ['dentists'], queryFn: async () => (await api.get('/appointments/dentists')).data });
   const { can } = useAuth();
@@ -117,7 +138,10 @@ export function Appointments() {
     });
   };
 
-  const nav = (dir: number) => setAnchor(addDays(anchor, view === 'week' ? dir * 7 : dir));
+  const nav = (dir: number) => {
+    if (view === 'month') { const d = new Date(anchor); d.setMonth(d.getMonth() + dir); setAnchor(iso(d)); }
+    else setAnchor(addDays(anchor, view === 'week' ? dir * 7 : dir));
+  };
 
   const ApptRow = ({ a }: { a: Appointment }) => (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border p-3">
@@ -163,6 +187,7 @@ export function Appointments() {
           <div className="flex rounded-md border border-border">
             <button onClick={() => setView('day')} className={`px-3 py-1 text-sm ${view === 'day' ? 'bg-primary text-primary-foreground' : ''}`}>Day</button>
             <button onClick={() => setView('week')} className={`px-3 py-1 text-sm ${view === 'week' ? 'bg-primary text-primary-foreground' : ''}`}>Week</button>
+            <button onClick={() => setView('month')} className={`px-3 py-1 text-sm ${view === 'month' ? 'bg-primary text-primary-foreground' : ''}`}>Month</button>
           </div>
           <Button size="sm" variant="outline" onClick={() => nav(-1)}><ChevronLeft className="h-4 w-4" /></Button>
           <Button size="sm" variant="outline" onClick={() => setAnchor(today())}>Today</Button>
@@ -299,7 +324,48 @@ export function Appointments() {
 
         {/* Schedule */}
         <div className="lg:col-span-2">
-          {view === 'day' ? (
+          {view === 'month' ? (
+            <Card>
+              <CardHeader className="flex-row items-center justify-between">
+                <CardTitle>{new Date(anchor).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</CardTitle>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-green-300 bg-green-100" /> Came</span>
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-red-300 bg-red-100" /> No-show</span>
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-slate-300 bg-slate-200" /> Upcoming</span>
+                </div>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <div className="grid min-w-[680px] grid-cols-7 gap-1">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                    <div key={d} className="pb-1 text-center text-xs font-semibold text-muted-foreground">{d}</div>
+                  ))}
+                  {Array.from({ length: 42 }, (_, i) => addDays(moGridStart, i)).map((d) => {
+                    const list = (month.data ?? []).filter((a) => iso(new Date(a.startTime)) === d);
+                    const inMonth = new Date(d + 'T00:00:00').getMonth() === new Date(anchor + 'T00:00:00').getMonth();
+                    const isToday = d === today();
+                    return (
+                      <div key={d} className={cn('min-h-[96px] rounded border border-border p-1', inMonth ? 'bg-white' : 'bg-muted/30 opacity-60')}>
+                        <button onClick={() => { setAnchor(d); setView('day'); }}
+                          className={cn('mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold', isToday ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}>
+                          {new Date(d + 'T00:00:00').getDate()}
+                        </button>
+                        <div className="space-y-0.5">
+                          {list.slice(0, 4).map((a) => (
+                            <button key={a.id} title={`${hm(a.startTime)} ${a.patient?.fullName} · ${a.status}`}
+                              onClick={() => { setAnchor(d); setView('day'); }}
+                              className={cn('block w-full truncate rounded border px-1 py-0.5 text-left text-[11px]', ATT_COLOR[attendance(a.status)])}>
+                              {hm(a.startTime)} {a.patient?.fullName}
+                            </button>
+                          ))}
+                          {list.length > 4 && <div className="px-1 text-[10px] text-muted-foreground">+{list.length - 4} more</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          ) : view === 'day' ? (
             <Card>
               <CardHeader><CardTitle>{new Date(anchor).toDateString()} — {(day.data ?? []).length} appointment(s)</CardTitle></CardHeader>
               <CardContent className="space-y-2">
