@@ -136,19 +136,21 @@ class AppointmentsService {
     const startMin = WORK_START * 60;
     const endMin = WORK_END * 60;
     void closing;
+    const now = new Date();
     for (let t = startMin; t + durMin <= endMin; t += durMin) {
       const s = new Date(dayStart); s.setHours(0, t, 0, 0);
       const e = new Date(s); e.setMinutes(e.getMinutes() + durMin);
       const overlap = (a: any) => new Date(a.startTime) < e && new Date(a.endTime) > s;
       const chairBusy = chair ? appts.find((a) => a.chair === chair && overlap(a)) : undefined;
       const docBusy = dentistId ? appts.find((a) => a.dentistId === dentistId && overlap(a)) : undefined;
+      const past = s < now; // can't book a slot that already started
       const clash = chairBusy || docBusy;
       slots.push({
         start: hmStr(s),
         end: hmStr(e),
-        available: !clash,
+        available: !clash && !past,
         by: clash ? (clash as any).patient?.fullName : undefined,
-        reason: chairBusy ? 'chair' : docBusy ? 'dentist' : undefined,
+        reason: past ? 'past' : chairBusy ? 'chair' : docBusy ? 'dentist' : undefined,
       });
     }
     return { date: dateStr, chair, dentistId, slots };
@@ -164,6 +166,7 @@ class AppointmentsService {
     const startMin = WORK_START * 60;
     const endMin = WORK_END * 60;
     const out: any[] = [];
+    const now = new Date();
     for (let i = 0; i < days; i++) {
       const d = new Date(start); d.setDate(d.getDate() + i);
       let free = 0;
@@ -174,6 +177,7 @@ class AppointmentsService {
         const e = new Date(s); e.setMinutes(e.getMinutes() + durMin);
         const overlap = (a: any) => new Date(a.startTime) < e && new Date(a.endTime) > s;
         const busy =
+          s < now ||
           (chair && appts.some((a) => a.chair === chair && overlap(a))) ||
           (dentistId && appts.some((a) => a.dentistId === dentistId && overlap(a)));
         if (!busy) free++;
@@ -186,6 +190,7 @@ class AppointmentsService {
   async create(dto: CreateApptDto) {
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
+    if (start < new Date()) throw new ConflictException('Cannot book a time that has already passed.');
     await this.assertNoConflict(start, end, dto.chair, dto.dentistId);
     return this.prisma.appointment.create({
       data: {
@@ -209,6 +214,7 @@ class AppointmentsService {
     const dentistId = dto.dentistId ?? current!.dentistId;
     // Only re-check conflicts when time/chair/dentist changes (status-only edits skip it).
     if (dto.startTime || dto.endTime || dto.chair || dto.dentistId) {
+      if (dto.startTime && start < new Date()) throw new ConflictException('Cannot reschedule to a time that has already passed.');
       await this.assertNoConflict(start, end, chair, dentistId, id);
     }
     return this.prisma.appointment.update({

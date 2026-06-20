@@ -463,13 +463,18 @@ export function Appointments() {
                             {Array.from({ length: slots }).map((_, i) => {
                               const hour = Math.floor((startM + i * 60) / 60);
                               const sel = d === form.date && Number(form.start.split(':')[0]) === hour;
+                              const past = new Date(`${d}T${String(hour).padStart(2, '0')}:00:00`) < new Date();
                               return (
                                 <button key={i} style={{ top: i * ROW, height: ROW }}
+                                  disabled={past}
                                   onClick={() => pickSlot(d, hour)}
-                                  className={cn('group absolute inset-x-0 flex items-center justify-center border-b border-border/60', sel ? 'bg-primary/15 ring-1 ring-inset ring-primary' : 'hover:bg-primary/5')}>
-                                  <span className={cn('pointer-events-none text-[9px]', sel ? 'text-primary' : 'text-primary/60 opacity-0 group-hover:opacity-100')}>
-                                    {label(startM + i * 60)}
-                                  </span>
+                                  className={cn('group absolute inset-x-0 flex items-center justify-center border-b border-border/60',
+                                    past ? 'cursor-not-allowed bg-muted/40' : sel ? 'bg-primary/15 ring-1 ring-inset ring-primary' : 'hover:bg-primary/5')}>
+                                  {!past && (
+                                    <span className={cn('pointer-events-none text-[9px]', sel ? 'text-primary' : 'text-primary/60 opacity-0 group-hover:opacity-100')}>
+                                      {label(startM + i * 60)}
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}
