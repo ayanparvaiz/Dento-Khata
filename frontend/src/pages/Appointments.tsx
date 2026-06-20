@@ -448,8 +448,8 @@ export function Appointments() {
                       <div className="flex">
                         {/* hour labels */}
                         <div className="relative w-14 shrink-0" style={{ height: gridH }}>
-                          {Array.from({ length: slots + 1 }).map((_, i) => (
-                            <div key={i} style={{ top: i * ROW - 6 }} className="absolute right-2 text-[11px] text-muted-foreground">{label(startM + i * 60)}</div>
+                          {Array.from({ length: slots }).map((_, i) => (
+                            <div key={i} style={{ top: i * ROW + ROW / 2 - 7 }} className="absolute right-2 text-[11px] text-muted-foreground">{label(startM + i * 60)}</div>
                           ))}
                         </div>
                         {days.map((d) => (
