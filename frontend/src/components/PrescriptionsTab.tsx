@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 import { useDrugs, usePrescriptions, useRxMutations, type RxItem } from '@/lib/clinical';
 import { useTreatment } from '@/lib/treatment';
 import { splitList, fmtDate, ageFromDob } from '@/lib/format';
-import { letterheadHead, letterheadFoot, LETTERHEAD_CSS } from '@/lib/letterhead';
+import { letterheadHead, letterheadFoot, LETTERHEAD_CSS, themeOf } from '@/lib/letterhead';
 import type { Patient } from '@/lib/patients';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
@@ -28,6 +28,7 @@ const emptyDraft: Draft = {
 
 async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean) {
   const s = (await api.get('/settings')).data;
+  const c = themeOf(s);
   const age = patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '';
   const meds = items.map((i, n) => {
     const parts = [i.dosage, i.timing, i.duration, i.instruction].filter(Boolean).map((p) => `<span>${p}</span>`).join('');
@@ -39,21 +40,24 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
   const header = withHeader ? letterheadHead(s) : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka
   const footer = withHeader ? letterheadFoot(s) : '';
   const html = `<html><head><meta charset="utf-8"/><title>প্রেসক্রিপশন — ${patient.fullName}</title><style>
-    *{box-sizing:border-box} body{font-family:'Nirmala UI','SolaimanLipi','Segoe UI',system-ui,sans-serif;padding:28px;color:#0f172a;font-size:13px}
+    *{box-sizing:border-box} body{font-family:'Nirmala UI','SolaimanLipi','Segoe UI',system-ui,sans-serif;padding:28px 28px 120px;color:#0f172a;font-size:13px}
     ${LETTERHEAD_CSS}
     .muted{color:#64748b;font-size:12px}
-    .pt{display:flex;justify-content:space-between;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
+    .pt{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
+    .pt b{font-weight:700}
     .body{display:flex;margin-top:10px} .left{width:34%;border-right:1px solid #94a3b8;padding-right:10px}
     .right{flex:1;padding-left:14px} .fld{margin-bottom:16px;line-height:1.45} .fld .l{font-weight:700;font-size:11px;color:#475569;margin-bottom:3px}
-    .rx{font-size:30px;color:#0f766e;font-weight:700;line-height:1} .med{margin:12px 0} .med .nm{font-size:14px}
-    .med .sub{display:flex;flex-wrap:wrap;gap:6px 32px;color:#334155;font-size:12px;margin-top:3px;padding-left:14px}
+    .rx{font-size:30px;font-weight:700;line-height:1} .med{margin:12px 0;padding-left:10px} .med .nm{font-size:14px}
+    .med .sub{display:flex;flex-wrap:wrap;gap:6px 32px;color:#334155;font-size:12px;margin-top:3px;padding-left:16px}
     .grid{border-collapse:collapse;margin-top:2px} .grid td{width:60px;height:24px;text-align:center;font-size:12px}
     .grid td:first-child{border-right:1px solid #475569} .grid tr:first-child td{border-bottom:1px solid #475569}
     .adv{margin-top:14px;border-top:1px dashed #cbd5e1;padding-top:6px}
     @media print{button{display:none}}</style></head><body>
     ${header}
-    <div class="pt"><span><b>${patient.fullName}</b> &nbsp; ${patient.gender || ''} ${age ? '· ' + age : ''}</span>
-      <span>${patient.phone || ''} &nbsp; তারিখঃ ${bn(new Date().toLocaleDateString('en-GB'))}</span></div>
+    <div class="pt">
+      <span>নামঃ <b>${patient.fullName}</b> &nbsp;&nbsp; বয়সঃ <b>${age ? bn(age) : '—'}</b> &nbsp;&nbsp; লিঙ্গঃ <b>${patient.gender || '—'}</b></span>
+      <span>ফোনঃ ${patient.phone || '—'} &nbsp;&nbsp; তারিখঃ ${bn(new Date().toLocaleDateString('en-GB'))}</span>
+    </div>
     <div class="body">
       <div class="left">
         ${d.cc ? `<div class="fld"><div class="l">প্রধান সমস্যা (C/C)</div>${d.cc}</div>` : ''}
@@ -62,7 +66,7 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
         ${d.ix ? `<div class="fld"><div class="l">পরীক্ষা-নিরীক্ষা (Ix)</div>${d.ix}</div>` : ''}
       </div>
       <div class="right">
-        <div class="rx">℞</div>
+        <div class="rx" style="color:${c}">℞</div>
         ${meds || '<p class="muted">কোনো ওষুধ নেই।</p>'}
         ${d.advice ? `<div class="adv"><b>উপদেশঃ</b> ${d.advice}</div>` : ''}
         ${followUp}

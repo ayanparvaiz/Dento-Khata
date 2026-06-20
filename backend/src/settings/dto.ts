@@ -11,6 +11,7 @@ export class UpdateSettingsDto {
   @IsOptional() @IsString() headerExtra?: string;
   @IsOptional() @IsString() footerLeft?: string;
   @IsOptional() @IsString() footerRight?: string;
+  @IsOptional() @IsString() themeColor?: string;
   @IsOptional() @IsIn(['FDI', 'UNIVERSAL', 'PALMER']) toothNotation?: string;
   @IsOptional() @IsString() currency?: string;
 }

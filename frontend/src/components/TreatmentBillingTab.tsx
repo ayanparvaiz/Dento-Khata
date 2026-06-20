@@ -13,7 +13,7 @@ import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Plus, Printer, Trash2, Pencil, Check, X, Receipt, CalendarPlus } from 'lucide-react';
-import { letterheadHead, letterheadFoot, LETTERHEAD_CSS } from '@/lib/letterhead';
+import { letterheadHead, letterheadFoot, LETTERHEAD_CSS, themeOf } from '@/lib/letterhead';
 import type { Patient } from '@/lib/patients';
 
 const METHODS = ['CASH', 'BKASH', 'NAGAD', 'CARD', 'OTHER'];
@@ -24,6 +24,7 @@ const openHtml = (html: string) => { const w = window.open('', '_blank'); if (w)
 
 const wrap = (kind: string, s: any, patient: Patient, body: string, docDate?: string, docMeta?: string) => {
   const age = patient.dateOfBirth ? Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / 3.15576e10) + ' yr' : '';
+  const c = themeOf(s);
   const foot = letterheadFoot(s);
   return `<html><head><meta charset="utf-8"/><title>${kind} — ${patient.fullName}</title><style>
     *{box-sizing:border-box}
@@ -39,7 +40,7 @@ const wrap = (kind: string, s: any, patient: Patient, body: string, docDate?: st
     h3{margin:18px 0 6px;font-size:14px;color:#0f172a}
     .badge{font-size:11px;background:#e2e8f0;border-radius:10px;padding:2px 9px;color:#475569;font-weight:600}
     table{width:100%;border-collapse:collapse;margin-top:6px}
-    th{background:#0f766e;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:7px 10px;text-align:left}
+    th{background:${c};color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:7px 10px;text-align:left}
     td{border-bottom:1px solid #eef2f6;padding:7px 10px;font-size:13px}
     tr:nth-child(even) td{background:#fafcfc}
     .r{text-align:right}.sub{text-align:right;font-weight:700;margin-top:6px;color:#334155}
@@ -47,7 +48,7 @@ const wrap = (kind: string, s: any, patient: Patient, body: string, docDate?: st
     .totbox{margin-top:20px;margin-left:auto;width:300px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
     .totbox .row{display:flex;justify-content:space-between;padding:8px 14px;font-size:13px}
     .totbox .row+.row{border-top:1px solid #eef2f6}
-    .totbox .bal{background:#0f766e;color:#fff;font-weight:800;font-size:15px}
+    .totbox .bal{background:${c};color:#fff;font-weight:800;font-size:15px}
     .foot{margin-top:30px;border-top:1px solid #e2e8f0;padding-top:10px;color:#94a3b8;font-size:11px;text-align:center}
     @media print{body{padding:18px}button{display:none}}</style></head><body>
     ${letterheadHead(s)}

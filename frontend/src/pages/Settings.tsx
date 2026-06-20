@@ -102,7 +102,8 @@ function LetterheadCard({ form, setForm, isAdmin, onSave, saving, saved, qc }: a
     } finally { setUploading(false); }
   };
 
-  const previewHtml = `<style>${LETTERHEAD_CSS}</style>${letterheadHead(form)}
+  // preview only: keep footer in-flow (print keeps it pinned to the page bottom)
+  const previewHtml = `<style>${LETTERHEAD_CSS}.lh-ft{position:static !important;left:auto;right:auto;bottom:auto;margin-top:16px}</style>${letterheadHead(form)}
     <div style="height:60px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px">— prescription / invoice content —</div>${letterheadFoot(form)}`;
 
   return (
@@ -128,6 +129,16 @@ function LetterheadCard({ form, setForm, isAdmin, onSave, saving, saved, qc }: a
         <div><Label>Header title (doctor / clinic name)</Label><Input value={form.headerTitle || ''} disabled={!isAdmin} placeholder="ডাঃ মোঃ তৌফিক হাসান" onChange={(e) => upd('headerTitle', e.target.value)} /></div>
         <div><Label>Header subtitle (designation / qualifications)</Label><Input value={form.headerSubtitle || ''} disabled={!isAdmin} placeholder="বিডিএস, মুখ ও দন্ত রোগ বিশেষজ্ঞ সার্জন" onChange={(e) => upd('headerSubtitle', e.target.value)} /></div>
         <div><Label>Header extra line (optional)</Label><Input value={form.headerExtra || ''} disabled={!isAdmin} onChange={(e) => upd('headerExtra', e.target.value)} /></div>
+        <div>
+          <Label>Theme colour (prescription &amp; invoice)</Label>
+          <div className="flex items-center gap-2">
+            <input type="color" disabled={!isAdmin} value={form.themeColor || '#0f766e'} onChange={(e) => upd('themeColor', e.target.value)} className="h-9 w-12 rounded border border-border" />
+            <Input className="w-32" disabled={!isAdmin} value={form.themeColor || '#0f766e'} onChange={(e) => upd('themeColor', e.target.value)} />
+            {['#0f766e', '#1d4ed8', '#9333ea', '#b91c1c', '#0f172a'].map((c) => (
+              <button key={c} type="button" disabled={!isAdmin} onClick={() => upd('themeColor', c)} className="h-6 w-6 rounded-full border border-border" style={{ background: c }} />
+            ))}
+          </div>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div><Label>Footer left (clinic, address)</Label><textarea className="min-h-[60px] w-full rounded-md border border-border p-2 text-sm" disabled={!isAdmin} placeholder={'ফ্রেন্ডস ডেন্টাল কেয়ার\nমদিনা প্লাজা, সৈয়দপুর'} value={form.footerLeft || ''} onChange={(e) => upd('footerLeft', e.target.value)} /></div>
           <div><Label>Footer right (phone, visit hours)</Label><textarea className="min-h-[60px] w-full rounded-md border border-border p-2 text-sm" disabled={!isAdmin} placeholder={'০১৭৫৮-৫৪২৮২৯\nসকাল ১০টা–দুপুর ২টা'} value={form.footerRight || ''} onChange={(e) => upd('footerRight', e.target.value)} /></div>

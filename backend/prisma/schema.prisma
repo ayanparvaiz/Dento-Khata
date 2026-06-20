@@ -364,6 +364,7 @@ model ClinicSettings {
   headerExtra    String? // extra header line
   footerLeft     String? // multi-line (clinic name, address)
   footerRight    String? // multi-line (phone, visit hours)
+  themeColor     String? // print theme color (hex) for prescription + invoice
   toothNotation String  @default("FDI") // FDI | UNIVERSAL | PALMER
   currency      String  @default("BDT")
 }
