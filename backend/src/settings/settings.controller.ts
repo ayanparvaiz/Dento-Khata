@@ -8,8 +8,10 @@ import { SettingsService } from './settings.service';
 import { UpdateSettingsDto } from './dto';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { dataPaths } from '../data';
 
-const LOGO_DIR = join(process.env.UPLOAD_DIR || join(process.cwd(), 'uploads'), 'clinic');
+// Resolve at request time (env/uploads dir is only ready after bootstrap).
+const logoDir = () => join(dataPaths().uploadsDir, 'clinic');
 
 @Controller('settings')
 export class SettingsController {
@@ -37,8 +39,9 @@ export class SettingsController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (_req, _file, cb) => {
-          if (!existsSync(LOGO_DIR)) mkdirSync(LOGO_DIR, { recursive: true });
-          cb(null, LOGO_DIR);
+          const dir = logoDir();
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+          cb(null, dir);
         },
         filename: (_req, file, cb) => cb(null, `logo-${randomUUID()}${extname(file.originalname)}`),
       }),
