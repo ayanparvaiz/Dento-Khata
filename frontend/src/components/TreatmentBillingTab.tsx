@@ -298,8 +298,8 @@ function VisitRow({ patient, plan, record, recPays, paid, account, canTx, canBil
         )}
         {canTx && !edit && (
           <div className="ml-auto flex items-center gap-2">
-            <button className="text-muted-foreground hover:text-primary" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" /></button>
-            <button className="text-muted-foreground hover:text-danger" onClick={() => rm.remove.mutate(record.id)}><Trash2 className="h-3.5 w-3.5" /></button>
+            <button title="Edit visit" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-primary" onClick={() => setEdit(true)}><Pencil className="h-4 w-4" /></button>
+            <button title="Delete visit" className="rounded-md p-1.5 text-muted-foreground hover:bg-rose-50 hover:text-danger" onClick={() => { if (confirm(`Delete this visit record?\n\n"${record.content}"\n\nThis cannot be undone.`)) rm.remove.mutate(record.id); }}><Trash2 className="h-4 w-4" /></button>
           </div>
         )}
       </div>
