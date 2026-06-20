@@ -12,6 +12,7 @@ import { AlertTriangle, Plus, Printer, Trash2, Eye, Save } from 'lucide-react';
 const bn = (s: string | number) => String(s).replace(/[0-9]/g, (x) => '০১২৩৪৫৬৭৮৯'[+x]);
 const DOSES = ['১+০+১', '১+১+১', '১+০+০', '০+০+১', '১+১+১+১', '০+০+০+১', 'প্রয়োজনে', '২ চামচ', '১ চামচ'];
 const TIMINGS = ['খাবার পর', 'খাবার আগে', 'ভরা পেটে', 'খালি পেটে'];
+const NUMS = Array.from({ length: 30 }, (_, i) => String(i + 1)); // 1–30
 
 type Grid = { UR: string; UL: string; LR: string; LL: string };
 type Draft = {
@@ -210,9 +211,12 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
             )}
             <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div><Label className={lbl}>ডোজ</Label><Select value={dose} onChange={(e) => setDose(e.target.value)}>{DOSES.map((x) => <option key={x}>{x}</option>)}</Select></div>
-              <div><Label className={lbl}>মেয়াদ</Label><Select value={durNum} onChange={(e) => setDurNum(e.target.value)}>{['3', '5', '7', '10', '14', '15', '21', '30'].map((n) => <option key={n} value={n}>{bn(n)}</option>)}</Select></div>
+              <div><Label className={lbl}>মেয়াদ</Label><Select value={durNum} onChange={(e) => setDurNum(e.target.value)}>{NUMS.map((n) => <option key={n} value={n}>{bn(n)}</option>)}</Select></div>
               <div><Label className={lbl}>দিন / মাস</Label><Select value={durUnit} onChange={(e) => setDurUnit(e.target.value)}><option value="দিন">দিন</option><option value="মাস">মাস</option></Select></div>
-              <div><Label className={lbl}>সেবনবিধি</Label><Select value={timing} onChange={(e) => setTiming(e.target.value)}>{TIMINGS.map((x) => <option key={x}>{x}</option>)}</Select></div>
+              <div><Label className={lbl}>সেবনবিধি</Label>
+                <Input list="timing-opts" value={timing} onChange={(e) => setTiming(e.target.value)} placeholder="বেছে নিন বা লিখুন" />
+                <datalist id="timing-opts">{TIMINGS.map((x) => <option key={x} value={x} />)}</datalist>
+              </div>
             </div>
             <Button size="sm" className="mt-2 w-full" disabled={!picked} onClick={addItem}><Plus className="h-4 w-4" /> যোগ করুন</Button>
           </div>
@@ -239,7 +243,7 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
             </div>
             <div className="mt-3"><Label className={lbl}>উপদেশ</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" placeholder="যেমন: ঠান্ডা জাতীয় খাবার নিষেধ।" value={d.advice} onChange={(e) => set('advice', e.target.value)} /></div>
             <div className="mt-2 flex items-end gap-2">
-              <div className="w-20"><Label className={lbl}>ফলোআপ</Label><Select value={d.followNum} onChange={(e) => set('followNum', e.target.value)}><option value="">—</option>{['3', '5', '7', '10', '14', '15', '21', '30'].map((n) => <option key={n} value={n}>{bn(n)}</option>)}</Select></div>
+              <div className="w-20"><Label className={lbl}>ফলোআপ</Label><Select value={d.followNum} onChange={(e) => set('followNum', e.target.value)}><option value="">—</option>{NUMS.map((n) => <option key={n} value={n}>{bn(n)}</option>)}</Select></div>
               <div className="w-24"><Select value={d.followUnit} onChange={(e) => set('followUnit', e.target.value)}><option value="দিন">দিন</option><option value="মাস">মাস</option></Select></div>
               <span className="pb-2 text-sm text-muted-foreground">পর আসবেন</span>
             </div>
