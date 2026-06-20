@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { AlertTriangle, Plus, Printer, Trash2, Eye, Save } from 'lucide-react';
 
-const DOSES = ['1+0+1', '1+1+1', '1+0+0', '0+0+1', '0+0+0+1', '1+1+1+1', 'SOS', '২ চামচ', '১ চামচ'];
+// English digits -> Bangla
+const bn = (s: string | number) => String(s).replace(/[0-9]/g, (x) => '০১২৩৪৫৬৭৮৯'[+x]);
+const DOSES = ['১+০+১', '১+১+১', '১+০+০', '০+০+১', '১+১+১+১', '০+০+০+১', 'প্রয়োজনে', '২ চামচ', '১ চামচ'];
 const TIMINGS = ['খাবার পর', 'খাবার আগে', 'ভরা পেটে', 'খালি পেটে'];
 
 type Grid = { UR: string; UL: string; LR: string; LL: string };
@@ -23,22 +25,21 @@ const emptyDraft: Draft = {
   totalBill: '', discount: '', paidToday: '', visitsNeeded: '',
 };
 
-// ---- print (with or without the pre-printed letterhead) ----
 async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean) {
   const s = (await api.get('/settings')).data;
   const age = patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '';
-  const meds = items.map((i, n) => `<div class="med"><div><b>${n + 1}. ${i.drugName}</b></div>
+  const meds = items.map((i, n) => `<div class="med"><div><b>${bn(n + 1)}. ${i.drugName}</b></div>
     <div class="sub">${i.dosage}${i.timing ? ` — ${i.timing}` : ''}${i.duration ? ` — ${i.duration}` : ''}${i.instruction ? ` — ${i.instruction}` : ''}</div></div>`).join('');
   const gridRows = (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL)
     ? `<table class="grid"><tr><td>${d.grid.UR || ''}</td><td>${d.grid.UL || ''}</td></tr><tr><td>${d.grid.LR || ''}</td><td>${d.grid.LL || ''}</td></tr></table>` : '';
-  const followUp = d.followNum ? `<p><b>${d.followNum} ${d.followUnit}</b> পর আসবেন।</p>` : '';
+  const followUp = d.followNum ? `<p><b>${bn(d.followNum)} ${d.followUnit}</b> পর আসবেন।</p>` : '';
   const header = withHeader
     ? `<div class="hd"><h1>${s.name || 'Dental Clinic'}</h1>
         ${s.letterhead ? `<div class="ql">${s.letterhead}</div>` : ''}
         <div class="muted">${s.address || ''}${s.phone ? ' · ' + s.phone : ''}</div></div>`
-    : `<div style="height:150px"></div>`; // blank space for the pre-printed pad header
-  const html = `<html><head><meta charset="utf-8"/><title>Prescription — ${patient.fullName}</title><style>
-    *{box-sizing:border-box} body{font-family:'Segoe UI',system-ui,sans-serif;padding:28px;color:#0f172a;font-size:13px}
+    : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka jaiga
+  const html = `<html><head><meta charset="utf-8"/><title>প্রেসক্রিপশন — ${patient.fullName}</title><style>
+    *{box-sizing:border-box} body{font-family:'Nirmala UI','SolaimanLipi','Segoe UI',system-ui,sans-serif;padding:28px;color:#0f172a;font-size:13px}
     .hd{text-align:center;border-bottom:2px solid #0f766e;padding-bottom:6px;margin-bottom:8px}
     .hd h1{margin:0;color:#0f766e;font-size:22px} .ql{font-size:12px;color:#334155} .muted{color:#64748b;font-size:12px}
     .pt{display:flex;justify-content:space-between;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
@@ -50,17 +51,17 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
     @media print{button{display:none}}</style></head><body>
     ${header}
     <div class="pt"><span><b>${patient.fullName}</b> &nbsp; ${patient.gender || ''} ${age ? '· ' + age : ''}</span>
-      <span>${patient.phone || ''} &nbsp; Date: ${new Date().toLocaleDateString('en-GB')}</span></div>
+      <span>${patient.phone || ''} &nbsp; তারিখঃ ${bn(new Date().toLocaleDateString('en-GB'))}</span></div>
     <div class="body">
       <div class="left">
-        ${d.cc ? `<div class="fld"><div class="l">C/C</div>${d.cc}</div>` : ''}
-        ${(d.oe || gridRows) ? `<div class="fld"><div class="l">O/E</div>${d.oe || ''}${gridRows}</div>` : ''}
-        ${d.dx ? `<div class="fld"><div class="l">Diagnosis</div>${d.dx}</div>` : ''}
-        ${d.ix ? `<div class="fld"><div class="l">Ix / Advice</div>${d.ix}</div>` : ''}
+        ${d.cc ? `<div class="fld"><div class="l">প্রধান সমস্যা (C/C)</div>${d.cc}</div>` : ''}
+        ${(d.oe || gridRows) ? `<div class="fld"><div class="l">পরীক্ষা (O/E)</div>${d.oe || ''}${gridRows}</div>` : ''}
+        ${d.dx ? `<div class="fld"><div class="l">ডায়াগনোসিস</div>${d.dx}</div>` : ''}
+        ${d.ix ? `<div class="fld"><div class="l">পরীক্ষা-নিরীক্ষা (Ix)</div>${d.ix}</div>` : ''}
       </div>
       <div class="right">
         <div class="rx">℞</div>
-        ${meds || '<p class="muted">No medicine.</p>'}
+        ${meds || '<p class="muted">কোনো ওষুধ নেই।</p>'}
         ${d.advice ? `<div class="adv"><b>উপদেশঃ</b> ${d.advice}</div>` : ''}
         ${followUp}
       </div>
@@ -80,11 +81,10 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
   const setGrid = (k: keyof Grid, v: string) => setD((p) => ({ ...p, grid: { ...p.grid, [k]: v } }));
   const [items, setItems] = useState<RxItem[]>([]);
 
-  // drug entry
   const [query, setQuery] = useState('');
   const { data: results = [] } = useDrugs(query.length >= 2 ? query : '__none__');
   const [picked, setPicked] = useState<{ id: string; name: string; generic?: string; strength?: string } | null>(null);
-  const [dose, setDose] = useState('1+0+1');
+  const [dose, setDose] = useState('১+০+১');
   const [durNum, setDurNum] = useState('7');
   const [durUnit, setDurUnit] = useState('দিন');
   const [timing, setTiming] = useState('খাবার পর');
@@ -99,9 +99,9 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
     if (!picked) return;
     setItems([...items, {
       drugId: picked.id,
-      drugName: `${picked.name}${picked.strength ? ' ' + picked.strength : ''}`,
+      drugName: `${picked.name}${picked.strength ? ' ' + picked.strength : ''}`, // ওষুধ English
       generic: picked.generic, dosage: dose, timing,
-      duration: durNum ? `${durNum} ${durUnit}` : undefined,
+      duration: durNum ? `${bn(durNum)} ${durUnit}` : undefined, // মেয়াদ Bangla
     }]);
     setPicked(null); setQuery('');
   };
@@ -110,7 +110,7 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
     diagnosis: d.dx || undefined, chiefComplaint: d.cc || undefined, onExam: d.oe || undefined,
     examGrid: (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL) ? JSON.stringify(d.grid) : undefined,
     investigation: d.ix || undefined, notes: d.notes || undefined, advice: d.advice || undefined,
-    followUp: d.followNum ? `${d.followNum} ${d.followUnit}` : undefined, planId: d.planId || undefined,
+    followUp: d.followNum ? `${bn(d.followNum)} ${d.followUnit}` : undefined, planId: d.planId || undefined,
     totalBill: d.totalBill ? Number(d.totalBill) : undefined, discount: d.discount ? Number(d.discount) : undefined,
     paidToday: d.paidToday ? Number(d.paidToday) : undefined, visitsNeeded: d.visitsNeeded ? Number(d.visitsNeeded) : undefined,
     items,
@@ -126,30 +126,30 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
 
   return (
     <div className="space-y-3">
-      {/* patient bar + actions */}
+      {/* রোগীর তথ্য + অ্যাকশন */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
         <div className="flex flex-wrap gap-x-4">
           <span><b>{patient.fullName}</b></span>
-          <span className="text-muted-foreground">{patient.gender || '—'} · {patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '—'}</span>
-          <span className="text-muted-foreground">{patient.phone || 'no phone'}</span>
+          <span className="text-muted-foreground">{patient.gender || '—'} · {patient.dateOfBirth ? bn(ageFromDob(patient.dateOfBirth)) : '—'}</span>
+          <span className="text-muted-foreground">{patient.phone || 'ফোন নেই'}</span>
           <span className="text-muted-foreground">{patient.address || ''}</span>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <Button size="sm" variant="outline" disabled={items.length === 0} onClick={() => printRx(patient, d, items, true)}><Eye className="mr-1 h-4 w-4" />Preview</Button>
-          <Button size="sm" disabled={items.length === 0 || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, true))}><Printer className="mr-1 h-4 w-4" />Save &amp; Print</Button>
-          <Button size="sm" variant="outline" disabled={items.length === 0 || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, false))}><Printer className="mr-1 h-4 w-4" />Print (no header)</Button>
-          <Button size="sm" variant="outline" disabled={items.length === 0 || m.create.isPending} onClick={() => save()}><Save className="mr-1 h-4 w-4" />Save only</Button>
+          <Button size="sm" variant="outline" disabled={items.length === 0} onClick={() => printRx(patient, d, items, true)}><Eye className="mr-1 h-4 w-4" />প্রিভিউ</Button>
+          <Button size="sm" disabled={items.length === 0 || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, true))}><Printer className="mr-1 h-4 w-4" />সেভ ও প্রিন্ট</Button>
+          <Button size="sm" variant="outline" disabled={items.length === 0 || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, false))}><Printer className="mr-1 h-4 w-4" />প্রিন্ট (হেডার ছাড়া)</Button>
+          <Button size="sm" variant="outline" disabled={items.length === 0 || m.create.isPending} onClick={() => save()}><Save className="mr-1 h-4 w-4" />শুধু সেভ</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        {/* LEFT — clinical */}
+        {/* বাম — ক্লিনিক্যাল */}
         <div className="space-y-3 lg:col-span-3">
           <div className={box}>
-            <div><Label className={lbl}>Disease / Condition / Dx</Label><Input value={d.dx} onChange={(e) => set('dx', e.target.value)} /></div>
-            <div className="mt-2"><Label className={lbl}>C/C (chief complaint)</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" value={d.cc} onChange={(e) => set('cc', e.target.value)} /></div>
+            <div><Label className={lbl}>রোগ / ডায়াগনোসিস</Label><Input value={d.dx} onChange={(e) => set('dx', e.target.value)} /></div>
+            <div className="mt-2"><Label className={lbl}>প্রধান সমস্যা (C/C)</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" value={d.cc} onChange={(e) => set('cc', e.target.value)} /></div>
             <div className="mt-2">
-              <Label className={lbl}>O/E (on examination)</Label>
+              <Label className={lbl}>পরীক্ষা (O/E)</Label>
               <textarea className="min-h-[40px] w-full rounded-md border border-border p-2 text-sm" value={d.oe} onChange={(e) => set('oe', e.target.value)} />
               <div className="mt-1 grid grid-cols-2 gap-1">
                 {(['UR', 'UL', 'LR', 'LL'] as (keyof Grid)[]).map((q) => (
@@ -160,43 +160,43 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
                 ))}
               </div>
             </div>
-            <div className="mt-2"><Label className={lbl}>Ix / Advice</Label><Input value={d.ix} onChange={(e) => set('ix', e.target.value)} /></div>
+            <div className="mt-2"><Label className={lbl}>পরীক্ষা-নিরীক্ষা (Ix)</Label><Input value={d.ix} onChange={(e) => set('ix', e.target.value)} /></div>
             <div className="mt-2">
-              <Label className={lbl}>Rx Plan (from treatment plan — optional)</Label>
+              <Label className={lbl}>চিকিৎসা পরিকল্পনা (ঐচ্ছিক)</Label>
               <Select value={d.planId} onChange={(e) => set('planId', e.target.value)}>
-                <option value="">— none —</option>
+                <option value="">— নেই —</option>
                 {plans.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
               </Select>
             </div>
-            <div className="mt-2"><Label className={lbl}>Notes (internal — not printed)</Label><textarea className="min-h-[40px] w-full rounded-md border border-amber-300 bg-amber-50 p-2 text-sm" value={d.notes} onChange={(e) => set('notes', e.target.value)} /></div>
+            <div className="mt-2"><Label className={lbl}>নোট (শুধু নিজের জন্য — ছাপা হবে না)</Label><textarea className="min-h-[40px] w-full rounded-md border border-amber-300 bg-amber-50 p-2 text-sm" value={d.notes} onChange={(e) => set('notes', e.target.value)} /></div>
           </div>
 
           <div className={box}>
-            <div className="mb-1 text-[11px] font-semibold text-slate-600">Payments</div>
+            <div className="mb-1 text-[11px] font-semibold text-slate-600">পেমেন্ট</div>
             <div className="grid grid-cols-2 gap-2">
-              <div><Label className={lbl}>Total Bill</Label><Input type="number" value={d.totalBill} onChange={(e) => set('totalBill', e.target.value)} /></div>
-              <div><Label className={lbl}>Discount</Label><Input type="number" value={d.discount} onChange={(e) => set('discount', e.target.value)} /></div>
-              <div><Label className={lbl}>Paid Today</Label><Input type="number" value={d.paidToday} onChange={(e) => set('paidToday', e.target.value)} /></div>
-              <div><Label className={lbl}>No. of Visits</Label><Input type="number" value={d.visitsNeeded} onChange={(e) => set('visitsNeeded', e.target.value)} /></div>
+              <div><Label className={lbl}>মোট বিল</Label><Input type="number" value={d.totalBill} onChange={(e) => set('totalBill', e.target.value)} /></div>
+              <div><Label className={lbl}>ছাড়</Label><Input type="number" value={d.discount} onChange={(e) => set('discount', e.target.value)} /></div>
+              <div><Label className={lbl}>আজ জমা</Label><Input type="number" value={d.paidToday} onChange={(e) => set('paidToday', e.target.value)} /></div>
+              <div><Label className={lbl}>ভিজিট সংখ্যা</Label><Input type="number" value={d.visitsNeeded} onChange={(e) => set('visitsNeeded', e.target.value)} /></div>
             </div>
           </div>
         </div>
 
-        {/* MIDDLE — Rx builder */}
+        {/* মাঝে — প্রেসক্রিপশন */}
         <div className="space-y-3 lg:col-span-6">
           <div className={box}>
             {picked ? (
               <div className="mb-2 flex items-center justify-between rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
                 <span><b>{picked.name}</b> {picked.strength} — <span className="text-primary">{picked.generic}</span></span>
-                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setPicked(null)}>change</button>
+                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setPicked(null)}>পরিবর্তন</button>
               </div>
             ) : (
               <>
-                <Label className={lbl}>Type brand name</Label>
-                <Input placeholder="e.g. Napa, Moxacil, Tory…" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <Label className={lbl}>ওষুধের নাম লিখুন</Label>
+                <Input placeholder="যেমন: Napa, Moxacil, Tory…" value={query} onChange={(e) => setQuery(e.target.value)} />
                 {query.length >= 2 && (
                   <div className="mt-1 max-h-52 overflow-auto rounded-md border border-border">
-                    {results.length === 0 && <div className="p-2 text-xs text-muted-foreground">No match.</div>}
+                    {results.length === 0 && <div className="p-2 text-xs text-muted-foreground">কোনো মিল নেই।</div>}
                     {results.map((dr) => (
                       <button key={dr.id} className="block w-full border-b border-border/40 px-3 py-1.5 text-left text-sm hover:bg-primary/10"
                         onClick={() => { setPicked({ id: dr.id, name: dr.name, generic: dr.generic, strength: dr.strength }); setQuery(''); }}>
@@ -209,59 +209,59 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
               </>
             )}
             <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div><Label className={lbl}>Dose</Label><Select value={dose} onChange={(e) => setDose(e.target.value)}>{DOSES.map((x) => <option key={x}>{x}</option>)}</Select></div>
-              <div><Label className={lbl}>Duration</Label><Input type="number" value={durNum} onChange={(e) => setDurNum(e.target.value)} /></div>
-              <div><Label className={lbl}>D / M</Label><Select value={durUnit} onChange={(e) => setDurUnit(e.target.value)}><option value="দিন">দিন (D)</option><option value="মাস">মাস (M)</option></Select></div>
-              <div><Label className={lbl}>Timing</Label><Select value={timing} onChange={(e) => setTiming(e.target.value)}>{TIMINGS.map((x) => <option key={x}>{x}</option>)}</Select></div>
+              <div><Label className={lbl}>ডোজ</Label><Select value={dose} onChange={(e) => setDose(e.target.value)}>{DOSES.map((x) => <option key={x}>{x}</option>)}</Select></div>
+              <div><Label className={lbl}>মেয়াদ</Label><Input type="number" value={durNum} onChange={(e) => setDurNum(e.target.value)} /></div>
+              <div><Label className={lbl}>দিন / মাস</Label><Select value={durUnit} onChange={(e) => setDurUnit(e.target.value)}><option value="দিন">দিন</option><option value="মাস">মাস</option></Select></div>
+              <div><Label className={lbl}>সেবনবিধি</Label><Select value={timing} onChange={(e) => setTiming(e.target.value)}>{TIMINGS.map((x) => <option key={x}>{x}</option>)}</Select></div>
             </div>
-            <Button size="sm" className="mt-2 w-full" disabled={!picked} onClick={addItem}><Plus className="h-4 w-4" /> ADD</Button>
+            <Button size="sm" className="mt-2 w-full" disabled={!picked} onClick={addItem}><Plus className="h-4 w-4" /> যোগ করুন</Button>
           </div>
 
           <div className={box}>
-            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-slate-600">℞ Prescription ({items.length})</div>
+            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-slate-600">℞ প্রেসক্রিপশন ({bn(items.length)})</div>
             {allergyHits.length > 0 && (
               <div className="mb-2 flex items-start gap-2 rounded-md border border-danger/40 bg-danger/5 p-2 text-sm text-danger">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span><b>Allergy warning:</b> {allergyHits.map((h) => h.drugName).join(', ')} vs ({allergens.join(', ')}).</span>
+                <span><b>অ্যালার্জি সতর্কতা:</b> {allergyHits.map((h) => h.drugName).join(', ')} — রেকর্ডকৃত অ্যালার্জি ({allergens.join(', ')})।</span>
               </div>
             )}
-            {items.length === 0 && <p className="text-sm text-muted-foreground">No medicine added.</p>}
+            {items.length === 0 && <p className="text-sm text-muted-foreground">কোনো ওষুধ যোগ করা হয়নি।</p>}
             <div className="space-y-1.5">
               {items.map((it, idx) => (
                 <div key={idx} className="flex items-center justify-between rounded-md border border-border px-3 py-1.5 text-sm">
                   <div>
-                    <div className="font-medium">{idx + 1}. {it.drugName} {it.generic && <span className="font-normal text-primary">· {it.generic}</span>}</div>
+                    <div className="font-medium">{bn(idx + 1)}. {it.drugName} {it.generic && <span className="font-normal text-primary">· {it.generic}</span>}</div>
                     <div className="text-xs text-muted-foreground">{it.dosage}{it.timing ? ` · ${it.timing}` : ''}{it.duration ? ` · ${it.duration}` : ''}</div>
                   </div>
                   <button onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
                 </div>
               ))}
             </div>
-            <div className="mt-3"><Label className={lbl}>উপদেশ (advice)</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" placeholder="ঠান্ডা জাতীয় খাবার নিষেধ।" value={d.advice} onChange={(e) => set('advice', e.target.value)} /></div>
+            <div className="mt-3"><Label className={lbl}>উপদেশ</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" placeholder="যেমন: ঠান্ডা জাতীয় খাবার নিষেধ।" value={d.advice} onChange={(e) => set('advice', e.target.value)} /></div>
             <div className="mt-2 flex items-end gap-2">
-              <div className="w-20"><Label className={lbl}>Follow-up</Label><Input type="number" value={d.followNum} onChange={(e) => set('followNum', e.target.value)} /></div>
+              <div className="w-20"><Label className={lbl}>ফলোআপ</Label><Input type="number" value={d.followNum} onChange={(e) => set('followNum', e.target.value)} /></div>
               <div className="w-24"><Select value={d.followUnit} onChange={(e) => set('followUnit', e.target.value)}><option value="দিন">দিন</option><option value="মাস">মাস</option></Select></div>
               <span className="pb-2 text-sm text-muted-foreground">পর আসবেন</span>
             </div>
           </div>
         </div>
 
-        {/* RIGHT — history */}
+        {/* ডান — ইতিহাস */}
         <div className="space-y-3 lg:col-span-3">
           <div className={box}>
-            <div className="mb-2 text-[11px] font-semibold text-slate-600">Prescription history ({history.length})</div>
-            {history.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
+            <div className="mb-2 text-[11px] font-semibold text-slate-600">পূর্বের প্রেসক্রিপশন ({bn(history.length)})</div>
+            {history.length === 0 && <p className="text-sm text-muted-foreground">এখনো নেই।</p>}
             <div className="space-y-2">
               {history.map((rx) => (
                 <div key={rx.id} className="rounded-md border border-border p-2">
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{fmtDate(rx.createdAt)}</span>
                     <div className="flex gap-1.5">
-                      <button title="Print" onClick={() => printRx(patient, { ...emptyDraft, dx: rx.diagnosis || '', cc: rx.chiefComplaint || '', oe: rx.onExam || '', ix: rx.investigation || '', advice: rx.advice || '', grid: rx.examGrid ? JSON.parse(rx.examGrid) : emptyDraft.grid }, rx.items, true)} className="text-muted-foreground hover:text-primary"><Printer className="h-4 w-4" /></button>
-                      <button title="Delete" onClick={() => { if (confirm('Delete this prescription?')) m.remove.mutate(rx.id); }} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                      <button title="প্রিন্ট" onClick={() => printRx(patient, { ...emptyDraft, dx: rx.diagnosis || '', cc: rx.chiefComplaint || '', oe: rx.onExam || '', ix: rx.investigation || '', advice: rx.advice || '', grid: rx.examGrid ? JSON.parse(rx.examGrid) : emptyDraft.grid }, rx.items, true)} className="text-muted-foreground hover:text-primary"><Printer className="h-4 w-4" /></button>
+                      <button title="মুছুন" onClick={() => { if (confirm('এই প্রেসক্রিপশন মুছবেন?')) m.remove.mutate(rx.id); }} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </div>
-                  {rx.diagnosis && <p className="text-sm font-medium">Dx: {rx.diagnosis}</p>}
+                  {rx.diagnosis && <p className="text-sm font-medium">ডা: {rx.diagnosis}</p>}
                   <ul className="mt-0.5 space-y-0.5 text-xs">
                     {rx.items.map((it, i) => <li key={i}>• {it.drugName} <span className="text-muted-foreground">{it.dosage}{it.duration ? ` · ${it.duration}` : ''}</span></li>)}
                   </ul>
