@@ -414,8 +414,8 @@ export function Appointments() {
               const days = Array.from({ length: 7 }, (_, i) => addDays(wkStart, i));
               const appts = week.data ?? [];
               const hrs = appts.map((a) => new Date(a.startTime).getHours());
-              const startH = Math.min(9, ...hrs);
-              const endH = Math.max(19, ...hrs);
+              const startH = Math.min(8, ...hrs);   // clinic opens 8 AM
+              const endH = Math.max(23, ...hrs);    // … until 11 PM
               const hours = Array.from({ length: endH - startH + 1 }, (_, i) => startH + i);
               const hLabel = (h: number) => `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`;
               const cols = '52px repeat(7, minmax(96px, 1fr))';
