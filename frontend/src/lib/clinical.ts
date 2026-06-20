@@ -7,10 +7,13 @@ export interface Drug {
 }
 export interface RxItem {
   id?: string; drugId?: string; drugName: string; generic?: string; dosage: string;
-  frequency?: string; duration?: string; route?: string; instruction?: string;
+  frequency?: string; duration?: string; route?: string; timing?: string; instruction?: string;
 }
 export interface Prescription {
   id: string; diagnosis?: string; advice?: string; createdAt: string; items: RxItem[];
+  chiefComplaint?: string; onExam?: string; examGrid?: string; investigation?: string;
+  notes?: string; followUp?: string; planId?: string;
+  totalBill?: number; discount?: number; paidToday?: number; visitsNeeded?: number;
 }
 
 export function useDrugs(search = '') {

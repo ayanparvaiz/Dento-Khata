@@ -1,37 +1,70 @@
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { useDrugs, usePrescriptions, useRxMutations, type RxItem } from '@/lib/clinical';
-import { splitList, fmtDate } from '@/lib/format';
+import { useTreatment } from '@/lib/treatment';
+import { splitList, fmtDate, ageFromDob } from '@/lib/format';
 import type { Patient } from '@/lib/patients';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, Plus, Printer, Trash2 } from 'lucide-react';
+import { AlertTriangle, Plus, Printer, Trash2, Eye, Save } from 'lucide-react';
 
-const DOSAGES = ['1+0+1', '1+1+1', '1+0+0', '0+0+1', '1+1+1+1', 'SOS'];
+const DOSES = ['1+0+1', '1+1+1', '1+0+0', '0+0+1', '0+0+0+1', '1+1+1+1', 'SOS', '২ চামচ', '১ চামচ'];
+const TIMINGS = ['খাবার পর', 'খাবার আগে', 'ভরা পেটে', 'খালি পেটে'];
 
-async function printRx(patient: Patient, diagnosis: string, advice: string, items: RxItem[]) {
+type Grid = { UR: string; UL: string; LR: string; LL: string };
+type Draft = {
+  dx: string; cc: string; oe: string; grid: Grid; ix: string; notes: string;
+  advice: string; followNum: string; followUnit: string; planId: string;
+  totalBill: string; discount: string; paidToday: string; visitsNeeded: string;
+};
+const emptyDraft: Draft = {
+  dx: '', cc: '', oe: '', grid: { UR: '', UL: '', LR: '', LL: '' }, ix: '', notes: '',
+  advice: '', followNum: '', followUnit: 'দিন', planId: '',
+  totalBill: '', discount: '', paidToday: '', visitsNeeded: '',
+};
+
+// ---- print (with or without the pre-printed letterhead) ----
+async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean) {
   const s = (await api.get('/settings')).data;
-  const rows = items
-    .map((i) => `<tr><td><b>${i.drugName}</b>${i.generic ? `<br><span style="color:#64748b;font-size:12px">${i.generic}</span>` : ''}</td><td>${i.dosage}</td><td>${i.duration || ''}</td><td>${i.instruction || ''}</td></tr>`)
-    .join('');
-  const html = `<html><head><title>Prescription</title><style>
-    body{font-family:sans-serif;padding:24px;color:#0f172a}
-    .hd{border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:8px}
-    h1{margin:0;color:#0f766e}table{width:100%;border-collapse:collapse;margin-top:12px}
-    td,th{border-bottom:1px solid #e2e8f0;padding:6px;text-align:left;font-size:14px}
-    .rx{font-size:28px;color:#0f766e;font-weight:700}.muted{color:#64748b;font-size:12px}</style></head>
-    <body><div class="hd"><h1>${s.name || 'Dental Clinic'}</h1>
-    <div class="muted">${s.address || ''} ${s.phone ? '· ' + s.phone : ''}</div>
-    ${s.letterhead ? `<div>${s.letterhead}</div>` : ''}</div>
-    <div><b>${patient.fullName}</b> (${patient.code}) · ${patient.gender || ''} ${patient.phone || ''}</div>
-    <div class="muted">Date: ${new Date().toLocaleDateString('en-GB')}</div>
-    ${diagnosis ? `<p><b>Diagnosis:</b> ${diagnosis}</p>` : ''}
-    <div class="rx">℞</div>
-    <table><thead><tr><th>Medicine</th><th>Dosage</th><th>Duration</th><th>Instruction</th></tr></thead><tbody>${rows}</tbody></table>
-    ${advice ? `<p><b>Advice:</b> ${advice}</p>` : ''}
-    <p style="margin-top:48px;text-align:right">_____________________<br/>Signature</p>
-    </body></html>`;
+  const age = patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '';
+  const meds = items.map((i, n) => `<div class="med"><div><b>${n + 1}. ${i.drugName}</b></div>
+    <div class="sub">${i.dosage}${i.timing ? ` — ${i.timing}` : ''}${i.duration ? ` — ${i.duration}` : ''}${i.instruction ? ` — ${i.instruction}` : ''}</div></div>`).join('');
+  const gridRows = (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL)
+    ? `<table class="grid"><tr><td>${d.grid.UR || ''}</td><td>${d.grid.UL || ''}</td></tr><tr><td>${d.grid.LR || ''}</td><td>${d.grid.LL || ''}</td></tr></table>` : '';
+  const followUp = d.followNum ? `<p><b>${d.followNum} ${d.followUnit}</b> পর আসবেন।</p>` : '';
+  const header = withHeader
+    ? `<div class="hd"><h1>${s.name || 'Dental Clinic'}</h1>
+        ${s.letterhead ? `<div class="ql">${s.letterhead}</div>` : ''}
+        <div class="muted">${s.address || ''}${s.phone ? ' · ' + s.phone : ''}</div></div>`
+    : `<div style="height:150px"></div>`; // blank space for the pre-printed pad header
+  const html = `<html><head><meta charset="utf-8"/><title>Prescription — ${patient.fullName}</title><style>
+    *{box-sizing:border-box} body{font-family:'Segoe UI',system-ui,sans-serif;padding:28px;color:#0f172a;font-size:13px}
+    .hd{text-align:center;border-bottom:2px solid #0f766e;padding-bottom:6px;margin-bottom:8px}
+    .hd h1{margin:0;color:#0f766e;font-size:22px} .ql{font-size:12px;color:#334155} .muted{color:#64748b;font-size:12px}
+    .pt{display:flex;justify-content:space-between;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
+    .body{display:flex;margin-top:10px} .left{width:34%;border-right:1px solid #94a3b8;padding-right:10px}
+    .right{flex:1;padding-left:14px} .fld{margin-bottom:8px} .fld .l{font-weight:700;font-size:11px;color:#475569}
+    .rx{font-size:30px;color:#0f766e;font-weight:700;line-height:1} .med{margin:8px 0} .med .sub{color:#334155;font-size:12px}
+    .grid{border-collapse:collapse;margin-top:2px} .grid td{border:1px solid #475569;width:60px;height:24px;text-align:center;font-size:12px}
+    .adv{margin-top:14px;border-top:1px dashed #cbd5e1;padding-top:6px}
+    @media print{button{display:none}}</style></head><body>
+    ${header}
+    <div class="pt"><span><b>${patient.fullName}</b> &nbsp; ${patient.gender || ''} ${age ? '· ' + age : ''}</span>
+      <span>${patient.phone || ''} &nbsp; Date: ${new Date().toLocaleDateString('en-GB')}</span></div>
+    <div class="body">
+      <div class="left">
+        ${d.cc ? `<div class="fld"><div class="l">C/C</div>${d.cc}</div>` : ''}
+        ${(d.oe || gridRows) ? `<div class="fld"><div class="l">O/E</div>${d.oe || ''}${gridRows}</div>` : ''}
+        ${d.dx ? `<div class="fld"><div class="l">Diagnosis</div>${d.dx}</div>` : ''}
+        ${d.ix ? `<div class="fld"><div class="l">Ix / Advice</div>${d.ix}</div>` : ''}
+      </div>
+      <div class="right">
+        <div class="rx">℞</div>
+        ${meds || '<p class="muted">No medicine.</p>'}
+        ${d.advice ? `<div class="adv"><b>উপদেশঃ</b> ${d.advice}</div>` : ''}
+        ${followUp}
+      </div>
+    </div></body></html>`;
   const w = window.open('', '_blank');
   if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
 }
@@ -39,25 +72,22 @@ async function printRx(patient: Patient, diagnosis: string, advice: string, item
 export function PrescriptionsTab({ patient }: { patient: Patient }) {
   const patientId = patient.id;
   const { data: history = [] } = usePrescriptions(patientId);
+  const { data: plans = [] } = useTreatment(patientId);
   const m = useRxMutations(patientId);
 
-  const [diagnosis, setDiagnosis] = useState('');
-  const [advice, setAdvice] = useState('');
-  const [items, setItems] = useState<(RxItem & { generic?: string })[]>([]);
-  // Typeahead drug search (only queries when ≥2 chars — avoids loading all 8,900 drugs).
+  const [d, setD] = useState<Draft>(emptyDraft);
+  const set = (k: keyof Draft, v: any) => setD((p) => ({ ...p, [k]: v }));
+  const setGrid = (k: keyof Grid, v: string) => setD((p) => ({ ...p, grid: { ...p.grid, [k]: v } }));
+  const [items, setItems] = useState<RxItem[]>([]);
+
+  // drug entry
   const [query, setQuery] = useState('');
   const { data: results = [] } = useDrugs(query.length >= 2 ? query : '__none__');
   const [picked, setPicked] = useState<{ id: string; name: string; generic?: string; strength?: string } | null>(null);
-  const [opts, setOpts] = useState({ dosage: '1+0+1', duration: '7 days', instruction: 'After meal' });
-
-  // Group search results by generic so same-generic ALTERNATIVES sit together.
-  const grouped = Object.entries(
-    (query.length >= 2 ? results : []).reduce<Record<string, typeof results>>((acc, d) => {
-      const g = d.generic || 'Other';
-      (acc[g] ||= []).push(d);
-      return acc;
-    }, {}),
-  );
+  const [dose, setDose] = useState('1+0+1');
+  const [durNum, setDurNum] = useState('7');
+  const [durUnit, setDurUnit] = useState('দিন');
+  const [timing, setTiming] = useState('খাবার পর');
 
   const allergens = splitList(patient.medicalHistory?.allergies);
   const allergyHits = items.filter((it) => {
@@ -70,150 +100,176 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
     setItems([...items, {
       drugId: picked.id,
       drugName: `${picked.name}${picked.strength ? ' ' + picked.strength : ''}`,
-      generic: picked.generic,
-      dosage: opts.dosage, duration: opts.duration, instruction: opts.instruction,
+      generic: picked.generic, dosage: dose, timing,
+      duration: durNum ? `${durNum} ${durUnit}` : undefined,
     }]);
-    setPicked(null);
-    setQuery('');
+    setPicked(null); setQuery('');
   };
 
-  const save = () => {
+  const buildPayload = () => ({
+    diagnosis: d.dx || undefined, chiefComplaint: d.cc || undefined, onExam: d.oe || undefined,
+    examGrid: (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL) ? JSON.stringify(d.grid) : undefined,
+    investigation: d.ix || undefined, notes: d.notes || undefined, advice: d.advice || undefined,
+    followUp: d.followNum ? `${d.followNum} ${d.followUnit}` : undefined, planId: d.planId || undefined,
+    totalBill: d.totalBill ? Number(d.totalBill) : undefined, discount: d.discount ? Number(d.discount) : undefined,
+    paidToday: d.paidToday ? Number(d.paidToday) : undefined, visitsNeeded: d.visitsNeeded ? Number(d.visitsNeeded) : undefined,
+    items,
+  });
+  const reset = () => { setItems([]); setD(emptyDraft); };
+  const save = (then?: () => void) => {
     if (items.length === 0) return;
-    m.create.mutate(
-      { diagnosis, advice, items },
-      { onSuccess: () => { setItems([]); setDiagnosis(''); setAdvice(''); } },
-    );
+    m.create.mutate(buildPayload(), { onSuccess: () => { then?.(); reset(); } });
   };
 
-  const sectionHead = 'mb-3 flex items-center gap-2 text-sm font-semibold text-foreground';
-  const numChip = 'flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground';
+  const lbl = 'mb-0.5 block text-[11px] font-semibold text-slate-600';
+  const box = 'rounded-lg border border-border bg-white p-3';
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-      {/* ---- Builder (left, wider) ---- */}
-      <div className="space-y-4 lg:col-span-3">
-        {/* 1. Diagnosis */}
-        <Card>
-          <CardContent className="pt-5">
-            <div className={sectionHead}><span className={numChip}>1</span> Diagnosis</div>
-            <Input placeholder="e.g. Acute pulpitis 36, Pericoronitis 48" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
-          </CardContent>
-        </Card>
+    <div className="space-y-3">
+      {/* patient bar + actions */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+        <div className="flex flex-wrap gap-x-4">
+          <span><b>{patient.fullName}</b></span>
+          <span className="text-muted-foreground">{patient.gender || '—'} · {patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '—'}</span>
+          <span className="text-muted-foreground">{patient.phone || 'no phone'}</span>
+          <span className="text-muted-foreground">{patient.address || ''}</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <Button size="sm" variant="outline" disabled={items.length === 0} onClick={() => printRx(patient, d, items, true)}><Eye className="mr-1 h-4 w-4" />Preview</Button>
+          <Button size="sm" disabled={items.length === 0 || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, true))}><Printer className="mr-1 h-4 w-4" />Save &amp; Print</Button>
+          <Button size="sm" variant="outline" disabled={items.length === 0 || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, false))}><Printer className="mr-1 h-4 w-4" />Print (no header)</Button>
+          <Button size="sm" variant="outline" disabled={items.length === 0 || m.create.isPending} onClick={() => save()}><Save className="mr-1 h-4 w-4" />Save only</Button>
+        </div>
+      </div>
 
-        {/* 2. Add medicine */}
-        <Card>
-          <CardContent className="pt-5">
-            <div className={sectionHead}><span className={numChip}>2</span> Add medicine</div>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+        {/* LEFT — clinical */}
+        <div className="space-y-3 lg:col-span-3">
+          <div className={box}>
+            <div><Label className={lbl}>Disease / Condition / Dx</Label><Input value={d.dx} onChange={(e) => set('dx', e.target.value)} /></div>
+            <div className="mt-2"><Label className={lbl}>C/C (chief complaint)</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" value={d.cc} onChange={(e) => set('cc', e.target.value)} /></div>
+            <div className="mt-2">
+              <Label className={lbl}>O/E (on examination)</Label>
+              <textarea className="min-h-[40px] w-full rounded-md border border-border p-2 text-sm" value={d.oe} onChange={(e) => set('oe', e.target.value)} />
+              <div className="mt-1 grid grid-cols-2 gap-1">
+                {(['UR', 'UL', 'LR', 'LL'] as (keyof Grid)[]).map((q) => (
+                  <div key={q} className="flex items-center gap-1">
+                    <span className="w-6 text-[10px] font-bold text-muted-foreground">{q}</span>
+                    <Input className="h-7 text-xs" value={d.grid[q]} onChange={(e) => setGrid(q, e.target.value)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-2"><Label className={lbl}>Ix / Advice</Label><Input value={d.ix} onChange={(e) => set('ix', e.target.value)} /></div>
+            <div className="mt-2">
+              <Label className={lbl}>Rx Plan (from treatment plan — optional)</Label>
+              <Select value={d.planId} onChange={(e) => set('planId', e.target.value)}>
+                <option value="">— none —</option>
+                {plans.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </Select>
+            </div>
+            <div className="mt-2"><Label className={lbl}>Notes (internal — not printed)</Label><textarea className="min-h-[40px] w-full rounded-md border border-amber-300 bg-amber-50 p-2 text-sm" value={d.notes} onChange={(e) => set('notes', e.target.value)} /></div>
+          </div>
+
+          <div className={box}>
+            <div className="mb-1 text-[11px] font-semibold text-slate-600">Payments</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label className={lbl}>Total Bill</Label><Input type="number" value={d.totalBill} onChange={(e) => set('totalBill', e.target.value)} /></div>
+              <div><Label className={lbl}>Discount</Label><Input type="number" value={d.discount} onChange={(e) => set('discount', e.target.value)} /></div>
+              <div><Label className={lbl}>Paid Today</Label><Input type="number" value={d.paidToday} onChange={(e) => set('paidToday', e.target.value)} /></div>
+              <div><Label className={lbl}>No. of Visits</Label><Input type="number" value={d.visitsNeeded} onChange={(e) => set('visitsNeeded', e.target.value)} /></div>
+            </div>
+          </div>
+        </div>
+
+        {/* MIDDLE — Rx builder */}
+        <div className="space-y-3 lg:col-span-6">
+          <div className={box}>
             {picked ? (
-              <div className="flex items-center justify-between rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+              <div className="mb-2 flex items-center justify-between rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
                 <span><b>{picked.name}</b> {picked.strength} — <span className="text-primary">{picked.generic}</span></span>
                 <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setPicked(null)}>change</button>
               </div>
             ) : (
               <>
-                <Input placeholder="Search brand or generic (e.g. Napa, Amoxicillin)…" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <Label className={lbl}>Type brand name</Label>
+                <Input placeholder="e.g. Napa, Moxacil, Tory…" value={query} onChange={(e) => setQuery(e.target.value)} />
                 {query.length >= 2 && (
-                  <div className="mt-1 max-h-60 overflow-auto rounded-md border border-border">
-                    {grouped.length === 0 && <div className="p-3 text-xs text-muted-foreground">No match.</div>}
-                    {grouped.map(([generic, list]) => (
-                      <div key={generic}>
-                        {/* generic group header = the alternatives bucket */}
-                        <div className="sticky top-0 flex items-center justify-between bg-muted px-3 py-1 text-[11px] font-semibold text-muted-foreground">
-                          <span>💊 {generic}</span>
-                          {list.length > 1 && <span className="rounded-full bg-primary/15 px-2 text-primary">{list.length} alternatives</span>}
-                        </div>
-                        {list.map((d) => (
-                          <button key={d.id} className="block w-full border-b border-border/40 px-3 py-1.5 text-left text-sm hover:bg-primary/10"
-                            onClick={() => { setPicked({ id: d.id, name: d.name, generic: d.generic, strength: d.strength }); setQuery(''); }}>
-                            <span className="font-medium">{d.name}</span> <span className="text-xs text-muted-foreground">{d.strength} · {d.form}</span>
-                            <span className="block text-[11px] text-primary/80">{d.generic}</span>
-                          </button>
-                        ))}
-                      </div>
+                  <div className="mt-1 max-h-52 overflow-auto rounded-md border border-border">
+                    {results.length === 0 && <div className="p-2 text-xs text-muted-foreground">No match.</div>}
+                    {results.map((dr) => (
+                      <button key={dr.id} className="block w-full border-b border-border/40 px-3 py-1.5 text-left text-sm hover:bg-primary/10"
+                        onClick={() => { setPicked({ id: dr.id, name: dr.name, generic: dr.generic, strength: dr.strength }); setQuery(''); }}>
+                        <span className="font-medium">{dr.name}</span> <span className="text-xs text-muted-foreground">{dr.strength} · {dr.form}</span>
+                        <span className="block text-[11px] text-primary/80">{dr.generic}</span>
+                      </button>
                     ))}
                   </div>
                 )}
               </>
             )}
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div><Label>Dosage</Label><Select value={opts.dosage} onChange={(e) => setOpts({ ...opts, dosage: e.target.value })}>{DOSAGES.map((d) => <option key={d}>{d}</option>)}</Select></div>
-              <div><Label>Duration</Label><Input value={opts.duration} onChange={(e) => setOpts({ ...opts, duration: e.target.value })} /></div>
-              <div><Label>Instruction</Label><Input value={opts.instruction} onChange={(e) => setOpts({ ...opts, instruction: e.target.value })} /></div>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div><Label className={lbl}>Dose</Label><Select value={dose} onChange={(e) => setDose(e.target.value)}>{DOSES.map((x) => <option key={x}>{x}</option>)}</Select></div>
+              <div><Label className={lbl}>Duration</Label><Input type="number" value={durNum} onChange={(e) => setDurNum(e.target.value)} /></div>
+              <div><Label className={lbl}>D / M</Label><Select value={durUnit} onChange={(e) => setDurUnit(e.target.value)}><option value="দিন">দিন (D)</option><option value="মাস">মাস (M)</option></Select></div>
+              <div><Label className={lbl}>Timing</Label><Select value={timing} onChange={(e) => setTiming(e.target.value)}>{TIMINGS.map((x) => <option key={x}>{x}</option>)}</Select></div>
             </div>
-            <Button size="sm" className="mt-3 w-full" disabled={!picked} onClick={addItem}>
-              <Plus className="h-4 w-4" /> Add to prescription
-            </Button>
-          </CardContent>
-        </Card>
+            <Button size="sm" className="mt-2 w-full" disabled={!picked} onClick={addItem}><Plus className="h-4 w-4" /> ADD</Button>
+          </div>
 
-        {/* 3. Items added */}
-        <Card>
-          <CardContent className="pt-5">
-            <div className={sectionHead}><span className={numChip}>3</span> Medicines ({items.length})</div>
+          <div className={box}>
+            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-slate-600">℞ Prescription ({items.length})</div>
             {allergyHits.length > 0 && (
               <div className="mb-2 flex items-start gap-2 rounded-md border border-danger/40 bg-danger/5 p-2 text-sm text-danger">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span><b>Allergy warning:</b> {allergyHits.map((h) => h.drugName).join(', ')} vs recorded allergies ({allergens.join(', ')}).</span>
+                <span><b>Allergy warning:</b> {allergyHits.map((h) => h.drugName).join(', ')} vs ({allergens.join(', ')}).</span>
               </div>
             )}
-            {items.length === 0 && <p className="text-sm text-muted-foreground">No medicine added yet.</p>}
-            <div className="space-y-2">
+            {items.length === 0 && <p className="text-sm text-muted-foreground">No medicine added.</p>}
+            <div className="space-y-1.5">
               {items.map((it, idx) => (
-                <div key={idx} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+                <div key={idx} className="flex items-center justify-between rounded-md border border-border px-3 py-1.5 text-sm">
                   <div>
-                    <div className="font-medium">{it.drugName} <span className="font-normal text-primary">· {it.generic}</span></div>
-                    <div className="text-xs text-muted-foreground">{it.dosage} · {it.duration} · {it.instruction}</div>
+                    <div className="font-medium">{idx + 1}. {it.drugName} {it.generic && <span className="font-normal text-primary">· {it.generic}</span>}</div>
+                    <div className="text-xs text-muted-foreground">{it.dosage}{it.timing ? ` · ${it.timing}` : ''}{it.duration ? ` · ${it.duration}` : ''}</div>
                   </div>
                   <button onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 4. Advice + actions */}
-        <Card>
-          <CardContent className="space-y-3 pt-5">
-            <div className={sectionHead}><span className={numChip}>4</span> Advice &amp; finish</div>
-            <Input placeholder="Advice (e.g. soft diet, warm saline rinse)" value={advice} onChange={(e) => setAdvice(e.target.value)} />
-            <div className="flex gap-2">
-              <Button onClick={save} disabled={items.length === 0 || m.create.isPending}>Save prescription</Button>
-              <Button variant="outline" disabled={items.length === 0} onClick={() => printRx(patient, diagnosis, advice, items)}>
-                <Printer className="h-4 w-4" /> Print
-              </Button>
+            <div className="mt-3"><Label className={lbl}>উপদেশ (advice)</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" placeholder="ঠান্ডা জাতীয় খাবার নিষেধ।" value={d.advice} onChange={(e) => set('advice', e.target.value)} /></div>
+            <div className="mt-2 flex items-end gap-2">
+              <div className="w-20"><Label className={lbl}>Follow-up</Label><Input type="number" value={d.followNum} onChange={(e) => set('followNum', e.target.value)} /></div>
+              <div className="w-24"><Select value={d.followUnit} onChange={(e) => set('followUnit', e.target.value)}><option value="দিন">দিন</option><option value="মাস">মাস</option></Select></div>
+              <span className="pb-2 text-sm text-muted-foreground">পর আসবেন</span>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
 
-      {/* ---- History (right) ---- */}
-      <div className="lg:col-span-2">
-        <Card>
-          <CardHeader><CardTitle>Prescription history ({history.length})</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {history.length === 0 && <p className="text-sm text-muted-foreground">No prescriptions yet.</p>}
-            {history.map((rx) => (
-              <div key={rx.id} className="rounded-md border border-border p-3">
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{fmtDate(rx.createdAt)}</span>
-                  <div className="flex gap-2">
-                    <button onClick={() => printRx(patient, rx.diagnosis || '', rx.advice || '', rx.items)} className="text-muted-foreground hover:text-primary"><Printer className="h-4 w-4" /></button>
-                    <button onClick={() => m.remove.mutate(rx.id)} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+        {/* RIGHT — history */}
+        <div className="space-y-3 lg:col-span-3">
+          <div className={box}>
+            <div className="mb-2 text-[11px] font-semibold text-slate-600">Prescription history ({history.length})</div>
+            {history.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
+            <div className="space-y-2">
+              {history.map((rx) => (
+                <div key={rx.id} className="rounded-md border border-border p-2">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{fmtDate(rx.createdAt)}</span>
+                    <div className="flex gap-1.5">
+                      <button title="Print" onClick={() => printRx(patient, { ...emptyDraft, dx: rx.diagnosis || '', cc: rx.chiefComplaint || '', oe: rx.onExam || '', ix: rx.investigation || '', advice: rx.advice || '', grid: rx.examGrid ? JSON.parse(rx.examGrid) : emptyDraft.grid }, rx.items, true)} className="text-muted-foreground hover:text-primary"><Printer className="h-4 w-4" /></button>
+                      <button title="Delete" onClick={() => { if (confirm('Delete this prescription?')) m.remove.mutate(rx.id); }} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                    </div>
                   </div>
+                  {rx.diagnosis && <p className="text-sm font-medium">Dx: {rx.diagnosis}</p>}
+                  <ul className="mt-0.5 space-y-0.5 text-xs">
+                    {rx.items.map((it, i) => <li key={i}>• {it.drugName} <span className="text-muted-foreground">{it.dosage}{it.duration ? ` · ${it.duration}` : ''}</span></li>)}
+                  </ul>
                 </div>
-                {rx.diagnosis && <p className="text-sm font-medium">Dx: {rx.diagnosis}</p>}
-                <ul className="mt-1 space-y-0.5 text-sm">
-                  {rx.items.map((it, i) => (
-                    <li key={i}>
-                      • <b>{it.drugName}</b>{it.generic ? <span className="text-primary"> · {it.generic}</span> : ''}
-                      <span className="text-muted-foreground"> — {it.dosage}{it.duration ? ` (${it.duration})` : ''}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

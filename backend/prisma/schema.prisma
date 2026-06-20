@@ -163,8 +163,9 @@ model TreatmentPlan {
   status    String   @default("PROPOSED") // PROPOSED | ACCEPTED | IN_PROGRESS | COMPLETED
   createdAt DateTime @default(now())
 
-  items   TreatmentItem[]
-  records TreatmentRecord[]
+  items         TreatmentItem[]
+  records       TreatmentRecord[]
+  prescriptions Prescription[]
 }
 
 // Per-visit treatment log: a dated one-line note of what was done (e.g. RCT day 2).
@@ -232,8 +233,22 @@ model Prescription {
   patientId String
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   dentistId String?
-  diagnosis String?
-  advice    String?
+  // Clinical fields (ZilSoft-style)
+  diagnosis      String? // Disease / Condition / Dx
+  chiefComplaint String? // C/C
+  onExam         String? // O/E
+  examGrid       String? // JSON: { UR, UL, LR, LL } tooth findings
+  investigation  String? // Ix / Advice
+  notes          String? // internal — not printed
+  advice         String? // উপদেশ (printed)
+  followUp       String? // e.g. "1 month", "7 days"
+  planId         String? // optional link to a treatment plan (Rx Plan)
+  plan           TreatmentPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  // Doctor's quick figures (printed on Rx; not the billing ledger)
+  totalBill    Float?
+  discount     Float?
+  paidToday    Float?
+  visitsNeeded Int?
   createdAt DateTime @default(now())
 
   items PrescriptionItem[]
@@ -253,6 +268,7 @@ model PrescriptionItem {
   frequency      String?
   duration       String? // "7 days"
   route          String? // oral, topical
+  timing         String? // খাবার আগে / খাবার পর / ভরা পেটে
   instruction    String? // after meal...
 }
 
