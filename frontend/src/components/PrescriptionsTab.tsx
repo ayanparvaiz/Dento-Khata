@@ -89,6 +89,7 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
   const [durNum, setDurNum] = useState('7');
   const [durUnit, setDurUnit] = useState('দিন');
   const [timing, setTiming] = useState('খাবার পর');
+  const [customTiming, setCustomTiming] = useState(false);
 
   const allergens = splitList(patient.medicalHistory?.allergies);
   const allergyHits = items.filter((it) => {
@@ -214,8 +215,14 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
               <div><Label className={lbl}>মেয়াদ</Label><Select value={durNum} onChange={(e) => setDurNum(e.target.value)}>{NUMS.map((n) => <option key={n} value={n}>{bn(n)}</option>)}</Select></div>
               <div><Label className={lbl}>দিন / মাস</Label><Select value={durUnit} onChange={(e) => setDurUnit(e.target.value)}><option value="দিন">দিন</option><option value="মাস">মাস</option></Select></div>
               <div><Label className={lbl}>সেবনবিধি</Label>
-                <Input list="timing-opts" value={timing} onChange={(e) => setTiming(e.target.value)} placeholder="বেছে নিন বা লিখুন" />
-                <datalist id="timing-opts">{TIMINGS.map((x) => <option key={x} value={x} />)}</datalist>
+                {customTiming ? (
+                  <Input autoFocus value={timing} onChange={(e) => setTiming(e.target.value)} placeholder="নিজে লিখুন" onBlur={() => { if (!timing.trim()) { setCustomTiming(false); setTiming('খাবার পর'); } }} />
+                ) : (
+                  <Select value={timing} onChange={(e) => { if (e.target.value === '__custom') { setCustomTiming(true); setTiming(''); } else setTiming(e.target.value); }}>
+                    {TIMINGS.map((x) => <option key={x}>{x}</option>)}
+                    <option value="__custom">✏️ অন্যান্য (লিখুন)…</option>
+                  </Select>
+                )}
               </div>
             </div>
             <Button size="sm" className="mt-2 w-full" disabled={!picked} onClick={addItem}><Plus className="h-4 w-4" /> যোগ করুন</Button>
