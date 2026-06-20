@@ -46,7 +46,7 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
     .hd h1{margin:0;color:#0f766e;font-size:22px} .ql{font-size:12px;color:#334155} .muted{color:#64748b;font-size:12px}
     .pt{display:flex;justify-content:space-between;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
     .body{display:flex;margin-top:10px} .left{width:34%;border-right:1px solid #94a3b8;padding-right:10px}
-    .right{flex:1;padding-left:14px} .fld{margin-bottom:8px} .fld .l{font-weight:700;font-size:11px;color:#475569}
+    .right{flex:1;padding-left:14px} .fld{margin-bottom:16px;line-height:1.45} .fld .l{font-weight:700;font-size:11px;color:#475569;margin-bottom:3px}
     .rx{font-size:30px;color:#0f766e;font-weight:700;line-height:1} .med{margin:12px 0} .med .nm{font-size:14px}
     .med .sub{display:flex;flex-wrap:wrap;gap:6px 32px;color:#334155;font-size:12px;margin-top:3px;padding-left:14px}
     .grid{border-collapse:collapse;margin-top:2px} .grid td{width:60px;height:24px;text-align:center;font-size:12px}
