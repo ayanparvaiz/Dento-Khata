@@ -18,12 +18,10 @@ type Grid = { UR: string; UL: string; LR: string; LL: string };
 type Draft = {
   dx: string; cc: string; oe: string; grid: Grid; ix: string; notes: string;
   advice: string; followNum: string; followUnit: string; planId: string;
-  totalBill: string; discount: string; paidToday: string; visitsNeeded: string;
 };
 const emptyDraft: Draft = {
   dx: '', cc: '', oe: '', grid: { UR: '', UL: '', LR: '', LL: '' }, ix: '', notes: '',
   advice: '', followNum: '', followUnit: 'দিন', planId: '',
-  totalBill: '', discount: '', paidToday: '', visitsNeeded: '',
 };
 
 async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean) {
@@ -47,7 +45,8 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
     .body{display:flex;margin-top:10px} .left{width:34%;border-right:1px solid #94a3b8;padding-right:10px}
     .right{flex:1;padding-left:14px} .fld{margin-bottom:8px} .fld .l{font-weight:700;font-size:11px;color:#475569}
     .rx{font-size:30px;color:#0f766e;font-weight:700;line-height:1} .med{margin:8px 0} .med .sub{color:#334155;font-size:12px}
-    .grid{border-collapse:collapse;margin-top:2px} .grid td{border:1px solid #475569;width:60px;height:24px;text-align:center;font-size:12px}
+    .grid{border-collapse:collapse;margin-top:2px} .grid td{width:60px;height:24px;text-align:center;font-size:12px}
+    .grid td:first-child{border-right:1px solid #475569} .grid tr:first-child td{border-bottom:1px solid #475569}
     .adv{margin-top:14px;border-top:1px dashed #cbd5e1;padding-top:6px}
     @media print{button{display:none}}</style></head><body>
     ${header}
@@ -113,8 +112,6 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
     examGrid: (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL) ? JSON.stringify(d.grid) : undefined,
     investigation: d.ix || undefined, notes: d.notes || undefined, advice: d.advice || undefined,
     followUp: d.followNum ? `${bn(d.followNum)} ${d.followUnit}` : undefined, planId: d.planId || undefined,
-    totalBill: d.totalBill ? Number(d.totalBill) : undefined, discount: d.discount ? Number(d.discount) : undefined,
-    paidToday: d.paidToday ? Number(d.paidToday) : undefined, visitsNeeded: d.visitsNeeded ? Number(d.visitsNeeded) : undefined,
     items,
   });
   const reset = () => { setItems([]); setD(emptyDraft); };
@@ -171,16 +168,6 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
               </Select>
             </div>
             <div className="mt-2"><Label className={lbl}>নোট (শুধু নিজের জন্য — ছাপা হবে না)</Label><textarea className="min-h-[40px] w-full rounded-md border border-amber-300 bg-amber-50 p-2 text-sm" value={d.notes} onChange={(e) => set('notes', e.target.value)} /></div>
-          </div>
-
-          <div className={box}>
-            <div className="mb-1 text-[11px] font-semibold text-slate-600">পেমেন্ট</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label className={lbl}>মোট বিল</Label><Input type="number" value={d.totalBill} onChange={(e) => set('totalBill', e.target.value)} /></div>
-              <div><Label className={lbl}>ছাড়</Label><Input type="number" value={d.discount} onChange={(e) => set('discount', e.target.value)} /></div>
-              <div><Label className={lbl}>আজ জমা</Label><Input type="number" value={d.paidToday} onChange={(e) => set('paidToday', e.target.value)} /></div>
-              <div><Label className={lbl}>ভিজিট সংখ্যা</Label><Input type="number" value={d.visitsNeeded} onChange={(e) => set('visitsNeeded', e.target.value)} /></div>
-            </div>
           </div>
         </div>
 
