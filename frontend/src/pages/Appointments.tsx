@@ -61,9 +61,9 @@ function attendance(status: string): 'came' | 'noshow' | 'upcoming' {
   return 'upcoming';
 }
 const ATT_COLOR: Record<string, string> = {
-  came: 'bg-green-100 text-green-800 border-green-300',
-  noshow: 'bg-red-100 text-red-700 border-red-300 line-through',
-  upcoming: 'bg-slate-200 text-slate-600 border-slate-300',
+  came: 'bg-emerald-200 text-emerald-900 border-emerald-400',
+  noshow: 'bg-rose-200 text-rose-900 border-rose-400 line-through',
+  upcoming: 'bg-sky-200 text-sky-900 border-sky-400',
 };
 
 export function Appointments() {
@@ -386,14 +386,19 @@ export function Appointments() {
                           {new Date(d + 'T00:00:00').getDate()}
                         </button>
                         <div className="space-y-0.5">
-                          {list.slice(0, 4).map((a) => (
+                          {list.slice(0, 3).map((a) => (
                             <button key={a.id} title={`${hm(a.startTime)} ${a.patient?.fullName} · ${a.status}`}
                               onClick={() => { setAnchor(d); setView('day'); }}
                               className={cn('block w-full truncate rounded border px-1 py-0.5 text-left text-[11px]', ATT_COLOR[attendance(a.status)])}>
                               {hm(a.startTime)} {a.patient?.fullName}
                             </button>
                           ))}
-                          {list.length > 4 && <div className="px-1 text-[10px] text-muted-foreground">+{list.length - 4} more</div>}
+                          {list.length > 3 && (
+                            <button onClick={() => { setAnchor(d); setView('day'); }}
+                              className="block w-full rounded px-1 text-left text-[10px] font-semibold text-primary hover:underline">
+                              +{list.length - 3} more
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -413,12 +418,13 @@ export function Appointments() {
             (() => {
               const days = Array.from({ length: 7 }, (_, i) => addDays(wkStart, i));
               const appts = week.data ?? [];
-              const hrs = appts.map((a) => new Date(a.startTime).getHours());
-              const startH = Math.min(8, ...hrs);   // clinic opens 8 AM
-              const endH = Math.max(23, ...hrs);    // … until 11 PM
-              const hours = Array.from({ length: endH - startH + 1 }, (_, i) => startH + i);
-              const hLabel = (h: number) => `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`;
-              const cols = '52px repeat(7, minmax(96px, 1fr))';
+              const toMin = (s: string) => { const d = new Date(s); return d.getHours() * 60 + d.getMinutes(); };
+              const startM = Math.min(8 * 60, ...appts.map((a) => toMin(a.startTime))); // 8 AM (or earlier)
+              const endM = Math.max(23 * 60, ...appts.map((a) => toMin(a.endTime)));    // 11 PM (or later)
+              const ROW = 30;            // px per 30-min slot
+              const slots = (endM - startM) / 30;
+              const gridH = slots * ROW;
+              const label = (m: number) => { const h = Math.floor(m / 60); return `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`; };
               return (
                 <Card>
                   <CardHeader className="flex-row items-center justify-between">
@@ -432,39 +438,52 @@ export function Appointments() {
                   <CardContent className="overflow-x-auto">
                     <div className="min-w-[760px]">
                       {/* day headers */}
-                      <div className="grid" style={{ gridTemplateColumns: cols }}>
-                        <div />
+                      <div className="flex">
+                        <div className="w-14 shrink-0" />
                         {days.map((d) => {
                           const isToday = d === today();
                           return (
                             <button key={d} onClick={() => { setAnchor(d); setView('day'); }}
-                              className={cn('border-b border-border py-1 text-center text-xs font-semibold hover:bg-muted', isToday ? 'text-primary' : 'text-muted-foreground')}>
+                              className={cn('flex-1 border-b border-l border-border py-1 text-center text-xs font-semibold hover:bg-muted', isToday ? 'text-primary' : 'text-muted-foreground')}>
                               {new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short' })}<br />
                               <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full', isToday ? 'bg-primary text-primary-foreground' : '')}>{new Date(d + 'T00:00:00').getDate()}</span>
                             </button>
                           );
                         })}
                       </div>
-                      {/* hour rows */}
-                      {hours.map((h) => (
-                        <div key={h} className="grid border-t border-border/60" style={{ gridTemplateColumns: cols }}>
-                          <div className="py-1 pr-2 text-right text-[11px] text-muted-foreground">{hLabel(h)}</div>
-                          {days.map((d) => {
-                            const cell = appts.filter((a) => iso(new Date(a.startTime)) === d && new Date(a.startTime).getHours() === h);
-                            return (
-                              <div key={d} className="min-h-[44px] space-y-0.5 border-l border-border/60 p-0.5">
-                                {cell.map((a) => (
-                                  <button key={a.id} title={`${hm(a.startTime)} ${a.patient?.fullName} · ${a.status}`}
-                                    onClick={() => { setAnchor(d); setView('day'); }}
-                                    className={cn('block w-full truncate rounded border px-1 py-0.5 text-left text-[11px]', ATT_COLOR[attendance(a.status)])}>
-                                    {hm(a.startTime)} {a.patient?.fullName}
-                                  </button>
-                                ))}
-                              </div>
-                            );
+                      {/* time grid: 30-min rows, appointment blocks sized to their duration */}
+                      <div className="flex">
+                        {/* hour labels */}
+                        <div className="relative w-14 shrink-0" style={{ height: gridH }}>
+                          {Array.from({ length: slots + 1 }).map((_, i) => {
+                            const m = startM + i * 30;
+                            return m % 60 === 0 ? <div key={i} style={{ top: i * ROW - 6 }} className="absolute right-2 text-[11px] text-muted-foreground">{label(m)}</div> : null;
                           })}
                         </div>
-                      ))}
+                        {days.map((d) => (
+                          <div key={d} className="relative flex-1 border-l border-border" style={{ height: gridH }}>
+                            {/* slot lines */}
+                            {Array.from({ length: slots }).map((_, i) => {
+                              const m = startM + i * 30;
+                              return <div key={i} style={{ top: i * ROW, height: ROW }} className={cn('absolute inset-x-0 border-b', m % 60 === 0 ? 'border-border/70' : 'border-border/25')} />;
+                            })}
+                            {/* appointments — height = duration */}
+                            {appts.filter((a) => iso(new Date(a.startTime)) === d).map((a) => {
+                              const s = toMin(a.startTime), e = toMin(a.endTime);
+                              const top = ((s - startM) / 30) * ROW;
+                              const h = Math.max(ROW - 3, ((e - s) / 30) * ROW - 3);
+                              return (
+                                <button key={a.id} style={{ top, height: h }} title={`${hm(a.startTime)}–${hm(a.endTime)} ${a.patient?.fullName} · ${a.status}`}
+                                  onClick={() => { setAnchor(d); setView('day'); }}
+                                  className={cn('absolute inset-x-1 overflow-hidden rounded border px-1 py-0.5 text-left text-[11px] leading-tight', ATT_COLOR[attendance(a.status)])}>
+                                  <div className="truncate font-medium">{hm(a.startTime)} {a.patient?.fullName}</div>
+                                  {a.reason && h > 30 && <div className="truncate opacity-80">{a.reason}</div>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
