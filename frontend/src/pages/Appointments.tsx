@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 
-const STATUSES = ['BOOKED', 'CONFIRMED', 'ARRIVED', 'IN_CHAIR', 'COMPLETED', 'NO_SHOW', 'CANCELLED'];
+const STATUSES = ['BOOKED', 'COMPLETED', 'NO_SHOW', 'CANCELLED'];
 const STATUS_COLOR: Record<string, string> = {
   BOOKED: 'bg-slate-200 text-slate-700',
   CONFIRMED: 'bg-blue-100 text-blue-700',
@@ -172,7 +172,7 @@ export function Appointments() {
           </button>
         )}
         <Select className={`h-8 w-28 text-xs ${STATUS_COLOR[a.status] || ''}`} value={a.status} onChange={(e) => m.update.mutate({ id: a.id, status: e.target.value })}>
-          {STATUSES.map((s) => <option key={s}>{s}</option>)}
+          {[...new Set([...STATUSES, a.status])].map((s) => <option key={s}>{s}</option>)}
         </Select>
         <button onClick={() => m.remove.mutate(a.id)} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
       </div>
