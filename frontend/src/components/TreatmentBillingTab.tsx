@@ -157,7 +157,7 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
         </div>
       </div>
 
-      <CardContent className="pt-4">
+      <CardContent className="bg-emerald-50/60 pt-4">
         <div className="grid gap-5 md:grid-cols-12">
           {/* LEFT — procedures (the charge) — narrow */}
           <div className="rounded-lg bg-slate-100 p-3 md:col-span-5">
