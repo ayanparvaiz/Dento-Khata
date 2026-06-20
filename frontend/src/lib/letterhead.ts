@@ -10,10 +10,12 @@ export function letterheadHead(s: any): string {
   const title = s?.headerTitle || s?.name || 'Dental Clinic';
   const logo = s?.logoPath ? `<img class="lh-logo" src="${assetOrigin()}${s.logoPath}" />` : '';
   return `<div class="lh-hd" style="border-color:${c}">
+    <div class="lh-main">
+      <div class="lh-title" style="color:${c}">${title}</div>
+      ${s?.headerSubtitle ? `<div class="lh-sub">${s.headerSubtitle}</div>` : ''}
+      ${s?.headerExtra ? `<div class="lh-extra">${s.headerExtra}</div>` : ''}
+    </div>
     ${logo}
-    <div class="lh-title" style="color:${c}">${title}</div>
-    ${s?.headerSubtitle ? `<div class="lh-sub">${s.headerSubtitle}</div>` : ''}
-    ${s?.headerExtra ? `<div class="lh-extra">${s.headerExtra}</div>` : ''}
   </div>`;
 }
 
@@ -26,8 +28,8 @@ export function letterheadFoot(s: any): string {
 
 // CSS — footer is pinned to the BOTTOM of the printed page.
 export const LETTERHEAD_CSS = `
-.lh-hd{position:relative;text-align:center;border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:6px}
-.lh-logo{position:absolute;right:0;top:0;max-height:60px;max-width:110px;object-fit:contain}
+.lh-hd{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:6px}
+.lh-main{text-align:left} .lh-logo{flex:none;max-height:60px;max-width:110px;object-fit:contain}
 .lh-title{font-size:22px;font-weight:800;line-height:1.1}
 .lh-sub{font-size:13px;color:#334155} .lh-extra{font-size:12px;color:#64748b}
 .lh-ft{position:fixed;left:14mm;right:14mm;bottom:8mm;display:flex;justify-content:space-between;gap:16px;border-top:2px solid #0f766e;padding-top:8px;font-size:12px;color:#334155;background:#fff}
