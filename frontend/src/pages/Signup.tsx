@@ -83,7 +83,7 @@ const TRUST: { icon: string; title: string; desc: string }[] = [
   { icon: 'cloud', title: 'কিছুই হারাবে না', desc: 'প্রতিদিন স্বয়ংক্রিয় ব্যাকআপ — আপনার ডেটা সবসময় নিরাপদ ও গোপন' },
   { icon: 'mobile-phone', title: 'যেকোনো ডিভাইসে', desc: 'মোবাইল, ট্যাব, কম্পিউটার — সব জায়গা থেকে চেম্বার সামলান' },
   { icon: 'speech-balloon', title: 'বাংলায় সাপোর্ট', desc: 'সরাসরি WhatsApp-এ সাহায্য, যখন দরকার' },
-  { icon: 'rocket', title: '১ মিনিটে শুরু', desc: 'কোনো সেটআপ ফি নেই, যেকোনো সময় বাতিল করা যায়' },
+  { icon: 'rocket', title: '১ মিনিটে শুরু', desc: 'কোনো সেটআপ ফি নেই — সাইন আপ করেই ব্যবহার শুরু করুন' },
 ];
 
 export function Signup() {
@@ -117,19 +117,33 @@ export function Signup() {
     <div className="min-h-full overflow-x-hidden bg-white text-slate-800">
       {/* Top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur md:px-8">
-        <div className="flex items-center gap-2">
+        <a href="#top" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Stethoscope className="h-5 w-5" />
           </div>
-          <span className="font-bold">Dento Khata</span>
+          <span className="text-lg font-bold">Dento Khata</span>
+        </a>
+
+        {/* Desktop section nav (hidden on mobile) */}
+        <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex">
+          <a href="#features" className="transition-colors hover:text-primary">ফিচার</a>
+          <a href="#trust" className="transition-colors hover:text-primary">কেন আমরা</a>
+          <a href="#pricing" className="transition-colors hover:text-primary">মূল্য</a>
+          <a href="#signup" className="transition-colors hover:text-primary">যোগাযোগ</a>
+        </nav>
+
+        <div className="flex items-center gap-2">
+          <Link to="/login" className="inline-flex h-9 items-center rounded-lg border border-primary/30 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/5">
+            লগইন
+          </Link>
+          <button onClick={scrollToForm} className="hidden h-9 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90 sm:inline-flex">
+            শুরু করুন
+          </button>
         </div>
-        <Link to="/login" className="rounded-lg px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5">
-          লগইন
-        </Link>
       </header>
 
       {/* Hero — real photo layer + brand gradient overlay (gradient shows even if the photo fails) */}
-      <section className="relative isolate overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-500 px-4 py-16 text-white md:px-8 md:py-28">
+      <section id="top" className="relative isolate overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-500 px-4 py-16 text-white md:px-8 md:py-28">
         {!heroErr && (
           <img
             src={IMG.hero}
@@ -183,7 +197,7 @@ export function Signup() {
       </section>
 
       {/* Solution / features */}
-      <section className="bg-slate-50 px-4 py-14 md:px-8">
+      <section id="features" className="scroll-mt-20 bg-slate-50 px-4 py-14 md:px-8">
         <div className="mx-auto max-w-5xl">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-bold md:text-3xl">একটি সমাধান — সবকিছুর জন্য</h2>
@@ -207,7 +221,7 @@ export function Signup() {
       </section>
 
       {/* Trust */}
-      <section className="px-4 py-14 md:px-8">
+      <section id="trust" className="scroll-mt-20 px-4 py-14 md:px-8">
         <div className="mx-auto max-w-5xl">
           <h2 className="text-center text-2xl font-bold md:text-3xl">কেন ডেন্টিস্টরা আমাদের বিশ্বাস করেন</h2>
           <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -239,7 +253,7 @@ export function Signup() {
       </section>
 
       {/* Pricing */}
-      <section className="bg-slate-50 px-4 py-14 md:px-8">
+      <section id="pricing" className="scroll-mt-20 bg-slate-50 px-4 py-14 md:px-8">
         <div className="mx-auto max-w-2xl">
           <h2 className="text-center text-2xl font-bold md:text-3xl">সহজ, সাশ্রয়ী মূল্য</h2>
           <p className="mt-2 text-center text-slate-500">এক ক্লিনিকের সব ইউজার · আনলিমিটেড রোগী · কোনো সেটআপ ফি নেই</p>
@@ -287,7 +301,7 @@ export function Signup() {
 
       {/* Signup form — at the very bottom of the page. Trust + contact fills the space below
           the form, which also gives scroll room so the mobile keyboard never covers a field. */}
-      <section id="signup" className="relative isolate overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-4 pt-14 pb-28 md:px-8 md:py-20">
+      <section id="signup" className="relative isolate scroll-mt-20 overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-4 pt-14 pb-28 md:px-8 md:py-20">
         <PhotoBg src={IMG.cta} className="opacity-15" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-br from-teal-800/70 to-emerald-700/60" />
         <div className="relative mx-auto max-w-md">
@@ -317,12 +331,12 @@ export function Signup() {
           <div className="mt-8 flex flex-wrap justify-center gap-2 text-xs text-white/90">
             <span className="rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">🔒 তথ্য ১০০% নিরাপদ ও গোপন</span>
             <span className="rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">☁️ প্রতিদিন ব্যাকআপ</span>
-            <span className="rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">❌ যেকোনো সময় বাতিল</span>
+            <span className="rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">🇧🇩 বাংলায় সাপোর্ট</span>
           </div>
 
           <div className="mx-auto mt-6 max-w-sm rounded-2xl bg-white/10 p-5 text-center text-white ring-1 ring-white/20 backdrop-blur">
-            <p className="font-semibold">সাহায্য দরকার? সরাসরি কথা বলুন</p>
-            <p className="mt-1 text-sm text-teal-50/80">আমরা বাংলায় সাহায্য করি — সেটআপ থেকে ব্যবহার, সবকিছুতে পাশে আছি।</p>
+            <p className="font-semibold">প্রশ্ন আছে? সরাসরি কথা বলুন</p>
+            <p className="mt-1 text-sm text-teal-50/80">সেটআপ থেকে দৈনন্দিন ব্যবহার — যেকোনো প্রয়োজনে আমাদের টিম আপনার পাশে।</p>
             <div className="mt-4 flex flex-col items-center gap-3">
               <a href={`https://wa.me/88${WHATSAPP}`} target="_blank" rel="noreferrer"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 font-semibold text-white hover:bg-emerald-600">

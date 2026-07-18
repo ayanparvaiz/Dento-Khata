@@ -1,10 +1,10 @@
 {
-  "name": "Dental Clinic Manager",
-  "short_name": "Dental",
-  "description": "Offline dental practice management",
+  "name": "Dento Khata — Dental Practice Management",
+  "short_name": "Dento Khata",
+  "description": "বাংলাদেশের ডেন্টাল চেম্বারের সম্পূর্ণ ডিজিটাল সমাধান",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
+  "background_color": "#0f766e",
   "theme_color": "#0f766e",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }

@@ -1,4 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="40" fill="#0f766e"/>
-  <text x="96" y="132" font-family="sans-serif" font-size="120" font-weight="700" fill="#ffffff" text-anchor="middle">D</text>
+  <rect width="192" height="192" rx="42" fill="#0f766e"/>
+  <path d="M96 42
+           C74 42 58 42 52 63
+           C48 79 52 96 58 118
+           C62 134 66 150 74 150
+           C82 150 82 132 88 122
+           C91 117 101 117 104 122
+           C110 132 110 150 118 150
+           C126 150 130 134 134 118
+           C140 96 144 79 140 63
+           C134 42 118 42 96 42 Z"
+        fill="#ffffff"/>
 </svg>
