@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { Input, Label } from '@/components/ui/input';
+import { Input, Label, PasswordInput } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Lock, MessageCircle, X } from 'lucide-react';
 import { ToothIcon } from '@/components/ToothLogo';
@@ -61,7 +61,7 @@ export function Login() {
             </div>
             <div>
               <Label>পাসওয়ার্ড</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             {error && <p className="text-sm text-danger">{error}</p>}
             <Button type="submit" className="w-full" disabled={busy}>
