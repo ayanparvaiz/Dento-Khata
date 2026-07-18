@@ -50,7 +50,7 @@ export function Login() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Stethoscope className="h-6 w-6" />
             </div>
-            <h1 className="text-xl font-bold">ডেন্টাল ক্লিনিক ম্যানেজার</h1>
+            <h1 className="text-xl font-bold">Dento Khata</h1>
             <p className="text-sm text-muted-foreground">আপনার ক্লিনিকে সাইন ইন করুন</p>
           </div>
           <form onSubmit={submit} className="space-y-4">

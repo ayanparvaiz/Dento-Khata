@@ -121,7 +121,7 @@ export function Signup() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Stethoscope className="h-5 w-5" />
           </div>
-          <span className="font-bold">ডেন্টাল ম্যানেজার</span>
+          <span className="font-bold">Dento Khata</span>
         </div>
         <Link to="/login" className="rounded-lg px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5">
           লগইন
@@ -338,7 +338,7 @@ export function Signup() {
       {/* Footer */}
       <footer className="border-t border-slate-100 px-4 py-8 text-center text-sm text-slate-500 md:px-8">
         <div className="flex items-center justify-center gap-2 font-semibold text-slate-700">
-          <Stethoscope className="h-5 w-5 text-primary" /> ডেন্টাল ম্যানেজার
+          <Stethoscope className="h-5 w-5 text-primary" /> Dento Khata
         </div>
         <p className="mt-2">বাংলাদেশের ডেন্টাল চেম্বারের জন্য তৈরি · সাপোর্ট: <a className="text-primary hover:underline" href={`https://wa.me/88${WHATSAPP}`}>{WHATSAPP}</a></p>
       </footer>

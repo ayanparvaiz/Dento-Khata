@@ -48,7 +48,7 @@ export function Layout() {
         <div className="flex h-16 items-center justify-between gap-2 border-b border-border px-5">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground">D</div>
-            <span className="font-semibold">Dental Manager</span>
+            <span className="font-semibold">Dento Khata</span>
           </div>
           <button className="lg:hidden" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
         </div>
@@ -94,7 +94,7 @@ export function Layout() {
           <button onClick={() => setOpen(true)} aria-label="Menu"><Menu className="h-6 w-6" /></button>
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">D</div>
-            <span className="font-semibold">Dental Manager</span>
+            <span className="font-semibold">Dento Khata</span>
           </div>
         </header>
         <main className="flex-1 overflow-auto">
