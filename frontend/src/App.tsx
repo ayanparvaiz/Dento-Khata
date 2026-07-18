@@ -17,10 +17,16 @@ import { Reports } from '@/pages/Reports';
 import { Catalog } from '@/pages/Catalog';
 import { SuperAdmin } from '@/pages/superadmin/SuperAdmin';
 
-// Swap the whole app for the renew screen when the subscription is inactive.
-function Shell() {
-  const { blocked } = useAuth();
-  return blocked ? <Paywall /> : <Layout />;
+// Root "/" gate:
+//  - visitor (not logged in) → the marketing/signup landing page
+//  - logged-in → the app shell (Layout), whose <Outlet/> renders the nested app routes
+//  - subscription inactive → the Paywall
+function RootGate() {
+  const { user, loading, blocked } = useAuth();
+  if (loading) return <div className="grid h-full place-items-center text-muted-foreground">Loading…</div>;
+  if (!user) return <Signup />; // landing is the first page at "/"
+  if (blocked) return <Paywall />;
+  return <Layout />;
 }
 
 export default function App() {
@@ -29,15 +35,10 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/signup" element={<Signup />} /> {/* alias for existing links */}
           <Route path="/superadmin/*" element={<SuperAdmin />} />
-          <Route
-            element={
-              <ProtectedRoute>
-                <Shell />
-              </ProtectedRoute>
-            }
-          >
+
+          <Route path="/" element={<RootGate />}>
             <Route index element={<Dashboard />} />
             <Route path="patients" element={<PatientsList />} />
             <Route path="patients/new" element={<PatientForm />} />
@@ -46,22 +47,8 @@ export default function App() {
             <Route path="appointments" element={<Appointments />} />
             <Route path="charting" element={<ChartingHome />} />
             <Route path="reports" element={<Reports />} />
-            <Route
-              path="catalog"
-              element={
-                <ProtectedRoute roles={['ADMIN']}>
-                  <Catalog />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="users"
-              element={
-                <ProtectedRoute roles={['ADMIN']}>
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="catalog" element={<ProtectedRoute roles={['ADMIN']}><Catalog /></ProtectedRoute>} />
+            <Route path="users" element={<ProtectedRoute roles={['ADMIN']}><Users /></ProtectedRoute>} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
