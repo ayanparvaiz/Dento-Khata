@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
+import { ToothIcon } from '@/components/ToothLogo';
 
 const nav: { to: string; label: string; icon: any; end?: boolean; adminOnly?: boolean; cap?: string; divider?: boolean }[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -47,7 +48,7 @@ export function Layout() {
       >
         <div className="flex h-16 items-center justify-between gap-2 border-b border-border px-5">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground">D</div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"><ToothIcon className="h-5 w-5" /></div>
             <span className="font-semibold">Dento Khata</span>
           </div>
           <button className="lg:hidden" onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
@@ -93,7 +94,7 @@ export function Layout() {
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
           <button onClick={() => setOpen(true)} aria-label="Menu"><Menu className="h-6 w-6" /></button>
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">D</div>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground"><ToothIcon className="h-4 w-4" /></div>
             <span className="font-semibold">Dento Khata</span>
           </div>
         </header>

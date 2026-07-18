@@ -4,7 +4,8 @@ import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Stethoscope, Lock, MessageCircle, X } from 'lucide-react';
+import { Lock, MessageCircle, X } from 'lucide-react';
+import { ToothIcon } from '@/components/ToothLogo';
 
 interface Suspended { message: string; whatsapp?: string }
 
@@ -48,7 +49,7 @@ export function Login() {
         <CardContent className="pt-8">
           <div className="mb-6 flex flex-col items-center gap-2">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Stethoscope className="h-6 w-6" />
+              <ToothIcon className="h-6 w-6" />
             </div>
             <h1 className="text-xl font-bold">Dento Khata</h1>
             <p className="text-sm text-muted-foreground">আপনার ক্লিনিকে সাইন ইন করুন</p>

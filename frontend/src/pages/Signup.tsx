@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
-import { Stethoscope, Check, MessageCircle, AlertTriangle, ArrowRight, Copy } from 'lucide-react';
+import { Check, MessageCircle, AlertTriangle, ArrowRight, Copy } from 'lucide-react';
+import { ToothIcon } from '@/components/ToothLogo';
 
 const BKASH = '01992147963';
 const WHATSAPP = '01992147963';
@@ -119,7 +120,7 @@ export function Signup() {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur md:px-8">
         <a href="#top" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Stethoscope className="h-5 w-5" />
+            <ToothIcon className="h-5 w-5" />
           </div>
           <span className="text-lg font-bold">Dento Khata</span>
         </a>
@@ -352,7 +353,7 @@ export function Signup() {
       {/* Footer */}
       <footer className="border-t border-slate-100 px-4 py-8 text-center text-sm text-slate-500 md:px-8">
         <div className="flex items-center justify-center gap-2 font-semibold text-slate-700">
-          <Stethoscope className="h-5 w-5 text-primary" /> Dento Khata
+          <ToothIcon className="h-5 w-5 text-primary" /> Dento Khata
         </div>
         <p className="mt-2">বাংলাদেশের ডেন্টাল চেম্বারের জন্য তৈরি · সাপোর্ট: <a className="text-primary hover:underline" href={`https://wa.me/88${WHATSAPP}`}>{WHATSAPP}</a></p>
       </footer>
