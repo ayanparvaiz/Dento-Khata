@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import {
-  useAppointments, useAppointmentsRange, useApptMutations, useAvailability, useAvailabilityRange, taka, type Appointment,
+  useAppointments, useAppointmentsRange, useApptMutations, useAvailability, useAvailabilityRange,
+  usePayments, useBillingMutations, taka, type Appointment, type Payment,
 } from '@/lib/clinical';
+import { useTreatmentRecords } from '@/lib/treatment';
 import { usePatients } from '@/lib/patients';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Trash2, CalendarClock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, CalendarClock, Wallet } from 'lucide-react';
+
+const PAY_METHODS = ['CASH', 'BKASH', 'NAGAD', 'CARD', 'OTHER'];
 
 const STATUSES = ['BOOKED', 'COMPLETED', 'NO_SHOW', 'CANCELLED'];
 const STATUS_COLOR: Record<string, string> = {
@@ -82,6 +86,8 @@ export function Appointments() {
 
   const { data: dentists = [] } = useQuery<any[]>({ queryKey: ['dentists'], queryFn: async () => (await api.get('/appointments/dentists')).data });
   const { can } = useAuth();
+  const canCollect = can('billing.manage') || can('appointments.manage');
+  const [collectFor, setCollectFor] = useState<{ id: string; name: string } | null>(null);
   const [psearch, setPsearch] = useState('');
   const { data: pdata } = usePatients(psearch);
   // Inline new-patient quick-add (so receptionist needn't leave the booking screen).
@@ -186,22 +192,23 @@ export function Appointments() {
         </div>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        {/* Outstanding due → click goes straight to this patient's billing */}
+        {/* Outstanding due — click opens the collect-payment panel right here */}
         {(a.due ?? 0) > 0 ? (
           <button
-            onClick={() => navigate(`/patients/${a.patientId}?tab=${encodeURIComponent('Treatment & Billing')}`)}
+            onClick={() => canCollect ? setCollectFor({ id: a.patientId, name: a.patient?.fullName || '' }) : navigate(`/patients/${a.patientId}?tab=${encodeURIComponent('Treatment & Billing')}`)}
             className="rounded-full bg-danger/10 px-2 py-1 text-xs font-semibold text-danger hover:bg-danger/20"
-            title="Outstanding due — open billing"
+            title="Outstanding due — collect payment"
           >
             Due {taka(a.due || 0)}
           </button>
-        ) : (
+        ) : null}
+        {canCollect && (
           <button
-            onClick={() => navigate(`/patients/${a.patientId}?tab=${encodeURIComponent('Treatment & Billing')}`)}
-            className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground hover:bg-muted/70"
-            title="Open billing"
+            onClick={() => setCollectFor({ id: a.patientId, name: a.patient?.fullName || '' })}
+            className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20"
+            title="Collect payment for this patient"
           >
-            Billing
+            <Wallet className="h-3.5 w-3.5" /> Collect
           </button>
         )}
         <Select className={`h-8 w-28 text-xs ${STATUS_COLOR[a.status] || ''}`} value={a.status} onChange={(e) => m.update.mutate({ id: a.id, status: e.target.value })}>
@@ -500,6 +507,84 @@ export function Appointments() {
               );
             })()
           )}
+        </div>
+      </div>
+
+      {collectFor && <CollectPaymentModal patient={collectFor} onClose={() => setCollectFor(null)} />}
+    </div>
+  );
+}
+
+// Collect a payment for a patient directly from the appointment screen (for receptionists
+// who may only have appointment access). Lists the patient's visit charges with due; the
+// amount defaults to what's due but is fully editable (doctor charged 1000, patient pays 800).
+function CollectPaymentModal({ patient, onClose }: { patient: { id: string; name: string }; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: records = [] } = useTreatmentRecords(patient.id);
+  const { data: payments = [] } = usePayments(patient.id);
+  const bm = useBillingMutations(patient.id);
+  const [amount, setAmount] = useState<Record<string, string>>({});
+  const [method, setMethod] = useState('CASH');
+  const [freeAmt, setFreeAmt] = useState('');
+
+  const paidFor = (rid: string) => payments.filter((p: Payment) => p.treatmentRecordId === rid).reduce((s: number, p: Payment) => s + p.amount, 0);
+  const dueRecords = records
+    .map((r) => ({ r, paid: paidFor(r.id), due: Math.max(0, (r.amount || 0) - paidFor(r.id)) }))
+    .filter((x) => x.due > 0);
+
+  const afterPay = () => qc.invalidateQueries({ queryKey: ['appointments'] });
+  const take = (recordId: string, amt: number, note: string) => {
+    if (!amt) return;
+    bm.pay.mutate({ amount: amt, method, treatmentRecordId: recordId, note }, { onSuccess: () => { setAmount((a) => ({ ...a, [recordId]: '' })); afterPay(); } });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Collect payment — {patient.name}</h3>
+          <button onClick={onClose} className="text-sm text-muted-foreground hover:text-foreground">Close</button>
+        </div>
+
+        <div className="mb-3">
+          <Label>Payment method</Label>
+          <Select value={method} onChange={(e) => setMethod(e.target.value)}>{PAY_METHODS.map((x) => <option key={x}>{x}</option>)}</Select>
+        </div>
+
+        {dueRecords.length === 0 ? (
+          <p className="mb-3 text-sm text-muted-foreground">No outstanding visit charges.</p>
+        ) : (
+          <div className="mb-3 space-y-2">
+            <div className="text-xs font-semibold text-slate-600">Outstanding visits</div>
+            {dueRecords.map(({ r, paid, due }) => (
+              <div key={r.id} className="rounded-lg border p-2.5">
+                <div className="text-sm font-medium leading-snug">{r.content}</div>
+                <div className="mb-1.5 mt-0.5 flex flex-wrap gap-x-3 text-xs">
+                  <span className="text-muted-foreground">Charge <b className="text-foreground">{taka(r.amount || 0)}</b></span>
+                  <span className="text-muted-foreground">Paid <b className="text-success">{taka(paid)}</b></span>
+                  <span className="font-bold text-danger">Due {taka(due)}</span>
+                </div>
+                <div className="flex items-end gap-1.5">
+                  <div className="w-28"><Label>Amount ৳</Label>
+                    <Input className="h-8" type="number" placeholder={String(due)}
+                      value={amount[r.id] ?? String(due)} onChange={(e) => setAmount((a) => ({ ...a, [r.id]: e.target.value }))} />
+                  </div>
+                  <Button size="sm" disabled={bm.pay.isPending}
+                    onClick={() => take(r.id, Number(amount[r.id] ?? due), r.content.slice(0, 40))}>Take</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Free-form payment not tied to a specific visit */}
+        <div className="rounded-lg border border-dashed p-2.5">
+          <div className="mb-1 text-xs font-semibold text-slate-600">Other / general payment</div>
+          <div className="flex items-end gap-1.5">
+            <div className="w-28"><Label>Amount ৳</Label><Input className="h-8" type="number" value={freeAmt} onChange={(e) => setFreeAmt(e.target.value)} /></div>
+            <Button size="sm" disabled={!Number(freeAmt) || bm.pay.isPending}
+              onClick={() => bm.pay.mutate({ amount: Number(freeAmt), method, note: 'Payment' }, { onSuccess: () => { setFreeAmt(''); afterPay(); } })}>Take</Button>
+          </div>
         </div>
       </div>
     </div>

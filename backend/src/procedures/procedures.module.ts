@@ -19,7 +19,7 @@ class ProceduresService {
     return this.prisma.procedure.findMany({
       where: {
         isActive: true,
-        ...(search ? { OR: [{ name: { contains: search } }, { code: { contains: search } }] } : {}),
+        ...(search ? { OR: [{ name: { contains: search, mode: 'insensitive' as const } }, { code: { contains: search, mode: 'insensitive' as const } }] } : {}),
       },
       orderBy: { category: 'asc' },
     });

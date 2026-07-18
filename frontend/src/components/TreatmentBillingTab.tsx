@@ -142,7 +142,7 @@ export function TreatmentBillingTab({ patient }: { patient: Patient }) {
         <div className="flex flex-wrap gap-6 text-sm">
           <div><div className="text-xs text-muted-foreground">Total treatment cost</div><div className="text-lg font-bold">{taka(ledger?.total || 0)}</div></div>
           <div><div className="text-xs text-muted-foreground">Paid</div><div className="text-lg font-bold text-success">{taka(ledger?.paid || 0)}</div></div>
-          <div><div className="text-xs text-muted-foreground">Balance due</div><div className={cn('text-lg font-bold', (ledger?.balance || 0) > 0 ? 'text-danger' : 'text-success')}>{taka(ledger?.balance || 0)}</div></div>
+          <div><div className="text-xs text-muted-foreground">Balance due</div><div className={cn('text-2xl font-extrabold', (ledger?.balance || 0) > 0 ? 'text-danger' : 'text-success')}>{taka(ledger?.balance || 0)}</div></div>
         </div>
         <div className="flex items-center gap-2">
           {canAppt && (
@@ -197,7 +197,7 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
         <div>
           <div className="font-bold leading-tight">{plan.title}</div>
           <div className="text-xs text-primary-foreground/90">
-            Total {taka(total)} · Paid {taka(planPaid)} · <span className={due > 0 ? 'font-semibold text-amber-200' : 'font-semibold'}>Due {taka(due)}</span>
+            Created {dDate(plan.createdAt)} · Total {taka(total)} · Paid {taka(planPaid)} · <span className={due > 0 ? 'font-semibold text-amber-200' : 'font-semibold'}>Due {taka(due)}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -262,9 +262,25 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
 function VisitRow({ patient, plan, record, recPays, paid, account, canTx, canBill, rm, bm }: any) {
   const [edit, setEdit] = useState(false);
   const [text, setText] = useState(record.content);
+  const [charge, setCharge] = useState(String(record.amount ?? 0));
   const [collect, setCollect] = useState(false);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('CASH');
+
+  const chargeAmt = record.amount ?? 0;
+  const due = Math.max(0, chargeAmt - paid);
+  // Doctor can collect too (flow: doctor writes charge, doctor OR receptionist collects the actual amount).
+  const canCollect = canBill || canTx;
+
+  const saveEdit = () => {
+    if (!text.trim()) return;
+    rm.update.mutate({ id: record.id, content: text.trim(), amount: Number(charge) || 0 });
+    setEdit(false);
+  };
+  const openCollect = () => {
+    setAmount(due ? String(due) : ''); // default to what's still due — editable to the actual paid
+    setCollect(true);
+  };
 
   return (
     <div className="rounded-md border border-teal-200 bg-white p-2.5 text-sm">
@@ -274,20 +290,31 @@ function VisitRow({ patient, plan, record, recPays, paid, account, canTx, canBil
       </div>
 
       {edit ? (
-        <div className="mt-1 flex items-center gap-1">
+        <div className="mt-1 space-y-1.5">
           <Input className="h-8" value={text} onChange={(e) => setText(e.target.value)} autoFocus
-            onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) { rm.update.mutate({ id: record.id, content: text.trim() }); setEdit(false); } }} />
-          <button className="text-success" onClick={() => { if (text.trim()) { rm.update.mutate({ id: record.id, content: text.trim() }); setEdit(false); } }}><Check className="h-4 w-4" /></button>
-          <button className="text-muted-foreground" onClick={() => { setText(record.content); setEdit(false); }}><X className="h-4 w-4" /></button>
+            onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); }} placeholder="What was done this visit" />
+          <div className="flex items-center gap-1">
+            <div className="w-28"><Label>Charge ৳</Label><Input className="h-8" type="number" value={charge} onChange={(e) => setCharge(e.target.value)} /></div>
+            <button className="mt-4 text-success" onClick={saveEdit}><Check className="h-4 w-4" /></button>
+            <button className="mt-4 text-muted-foreground" onClick={() => { setText(record.content); setCharge(String(record.amount ?? 0)); setEdit(false); }}><X className="h-4 w-4" /></button>
+          </div>
         </div>
       ) : (
-        <div className="mt-0.5 font-medium leading-snug">{record.content}</div>
+        <>
+          <div className="mt-0.5 font-medium leading-snug">{record.content}</div>
+          {/* Charge · Paid · Due — the doctor sets the charge, the actual collected may differ */}
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+            <span className="text-muted-foreground">Charge <span className="font-semibold text-foreground">{taka(chargeAmt)}</span></span>
+            <span className="text-muted-foreground">Paid <span className="font-semibold text-success">{taka(paid)}</span></span>
+            {due > 0 && <span className="font-bold text-danger">Due {taka(due)}</span>}
+          </div>
+        </>
       )}
 
       {/* footer actions — money buttons on the left, clinical edit on the right */}
       <div className="mt-2 flex items-center gap-2">
-        {canBill && !collect && (
-          <Button size="sm" className="h-7 px-2 text-xs" onClick={() => setCollect(true)}>
+        {canCollect && !collect && due > 0 && (
+          <Button size="sm" className="h-7 px-2 text-xs" onClick={openCollect}>
             <Plus className="mr-1 h-3.5 w-3.5" /> Collect payment
           </Button>
         )}
@@ -304,7 +331,7 @@ function VisitRow({ patient, plan, record, recPays, paid, account, canTx, canBil
         )}
       </div>
 
-      {canBill && collect && (
+      {canCollect && collect && (
         <div className="mt-2 flex flex-wrap items-end gap-1.5 border-t border-border/60 pt-2">
           <div className="w-24"><Label>Amount ৳</Label><Input className="h-8" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
           <div className="w-28"><Label>Method</Label><Select className="h-8" value={method} onChange={(e) => setMethod(e.target.value)}>{METHODS.map((x) => <option key={x}>{x}</option>)}</Select></div>
@@ -343,8 +370,13 @@ function AddProcedure({ planId, procedures, onAdd }: { planId: string; procedure
 
 function AddVisit({ planId, onAdd }: { planId: string; onAdd: (b: any) => void }) {
   const [content, setContent] = useState('');
+  const [charge, setCharge] = useState('');
   const [date, setDate] = useState(todayISO());
-  const add = () => { if (!content.trim()) return; onAdd({ content: content.trim(), planId, visitDate: new Date(date).toISOString() }); setContent(''); setDate(todayISO()); };
+  const add = () => {
+    if (!content.trim()) return;
+    onAdd({ content: content.trim(), planId, amount: Number(charge) || 0, visitDate: new Date(date).toISOString() });
+    setContent(''); setCharge(''); setDate(todayISO());
+  };
   return (
     <div className="mt-2 space-y-2 rounded-md border border-dashed border-primary/40 bg-white p-2.5">
       <div>
@@ -353,6 +385,7 @@ function AddVisit({ planId, onAdd }: { planId: string; onAdd: (b: any) => void }
           onChange={(e) => setContent(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
       </div>
       <div className="flex items-end gap-2">
+        <div className="w-28"><Label>Charge ৳</Label><Input type="number" placeholder="0" value={charge} onChange={(e) => setCharge(e.target.value)} /></div>
         <div className="w-40"><Label>Visit date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         <Button disabled={!content.trim()} onClick={add}><Plus className="mr-1 h-4 w-4" /> Add visit</Button>
       </div>

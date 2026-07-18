@@ -25,11 +25,13 @@ class UpdateItemDto {
 class CreateRecordDto {
   @IsString() content: string;
   @IsOptional() @IsString() planId?: string;
+  @IsOptional() @IsNumber() amount?: number; // charge for this visit
   @IsOptional() @IsString() visitDate?: string; // ISO; defaults to now
 }
 class UpdateRecordDto {
   @IsOptional() @IsString() content?: string;
   @IsOptional() @IsString() planId?: string;
+  @IsOptional() @IsNumber() amount?: number;
   @IsOptional() @IsString() visitDate?: string;
 }
 
@@ -102,6 +104,7 @@ class TreatmentService {
         patientId,
         content: dto.content,
         planId: dto.planId || null,
+        amount: dto.amount ?? 0,
         visitDate: dto.visitDate ? new Date(dto.visitDate) : new Date(),
         authorId,
       },
@@ -113,6 +116,7 @@ class TreatmentService {
       data: {
         ...(dto.content !== undefined ? { content: dto.content } : {}),
         ...(dto.planId !== undefined ? { planId: dto.planId || null } : {}),
+        ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
         ...(dto.visitDate ? { visitDate: new Date(dto.visitDate) } : {}),
       },
     });

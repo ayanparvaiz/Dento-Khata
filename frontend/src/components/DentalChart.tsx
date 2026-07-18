@@ -20,7 +20,7 @@ export function DentalChart({ patientId }: { patientId: string }) {
   const { data: chart } = useChart(patientId);
   const m = useChartMutations(patientId);
   const [view, setView] = useState<'odontogram' | 'perio'>('odontogram');
-  const [notation, setNotation] = useState<Notation>('FDI');
+  const [notation, setNotation] = useState<Notation>('PALMER'); // Palmer is most common in BD
   const [dentition, setDentition] = useState<'adult' | 'child'>('adult');
   const [selected, setSelected] = useState<string | null>(null);
   // editor target: which tooth, and (optionally) a clicked surface or an existing record to edit

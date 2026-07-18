@@ -25,8 +25,10 @@ class DrugsService {
     }
     // Prefix-match the brand name (avoids "Napa" matching "TeNAPAm"), then pull the
     // same-generic ALTERNATIVES. e.g. "Napa" -> Paracetamol brands; "Tory" -> Etoricoxib brands.
+    // NOTE: Postgres string matching is case-SENSITIVE by default → use mode:'insensitive'
+    // (SQLite's LIKE was case-insensitive, so this only mattered after the Postgres switch).
     const brandMatches = await this.prisma.drug.findMany({
-      where: { isActive: true, name: { startsWith: search } },
+      where: { isActive: true, name: { startsWith: search, mode: 'insensitive' } },
       select: { generic: true },
     });
     const generics = [...new Set(brandMatches.map((d) => d.generic).filter(Boolean))] as string[];
@@ -34,8 +36,8 @@ class DrugsService {
       where: {
         isActive: true,
         OR: [
-          { name: { startsWith: search } }, // brand starts with query
-          { generic: { startsWith: search } }, // searching by generic name
+          { name: { startsWith: search, mode: 'insensitive' } }, // brand starts with query
+          { generic: { startsWith: search, mode: 'insensitive' } }, // searching by generic name
           ...(generics.length ? [{ generic: { in: generics } }] : []), // alternatives
         ],
       },

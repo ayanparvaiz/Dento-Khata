@@ -28,6 +28,7 @@ export interface Patient {
   emergencyName?: string;
   emergencyPhone?: string;
   guardianName?: string;
+  behaviourGrade?: string; // A+ | A | A- | F
   createdAt: string;
   medicalHistory?: MedicalHistory | null;
   _count?: Record<string, number>;
