@@ -75,11 +75,12 @@ export class PatientsService {
 
   async update(id: string, dto: UpdatePatientDto) {
     await this.findOne(id);
-    const { isActive, ...rest } = dto;
-    return this.prisma.patient.update({
-      where: { id },
-      data: { ...this.toData(rest), ...(isActive !== undefined ? { isActive } : {}) },
-    });
+    // Only touch fields actually present — a partial PATCH (e.g. just behaviourGrade)
+    // must not wipe unspecified fields like dateOfBirth.
+    const { dateOfBirth, ...rest } = dto;
+    const data: Record<string, unknown> = { ...rest };
+    if (dateOfBirth !== undefined) data.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+    return this.prisma.patient.update({ where: { id }, data });
   }
 
   async upsertMedicalHistory(patientId: string, dto: MedicalHistoryDto) {

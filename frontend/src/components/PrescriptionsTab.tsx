@@ -2,12 +2,41 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import { useDrugs, usePrescriptions, useRxMutations, type RxItem } from '@/lib/clinical';
 import { useTreatment } from '@/lib/treatment';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { splitList, fmtDate, ageFromDob } from '@/lib/format';
 import { letterheadHead, letterheadFoot, LETTERHEAD_CSS, themeOf } from '@/lib/letterhead';
+import { CONDITION_COLOR, ADULT_UPPER, ADULT_LOWER, type ToothRecord, type Notation } from '@/lib/charting';
+import { AnatomicalTooth } from '@/components/AnatomicalTooth';
 import type { Patient } from '@/lib/patients';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { AlertTriangle, Plus, Printer, Trash2, Eye, Save } from 'lucide-react';
+
+// Build the EXACT on-screen odontogram for print by rendering the same AnatomicalTooth
+// SVG component to static markup (identical anatomy, surfaces & condition colours).
+function buildChartHtml(teeth: ToothRecord[], notation: Notation = 'FDI'): string {
+  const byTooth: Record<string, ToothRecord[]> = {};
+  (teeth || []).forEach((t) => { (byTooth[t.toothNumber] ||= []).push(t); });
+
+  const arch = (list: string[]) =>
+    `<div class="arch">${list
+      .map((fdi) =>
+        renderToStaticMarkup(
+          <AnatomicalTooth fdi={fdi} notation={notation} records={byTooth[fdi] || []} selected={false} onZone={() => {}} />,
+        ),
+      )
+      .join('')}</div>`;
+
+  const conditionsPresent = Array.from(new Set((teeth || []).map((t) => t.condition)));
+  // Swatch as an inline SVG rect (fill) — CSS background-color is stripped by browsers when printing.
+  const legend = conditionsPresent
+    .map((c) => `<span class="lg"><svg viewBox="0 0 11 11" width="11" height="11"><rect width="11" height="11" rx="2" fill="${CONDITION_COLOR[c] || '#e2e8f0'}" stroke="#cbd5e1"/></svg>${c}</span>`)
+    .join('');
+
+  return `<div class="fld"><div class="l">Dental Chart</div>
+    <div class="odo">${arch(ADULT_UPPER)}<div class="archdiv"></div>${arch(ADULT_LOWER)}</div>
+    ${legend ? `<div class="legend">${legend}</div>` : ''}</div>`;
+}
 
 // English digits -> Bangla, and back
 const bn = (s: string | number) => String(s).replace(/[0-9]/g, (x) => '০১২৩৪৫৬৭৮৯'[+x]);
@@ -26,10 +55,16 @@ const emptyDraft: Draft = {
   advice: '', followNum: '', followUnit: 'দিন', planId: '',
 };
 
-async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean) {
+async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean, withChart = false) {
   const s = (await api.get('/settings')).data;
   const c = themeOf(s);
   const age = patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '';
+  // Optionally include the dental chart (fetched fresh so it matches the on-screen chart).
+  let chartHtml = '';
+  if (withChart) {
+    try { chartHtml = buildChartHtml((await api.get(`/patients/${patient.id}/chart`)).data?.teeth || [], s.toothNotation || 'FDI'); }
+    catch { chartHtml = ''; }
+  }
   const meds = items.map((i, n) => {
     const parts = [i.dosage, i.timing, i.duration, i.instruction].filter(Boolean).map((p) => `<span>${p}</span>`).join('');
     return `<div class="med"><div class="nm"><b>${bn(n + 1)}. ${i.drugName}</b></div><div class="sub">${parts}</div></div>`;
@@ -41,7 +76,8 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
   const footer = withHeader ? letterheadFoot(s) : '';
   const html = `<html><head><meta charset="utf-8"/><title>প্রেসক্রিপশন — ${patient.fullName}</title><style>
     @page{margin:0}
-    *{box-sizing:border-box} body{font-family:'Nirmala UI','SolaimanLipi','Segoe UI',system-ui,sans-serif;margin:0;padding:14mm 14mm 40mm;color:#0f172a;font-size:13px}
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body{font-family:'Nirmala UI','SolaimanLipi','Segoe UI',system-ui,sans-serif;margin:0;padding:14mm 14mm 40mm;color:#0f172a;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     ${LETTERHEAD_CSS}
     .muted{color:#64748b;font-size:12px}
     .pt{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px;border-bottom:1px solid #cbd5e1;padding:6px 0;font-size:13px}
@@ -53,6 +89,19 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
     .grid{border-collapse:collapse;margin-top:2px} .grid td{width:60px;height:24px;text-align:center;font-size:12px}
     .grid td:first-child{border-right:1px solid #475569} .grid tr:first-child td{border-bottom:1px solid #475569}
     .adv{margin-top:14px;border-top:1px dashed #cbd5e1;padding-top:6px}
+    /* compact chart pinned bottom-right, just above the footer — leaves the page blank
+       for the doctor to hand-write the prescription */
+    .chartwrap{position:fixed;right:14mm;bottom:22mm;max-width:64%;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff}
+    .chartwrap .l{font-size:8px;margin-bottom:2px}
+    .odo{margin-top:2px}
+    .odo .arch{display:flex;justify-content:center;flex-wrap:nowrap;gap:2px}
+    .odo .archdiv{border-top:1px dashed #cbd5e1;margin:3px 0}
+    .odo [data-tooth]{display:flex;flex-direction:column;align-items:center;gap:0}
+    .odo [data-tooth] span{font-size:7px;font-weight:600;color:#64748b}
+    .odo svg{width:17px !important;height:40px !important}
+    .legend{margin-top:4px;display:flex;flex-wrap:wrap;gap:2px 8px;font-size:7px;color:#334155}
+    .legend .lg{display:flex;align-items:center;gap:2px}
+    .legend svg{width:8px;height:8px}
     @media print{button{display:none}}</style></head><body>
     ${header}
     <div class="pt">
@@ -61,10 +110,10 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
     </div>
     <div class="body">
       <div class="left">
-        ${d.cc ? `<div class="fld"><div class="l">প্রধান সমস্যা (C/C)</div>${d.cc}</div>` : ''}
-        ${(d.oe || gridRows) ? `<div class="fld"><div class="l">পরীক্ষা (O/E)</div>${d.oe || ''}${gridRows}</div>` : ''}
-        ${d.dx ? `<div class="fld"><div class="l">ডায়াগনোসিস</div>${d.dx}</div>` : ''}
-        ${d.ix ? `<div class="fld"><div class="l">পরীক্ষা-নিরীক্ষা (Ix)</div>${d.ix}</div>` : ''}
+        ${d.cc ? `<div class="fld"><div class="l">Chief Complaint (C/C)</div>${d.cc}</div>` : ''}
+        ${(d.oe || gridRows) ? `<div class="fld"><div class="l">On Examination (O/E)</div>${d.oe || ''}${gridRows}</div>` : ''}
+        ${d.dx ? `<div class="fld"><div class="l">Diagnosis</div>${d.dx}</div>` : ''}
+        ${d.ix ? `<div class="fld"><div class="l">Investigation (Ix)</div>${d.ix}</div>` : ''}
       </div>
       <div class="right">
         <div class="rx" style="color:${c}">℞</div>
@@ -73,6 +122,7 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
         ${followUp}
       </div>
     </div>
+    ${chartHtml ? `<div class="chartwrap">${chartHtml}</div>` : ''}
     ${footer}
     <script>window.onload=function(){setTimeout(function(){window.print()},120)}</script></body></html>`;
   const w = window.open('', '_blank');
@@ -89,6 +139,7 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
   const set = (k: keyof Draft, v: any) => setD((p) => ({ ...p, [k]: v }));
   const setGrid = (k: keyof Grid, v: string) => setD((p) => ({ ...p, grid: { ...p.grid, [k]: v } }));
   const [items, setItems] = useState<RxItem[]>([]);
+  const [includeChart, setIncludeChart] = useState(false); // print the dental chart on the Rx
 
   const [query, setQuery] = useState('');
   const { data: results = [] } = useDrugs(query.length >= 2 ? query : '__none__');
@@ -141,8 +192,12 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
     setPicked(null); setQuery('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  // A prescription is printable/savable with NO medicine too (e.g. just a diagnosis/advice
+  // to start treatment) — as long as it carries some clinical content.
+  const gridPresent = !!(d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL);
+  const hasContent = items.length > 0 || !!(d.dx || d.cc || d.oe || d.ix || d.advice) || gridPresent;
   const save = (then?: () => void) => {
-    if (items.length === 0) return;
+    if (!hasContent) return;
     m.create.mutate(buildPayload(), { onSuccess: () => { then?.(); reset(); } });
   };
 
@@ -159,11 +214,11 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
           <span className="text-muted-foreground">{patient.phone || 'ফোন নেই'}</span>
           <span className="text-muted-foreground">{patient.address || ''}</span>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          <Button size="sm" variant="outline" disabled={items.length === 0} onClick={() => printRx(patient, d, items, true)}><Eye className="mr-1 h-4 w-4" />প্রিভিউ</Button>
-          <Button size="sm" disabled={items.length === 0 || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, true))}><Printer className="mr-1 h-4 w-4" />সেভ ও প্রিন্ট</Button>
-          <Button size="sm" variant="outline" disabled={items.length === 0 || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, false))}><Printer className="mr-1 h-4 w-4" />প্রিন্ট (হেডার ছাড়া)</Button>
-          <Button size="sm" variant="outline" disabled={items.length === 0 || m.create.isPending} onClick={() => save()}><Save className="mr-1 h-4 w-4" />শুধু সেভ</Button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button size="sm" variant="outline" disabled={!hasContent} onClick={() => printRx(patient, d, items, true, includeChart)}><Eye className="mr-1 h-4 w-4" />প্রিভিউ</Button>
+          <Button size="sm" disabled={!hasContent || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, true, includeChart))}><Printer className="mr-1 h-4 w-4" />সেভ ও প্রিন্ট</Button>
+          <Button size="sm" variant="outline" disabled={!hasContent || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, false, includeChart))}><Printer className="mr-1 h-4 w-4" />প্রিন্ট (হেডার ছাড়া)</Button>
+          <Button size="sm" variant="outline" disabled={!hasContent || m.create.isPending} onClick={() => save()}><Save className="mr-1 h-4 w-4" />শুধু সেভ</Button>
         </div>
       </div>
 
@@ -171,10 +226,9 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
         {/* বাম — ক্লিনিক্যাল */}
         <div className="space-y-3 lg:col-span-3">
           <div className={box}>
-            <div><Label className={lbl}>রোগ / ডায়াগনোসিস</Label><Input value={d.dx} onChange={(e) => set('dx', e.target.value)} /></div>
-            <div className="mt-2"><Label className={lbl}>প্রধান সমস্যা (C/C)</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" value={d.cc} onChange={(e) => set('cc', e.target.value)} /></div>
+            <div><Label className={lbl}>Chief Complaint (C/C)</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" value={d.cc} onChange={(e) => set('cc', e.target.value)} /></div>
             <div className="mt-2">
-              <Label className={lbl}>পরীক্ষা (O/E)</Label>
+              <Label className={lbl}>On Examination (O/E)</Label>
               <textarea className="min-h-[40px] w-full rounded-md border border-border p-2 text-sm" value={d.oe} onChange={(e) => set('oe', e.target.value)} />
               <div className="mt-1 grid grid-cols-2 gap-1">
                 {(['UR', 'UL', 'LR', 'LL'] as (keyof Grid)[]).map((q) => (
@@ -185,15 +239,21 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
                 ))}
               </div>
             </div>
-            <div className="mt-2"><Label className={lbl}>পরীক্ষা-নিরীক্ষা (Ix)</Label><Input value={d.ix} onChange={(e) => set('ix', e.target.value)} /></div>
+            <div className="mt-2"><Label className={lbl}>Investigation (Ix)</Label><Input value={d.ix} onChange={(e) => set('ix', e.target.value)} /></div>
             <div className="mt-2">
-              <Label className={lbl}>চিকিৎসা পরিকল্পনা (ঐচ্ছিক)</Label>
+              <Label className={lbl}>Treatment Plan (optional)</Label>
               <Select value={d.planId} onChange={(e) => set('planId', e.target.value)}>
-                <option value="">— নেই —</option>
+                <option value="">— None —</option>
                 {plans.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
               </Select>
             </div>
-            <div className="mt-2"><Label className={lbl}>নোট (শুধু নিজের জন্য — ছাপা হবে না)</Label><textarea className="min-h-[40px] w-full rounded-md border border-amber-300 bg-amber-50 p-2 text-sm" value={d.notes} onChange={(e) => set('notes', e.target.value)} /></div>
+            <div className="mt-2"><Label className={lbl}>Diagnosis</Label><Input value={d.dx} onChange={(e) => set('dx', e.target.value)} /></div>
+            {/* Include the dental chart on the printed prescription */}
+            <label className="mt-2 flex items-center gap-2 rounded-md border border-border bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-700">
+              <input type="checkbox" checked={includeChart} onChange={(e) => setIncludeChart(e.target.checked)} />
+              ডেন্টাল চার্ট যোগ করুন (প্রিন্টে)
+            </label>
+            <div className="mt-2"><Label className={lbl}>Note (private — not printed)</Label><textarea className="min-h-[40px] w-full rounded-md border border-amber-300 bg-amber-50 p-2 text-sm" value={d.notes} onChange={(e) => set('notes', e.target.value)} /></div>
           </div>
         </div>
 

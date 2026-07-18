@@ -48,6 +48,7 @@ model Patient {
   emergencyName  String?
   emergencyPhone String?
   guardianName   String? // for minors
+  behaviourGrade String? // A+ | A | A- | F — how cooperative/interested the patient is in treatment
   isActive       Boolean   @default(true)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -177,6 +178,7 @@ model TreatmentRecord {
   planId    String?
   plan      TreatmentPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   content   String
+  amount    Float          @default(0) // charge the doctor sets for this visit (patient may pay less/more)
   visitDate DateTime       @default(now())
   authorId  String?
   createdAt DateTime       @default(now())
@@ -365,7 +367,7 @@ model ClinicSettings {
   footerLeft     String? // multi-line (clinic name, address)
   footerRight    String? // multi-line (phone, visit hours)
   themeColor     String? // print theme color (hex) for prescription + invoice
-  toothNotation String  @default("FDI") // FDI | UNIVERSAL | PALMER
+  toothNotation String  @default("PALMER") // FDI | UNIVERSAL | PALMER (Palmer most used in BD)
   currency      String  @default("BDT")
 }
 

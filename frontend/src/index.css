@@ -21,6 +21,18 @@
   border-color: var(--color-border);
 }
 
+/* Zebra striping for data tables — soft alternating shade so rows are easy to scan.
+   Applies system-wide to any <table> with a <tbody>. Header (<thead>) is unaffected. */
+tbody tr:nth-child(even) {
+  background-color: color-mix(in srgb, var(--color-muted) 60%, transparent);
+}
+
+/* .zebra — same soft striping for div/button-based lists (not real tables).
+   Put it on the list container; its direct even children get the shade. */
+.zebra > :nth-child(even) {
+  background-color: color-mix(in srgb, var(--color-muted) 60%, transparent);
+}
+
 html,
 body,
 #root {

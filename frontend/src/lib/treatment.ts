@@ -34,6 +34,7 @@ export interface ClinicalNote {
 export interface TreatmentRecord {
   id: string;
   content: string;
+  amount: number; // charge the doctor set for this visit
   visitDate: string;
   planId?: string | null;
   plan?: { id: string; title?: string } | null;
@@ -52,12 +53,12 @@ export function useTreatmentRecordMutations(patientId: string) {
   const inval = () => qc.invalidateQueries({ queryKey: ['treatment-records', patientId] });
   return {
     add: useMutation({
-      mutationFn: async (body: { content: string; planId?: string; visitDate?: string }) =>
+      mutationFn: async (body: { content: string; planId?: string; amount?: number; visitDate?: string }) =>
         (await api.post(`/patients/${patientId}/treatment-records`, body)).data,
       onSuccess: inval,
     }),
     update: useMutation({
-      mutationFn: async ({ id, ...body }: { id: string; content?: string; planId?: string; visitDate?: string }) =>
+      mutationFn: async ({ id, ...body }: { id: string; content?: string; planId?: string; amount?: number; visitDate?: string }) =>
         (await api.patch(`/treatment-records/${id}`, body)).data,
       onSuccess: inval,
     }),

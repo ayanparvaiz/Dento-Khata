@@ -63,7 +63,9 @@ class BillingController {
   payments(@Param('id') id: string) {
     return this.svc.payments(id);
   }
-  @Requires('billing.manage')
+  // Collecting a payment is allowed for a billing user, the doctor (treatment), OR an
+  // appointments-only receptionist (who collects from the appointment screen for the day).
+  @Requires('billing.manage', 'appointments.manage', 'treatment.manage')
   @Post('patients/:id/payments')
   pay(@Param('id') id: string, @Body() dto: InstallmentDto, @CurrentUser() user: AuthUser) {
     return this.svc.addInstallment(id, dto, user.id);

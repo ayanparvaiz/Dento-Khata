@@ -25,7 +25,7 @@ export function ChartingHome() {
       </div>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="zebra p-0">
           {patients.map((p) => (
             <button
               key={p.id}

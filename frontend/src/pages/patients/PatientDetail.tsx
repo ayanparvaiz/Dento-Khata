@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { usePatient, type MedicalHistory } from '@/lib/patients';
+import { usePatient, type MedicalHistory, type Patient } from '@/lib/patients';
 import { useAuth } from '@/lib/auth';
 import { ageFromDob, fmtDate, splitList } from '@/lib/format';
 import { Button } from '@/components/ui/button';
@@ -90,7 +90,10 @@ export function PatientDetail() {
             {p.fullName.charAt(0)}
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{p.fullName}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">{p.fullName}</h1>
+              <BehaviourGrade patient={p} />
+            </div>
             <p className="text-sm text-muted-foreground">
               <span className="font-mono">{p.code}</span> · {p.gender || '—'} ·{' '}
               {ageFromDob(p.dateOfBirth)} · {p.phone || 'no phone'}
@@ -377,6 +380,62 @@ function OverviewTab({ patient, onTab }: { patient: import('@/lib/patients').Pat
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+// Patient behaviour grade — how cooperative/interested the patient is in treatment.
+const GRADES = ['A+', 'A', 'A-', 'F'] as const;
+const GRADE_STYLE: Record<string, string> = {
+  'A+': 'bg-emerald-100 text-emerald-700 border-emerald-300',
+  'A': 'bg-sky-100 text-sky-700 border-sky-300',
+  'A-': 'bg-amber-100 text-amber-700 border-amber-300',
+  'F': 'bg-red-100 text-red-700 border-red-300',
+};
+
+function BehaviourGrade({ patient }: { patient: Patient }) {
+  const { can } = useAuth();
+  const qc = useQueryClient();
+  const canManage = can('patients.manage');
+  const [open, setOpen] = useState(false);
+  const grade = patient.behaviourGrade;
+
+  const set = useMutation({
+    mutationFn: async (g: string) => (await api.patch(`/patients/${patient.id}`, { behaviourGrade: g })).data,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['patient', patient.id] }); setOpen(false); },
+  });
+
+  if (!canManage) {
+    return grade ? (
+      <span title="Behaviour grade" className={cn('rounded-md border px-2 py-0.5 text-sm font-bold', GRADE_STYLE[grade])}>{grade}</span>
+    ) : null;
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        title="Behaviour grade — how cooperative the patient is"
+        className={cn(
+          'rounded-md border px-2 py-0.5 text-sm font-bold',
+          grade ? GRADE_STYLE[grade] : 'border-dashed border-slate-300 text-slate-400',
+        )}
+      >
+        {grade || '+ Grade'}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 flex gap-1 rounded-lg border bg-white p-1.5 shadow-lg">
+          {GRADES.map((g) => (
+            <button
+              key={g}
+              onClick={() => set.mutate(g)}
+              className={cn('rounded-md border px-2 py-1 text-sm font-bold hover:opacity-80', GRADE_STYLE[g], grade === g && 'ring-2 ring-offset-1')}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

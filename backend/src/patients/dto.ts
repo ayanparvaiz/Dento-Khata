@@ -21,9 +21,12 @@ export class CreatePatientDto {
   @IsOptional() @IsString() emergencyName?: string;
   @IsOptional() @IsString() emergencyPhone?: string;
   @IsOptional() @IsString() guardianName?: string;
+  @IsOptional() @IsIn(['A+', 'A', 'A-', 'F']) behaviourGrade?: string; // patient cooperation grade
 }
 
 export class UpdatePatientDto extends CreatePatientDto {
+  // All fields optional on update (partial PATCH) — override the required fullName.
+  @IsOptional() @IsString() @MinLength(2) fullName: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
