@@ -26,6 +26,7 @@ model Tenant {
   phone     String?
   email     String?
   isActive  Boolean  @default(true) // super-admin can suspend without deleting
+  signupIp  String? // captured at signup — helps spot spam/abuse (many clinics from one IP)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

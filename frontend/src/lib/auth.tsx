@@ -91,6 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('subscription-blocked', onBlocked);
   }, [refreshSub]);
 
+  // Clinic disabled by super-admin → force logout so the user is bounced to the login screen
+  // (which shows the "contact support" popup).
+  useEffect(() => {
+    const onSuspended = () => {
+      setUser(null);
+      setSub(null);
+      setBlocked(false);
+    };
+    window.addEventListener('clinic-suspended', onSuspended);
+    return () => window.removeEventListener('clinic-suspended', onSuspended);
+  }, []);
+
   const login = async (phone: string, password: string) => {
     const { data } = await api.post('/auth/login', { phone, password });
     localStorage.setItem('token', data.access_token);

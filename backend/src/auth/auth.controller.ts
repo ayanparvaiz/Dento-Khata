@@ -1,9 +1,17 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, SignupDto, ChangePasswordDto } from './dto';
 import { Public } from './public.decorator';
 import { NoSubscription } from '../subscription/no-subscription.decorator';
 import { CurrentUser, AuthUser } from './current-user.decorator';
+
+// Real client IP, honouring nginx's X-Forwarded-For.
+function clientIp(req: Request): string {
+  const fwd = req.headers['x-forwarded-for'];
+  const first = Array.isArray(fwd) ? fwd[0] : (fwd || '').split(',')[0];
+  return (first || req.ip || (req.socket as any)?.remoteAddress || '').trim();
+}
 
 @Controller('auth')
 export class AuthController {
@@ -18,8 +26,8 @@ export class AuthController {
   // Public clinic self-registration → creates tenant + owner + pending subscription.
   @Public()
   @Post('signup')
-  signup(@Body() dto: SignupDto) {
-    return this.auth.signup(dto);
+  signup(@Body() dto: SignupDto, @Req() req: Request) {
+    return this.auth.signup(dto, clientIp(req));
   }
 
   // Returns the currently authenticated user + granted permissions (used on app load).

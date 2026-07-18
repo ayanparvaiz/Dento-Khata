@@ -4,7 +4,27 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Lock, LogOut, CheckCircle2, MessageCircle } from 'lucide-react';
+import { Lock, LogOut, CheckCircle2, MessageCircle, Copy, Check } from 'lucide-react';
+
+// Package options (must match the landing page).
+const PLANS = [
+  { label: '১ মাস', price: '৳৯৯০', per: '৳৯৯০/মাস', save: '' },
+  { label: '৬ মাস', price: '৳৫,৪৯০', per: '৳৯১৫/মাস', save: '৳৪৫০ সাশ্রয়' },
+  { label: '১২ মাস', price: '৳৯,৯৯০', per: '৳৮৩২/মাস', save: 'সেরা মূল্য' },
+];
+
+function CopyNumber({ number }: { number: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => navigator.clipboard?.writeText(number).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600); }).catch(() => {});
+  return (
+    <button type="button" onClick={copy} title="নম্বর কপি করুন"
+      className="inline-flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-1.5 font-mono text-base font-bold text-teal-800 ring-1 ring-teal-200 hover:bg-teal-100">
+      {number}
+      {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 opacity-70" />}
+      <span className="font-sans text-xs font-medium">{copied ? 'কপি হয়েছে ✓' : 'কপি'}</span>
+    </button>
+  );
+}
 
 // Shown when the clinic's subscription is inactive (PENDING / expired / suspended).
 // Phase 1 billing = manual bKash: the clinic Sends Money and submits the TrxID for verification.
@@ -89,10 +109,33 @@ export function Paywall() {
           {!suspended && (
             <>
               <div className="rounded-lg border bg-card p-4 text-sm">
-                <p className="mb-2 font-semibold">কীভাবে পেমেন্ট করবেন (বিকাশ/রকেট — Send Money)</p>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">প্যাকেজ বেছে নিন — Send Money</span>
+                  <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-extrabold text-white" style={{ background: '#e2136e' }}>bKash</span>
+                  <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-extrabold text-white" style={{ background: '#8c3494' }}>Rocket</span>
+                </div>
+
+                {/* Package table so the user doesn't need to go back to the landing page */}
+                <div className="mb-3 grid grid-cols-3 gap-2">
+                  {PLANS.map((pl) => (
+                    <div key={pl.label} className="rounded-lg border border-teal-100 bg-teal-50/60 p-2 text-center">
+                      <p className="text-xs text-teal-700">{pl.label}</p>
+                      <p className="text-base font-extrabold text-foreground">{pl.price}</p>
+                      <p className="text-[10px] text-muted-foreground">{pl.per}</p>
+                      {pl.save && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">{pl.save}</p>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Copyable number */}
+                <div className="mb-3">
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">আমাদের বিকাশ / রকেট নম্বর (Send Money)</p>
+                  <CopyNumber number={bkash} />
+                </div>
+
                 <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
                   <li>
-                    <span className="font-semibold text-foreground">৳{amount}</span> পাঠান{' '}
+                    আপনার প্যাকেজের টাকা পাঠান{' '}
                     <span className="font-mono font-semibold text-foreground">{bkash}</span> নম্বরে
                     (Send Money)
                   </li>

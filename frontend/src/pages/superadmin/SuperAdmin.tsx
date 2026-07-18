@@ -34,6 +34,15 @@ interface TUser {
   isActive: boolean;
 }
 
+interface Analytics {
+  totals: { tenants: number; active: number; pending: number; suspended: number };
+  mrr: number; revenueTotal: number; revenueThisMonth: number;
+  signups: { date: string; count: number }[];
+  spam: { neverActivated: number; duplicateIps: { ip: string; count: number }[]; lastHour: number };
+  topClinics: { name: string; slug: string; patients: number }[];
+  recentSignups: { name: string; slug: string; phone?: string; signupIp?: string; isActive: boolean; createdAt: string; status: string }[];
+}
+
 function fmtDate(s: string | null) {
   if (!s) return '—';
   return new Date(s).toLocaleDateString();
@@ -45,7 +54,7 @@ export function SuperAdmin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const [metrics, setMetrics] = useState<{ tenants: number; activeTenants: number; mrr: number } | null>(null);
+  const [an, setAn] = useState<Analytics | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
   const [grantDays, setGrantDays] = useState<Record<string, string>>({});
@@ -85,12 +94,12 @@ export function SuperAdmin() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [m, t, p] = await Promise.all([
-        superApi.get('/superadmin/metrics'),
+      const [a, t, p] = await Promise.all([
+        superApi.get('/superadmin/analytics'),
         superApi.get('/superadmin/tenants'),
         superApi.get('/superadmin/payments/pending'),
       ]);
-      setMetrics(m.data);
+      setAn(a.data);
       setTenants(t.data);
       setPending(p.data);
     } catch (e: any) {
@@ -179,11 +188,90 @@ export function SuperAdmin() {
           </div>
         </header>
 
-        {metrics && (
-          <div className="grid grid-cols-3 gap-4">
-            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Clinics</p><p className="text-3xl font-bold">{metrics.tenants}</p></CardContent></Card>
-            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Active</p><p className="text-3xl font-bold text-emerald-600">{metrics.activeTenants}</p></CardContent></Card>
-            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">MRR</p><p className="text-3xl font-bold">৳{metrics.mrr}</p></CardContent></Card>
+        {an && (
+          <div className="space-y-4">
+            {/* KPI row */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+              <Kpi label="Clinics" value={an.totals.tenants} />
+              <Kpi label="Active" value={an.totals.active} tone="text-emerald-600" />
+              <Kpi label="Pending" value={an.totals.pending} tone="text-amber-600" />
+              <Kpi label="Suspended" value={an.totals.suspended} tone="text-red-600" />
+              <Kpi label="MRR" value={`৳${an.mrr}`} />
+              <Kpi label="Revenue (mo)" value={`৳${an.revenueThisMonth}`} sub={`৳${an.revenueTotal} total`} />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              {/* Signups sparkbars */}
+              <Card className="lg:col-span-2">
+                <CardContent className="pt-5">
+                  <p className="mb-3 text-sm font-semibold">Signups — last 14 days</p>
+                  <div className="flex h-24 items-end gap-1">
+                    {an.signups.map((d) => {
+                      const max = Math.max(1, ...an.signups.map((x) => x.count));
+                      return (
+                        <div key={d.date} className="flex flex-1 flex-col items-center gap-1" title={`${d.date}: ${d.count}`}>
+                          <div className="w-full rounded-t bg-primary/80" style={{ height: `${(d.count / max) * 100}%`, minHeight: d.count ? 3 : 0 }} />
+                          <span className="text-[9px] text-muted-foreground">{d.date.slice(5)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Abuse / spam signals */}
+              <Card className={an.spam.neverActivated || an.spam.duplicateIps.length || an.spam.lastHour > 3 ? 'border-amber-300' : ''}>
+                <CardContent className="space-y-2 pt-5 text-sm">
+                  <p className="font-semibold">Abuse signals</p>
+                  <div className="flex items-center justify-between"><span className="text-muted-foreground">Signups last hour</span><span className={an.spam.lastHour > 3 ? 'font-bold text-amber-600' : 'font-semibold'}>{an.spam.lastHour}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-muted-foreground">Never activated (48h+)</span><span className={an.spam.neverActivated > 0 ? 'font-bold text-amber-600' : 'font-semibold'}>{an.spam.neverActivated}</span></div>
+                  <div>
+                    <span className="text-muted-foreground">Repeated signup IPs</span>
+                    {an.spam.duplicateIps.length === 0 ? <span className="ml-2 font-semibold">none</span> : (
+                      <div className="mt-1 space-y-0.5">
+                        {an.spam.duplicateIps.slice(0, 4).map((d) => (
+                          <div key={d.ip} className="flex justify-between rounded bg-amber-50 px-2 py-0.5 text-xs"><span className="font-mono">{d.ip}</span><span className="font-bold text-amber-700">×{d.count}</span></div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* Top clinics */}
+              {an.topClinics.length > 0 && (
+                <Card>
+                  <CardContent className="pt-5">
+                    <p className="mb-2 text-sm font-semibold">Top clinics by patients</p>
+                    <div className="flex flex-wrap gap-2">
+                      {an.topClinics.map((c) => (
+                        <span key={c.slug} className="rounded-full bg-slate-100 px-3 py-1 text-xs"><b>{c.name}</b> · {c.patients} patients</span>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recent signups (with IP, for spam monitoring) */}
+              <Card>
+                <CardContent className="pt-5">
+                  <p className="mb-2 text-sm font-semibold">Recent signups</p>
+                  <div className="max-h-56 space-y-1 overflow-auto text-xs">
+                    {an.recentSignups.map((r) => (
+                      <div key={r.slug} className="flex items-center justify-between gap-2 rounded border-b border-slate-100 py-1">
+                        <span className="truncate"><b>{r.name}</b> <span className="text-muted-foreground">· {r.phone || '—'}</span></span>
+                        <span className="flex flex-none items-center gap-2">
+                          <span className="font-mono text-[10px] text-muted-foreground">{r.signupIp || '—'}</span>
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] ${r.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : r.status === 'SUSPENDED' || !r.isActive ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{!r.isActive ? 'SUSPENDED' : r.status}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
 
@@ -343,5 +431,18 @@ export function SuperAdmin() {
         </div>
       )}
     </div>
+  );
+}
+
+// Small KPI stat tile.
+function Kpi({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: string; tone?: string }) {
+  return (
+    <Card>
+      <CardContent className="pt-5">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={`text-2xl font-bold ${tone || ''}`}>{value}</p>
+        {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
+      </CardContent>
+    </Card>
   );
 }

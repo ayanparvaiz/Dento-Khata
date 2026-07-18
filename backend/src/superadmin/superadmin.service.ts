@@ -81,6 +81,76 @@ export class SuperAdminService implements OnModuleInit {
     return { tenants: tenants.length, activeTenants: active, mrr };
   }
 
+  // Business + abuse analytics for the platform operator.
+  async analytics() {
+    const tenants = await this.prisma.tenant.findMany({ include: { subscription: true } });
+    const now = Date.now();
+    let active = 0, pending = 0, suspended = 0, mrr = 0;
+    for (const t of tenants) {
+      if (!t.isActive) { suspended++; continue; }
+      const a = this.subs.computeAccess(t.subscription);
+      if (a.active) { active++; mrr += t.subscription?.amount ?? 0; } else pending++;
+    }
+
+    // Revenue = verified real payments (manual grants have amount 0 so they don't inflate it).
+    const verified = await this.prisma.subscriptionPayment.findMany({
+      where: { status: 'VERIFIED' }, select: { amount: true, verifiedAt: true, tenantId: true },
+    });
+    const revenueTotal = verified.reduce((s, p) => s + p.amount, 0);
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    const revenueThisMonth = verified
+      .filter((p) => p.verifiedAt && p.verifiedAt >= monthStart)
+      .reduce((s, p) => s + p.amount, 0);
+
+    // Signups per day, last 14 days.
+    const days: { date: string; count: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+      days.push({ date: d.toISOString().slice(0, 10), count: 0 });
+    }
+    const dayMap = new Map(days.map((d) => [d.date, d]));
+    tenants.forEach((t) => { const e = dayMap.get(t.createdAt.toISOString().slice(0, 10)); if (e) e.count++; });
+
+    // --- Abuse / spam signals ---
+    const paidTenantIds = new Set(verified.map((p) => p.tenantId));
+    // clinics that signed up > 48h ago, still active, never paid → likely dead/spam
+    const neverActivated = tenants.filter(
+      (t) => t.isActive && !paidTenantIds.has(t.id) && now - t.createdAt.getTime() > 48 * 3600 * 1000,
+    ).length;
+    // same IP used by 2+ signups
+    const ipCount = new Map<string, number>();
+    tenants.forEach((t) => { if (t.signupIp) ipCount.set(t.signupIp, (ipCount.get(t.signupIp) || 0) + 1); });
+    const duplicateIps = [...ipCount.entries()].filter(([, c]) => c >= 2).map(([ip, count]) => ({ ip, count })).sort((a, b) => b.count - a.count);
+    // signups in the last hour (burst detection)
+    const lastHour = tenants.filter((t) => now - t.createdAt.getTime() < 3600 * 1000).length;
+
+    // Top clinics by patient volume.
+    const withCounts: { name: string; slug: string; patients: number }[] = [];
+    for (const t of tenants) {
+      const patients = await this.prisma.patient.count({ where: { tenantId: t.id } });
+      withCounts.push({ name: t.name, slug: t.slug, patients });
+    }
+    withCounts.sort((a, b) => b.patients - a.patients);
+
+    const recentSignups = [...tenants]
+      .sort((a, b) => +b.createdAt - +a.createdAt)
+      .slice(0, 12)
+      .map((t) => ({
+        name: t.name, slug: t.slug, phone: t.phone, signupIp: t.signupIp,
+        isActive: t.isActive, createdAt: t.createdAt,
+        status: this.subs.computeAccess(t.subscription).status,
+      }));
+
+    return {
+      totals: { tenants: tenants.length, active, pending, suspended },
+      mrr, revenueTotal, revenueThisMonth,
+      signups: days,
+      spam: { neverActivated, duplicateIps, lastHour },
+      topClinics: withCounts.slice(0, 5),
+      recentSignups,
+    };
+  }
+
   async pendingPayments() {
     const pays = await this.prisma.subscriptionPayment.findMany({
       where: { status: 'SUBMITTED' },

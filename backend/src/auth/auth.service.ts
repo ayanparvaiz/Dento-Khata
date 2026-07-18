@@ -1,10 +1,16 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, HttpException, HttpStatus } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { runInTenant } from '../tenant/tenant-context';
 import { SignupDto } from './dto';
 import { DEFAULT_PROCEDURES } from './default-procedures';
+import { clinicSuspended } from './suspended';
+
+// Simple in-memory per-IP signup throttle (anti-spam). No external dep needed.
+const SIGNUP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const SIGNUP_MAX_PER_IP = 5; // max clinic signups per IP per hour
+const signupHits = new Map<string, number[]>();
 
 @Injectable()
 export class AuthService {
@@ -12,6 +18,17 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
   ) {}
+
+  private throttleSignup(ip: string) {
+    if (!ip) return;
+    const now = Date.now();
+    const hits = (signupHits.get(ip) || []).filter((t) => now - t < SIGNUP_WINDOW_MS);
+    if (hits.length >= SIGNUP_MAX_PER_IP) {
+      throw new HttpException('অনেকবার চেষ্টা করা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    hits.push(now);
+    signupHits.set(ip, hits);
+  }
 
   // --- Tenant login: (phone, password) -----------------------------------
   async login(phone: string, password: string) {
@@ -22,7 +39,7 @@ export class AuthService {
 
     const tenant = await this.prisma.tenant.findUnique({ where: { id: user.tenantId } });
     if (!tenant) throw new UnauthorizedException('Invalid phone or password');
-    if (!tenant.isActive) throw new UnauthorizedException('This clinic account is suspended. Contact support.');
+    if (!tenant.isActive) throw clinicSuspended();
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Invalid phone or password');
@@ -38,7 +55,8 @@ export class AuthService {
   }
 
   // --- Tenant signup: create clinic + owner + pending subscription -------
-  async signup(dto: SignupDto) {
+  async signup(dto: SignupDto, ip = '') {
+    this.throttleSignup(ip); // anti-spam: cap signups per IP per hour
     const phone = dto.phone.trim();
     // Phone is the login id — must be unique across the whole platform.
     const phoneTaken = await this.prisma.user.findUnique({ where: { phone } });
@@ -51,7 +69,7 @@ export class AuthService {
     for (let i = 1; await this.prisma.tenant.findUnique({ where: { slug } }); i++) slug = `${base}-${i}`;
 
     const tenant = await this.prisma.tenant.create({
-      data: { slug, name: dto.clinicName, ownerName: dto.ownerName, phone, email: dto.email },
+      data: { slug, name: dto.clinicName, ownerName: dto.ownerName, phone, email: dto.email, signupIp: ip || null },
     });
 
     const price = Number(process.env.SUBSCRIPTION_PRICE) || 990;

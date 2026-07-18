@@ -26,8 +26,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err.response?.status === 402 && err.response?.data?.code === 'SUBSCRIPTION_INACTIVE') {
-      window.dispatchEvent(new CustomEvent('subscription-blocked', { detail: err.response.data }));
+    const data = err.response?.data;
+    if (err.response?.status === 402 && data?.code === 'SUBSCRIPTION_INACTIVE') {
+      window.dispatchEvent(new CustomEvent('subscription-blocked', { detail: data }));
+    }
+    // Clinic disabled by super-admin → drop the session and show a support popup.
+    if (err.response?.status === 403 && data?.code === 'CLINIC_SUSPENDED') {
+      localStorage.removeItem('token');
+      sessionStorage.setItem('suspended', JSON.stringify(data));
+      window.dispatchEvent(new CustomEvent('clinic-suspended', { detail: data }));
     }
     return Promise.reject(err);
   },

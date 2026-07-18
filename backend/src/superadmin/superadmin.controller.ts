@@ -33,6 +33,13 @@ export class SuperAdminController {
 
   @Public()
   @UseGuards(SuperAdminGuard)
+  @Get('analytics')
+  analytics() {
+    return this.svc.analytics();
+  }
+
+  @Public()
+  @UseGuards(SuperAdminGuard)
   @Get('payments/pending')
   pending() {
     return this.svc.pendingPayments();
