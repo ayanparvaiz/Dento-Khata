@@ -150,12 +150,12 @@ export function Signup() {
             src={IMG.hero}
             alt=""
             onError={() => setHeroErr(true)}
-            className="absolute inset-0 -z-10 h-full w-full object-cover opacity-30"
+            className="absolute inset-0 -z-10 h-full w-full object-cover opacity-60"
           />
         )}
-        {/* gradient wash over the photo for text contrast */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-teal-800/85 via-teal-700/70 to-emerald-600/60" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-black/25 to-transparent" />
+        {/* gradient wash over the photo for text contrast (lighter so the photo shows) */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-teal-800/65 via-teal-700/45 to-emerald-600/35" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-black/35 to-transparent" />
 
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/20">
@@ -242,7 +242,7 @@ export function Signup() {
       {/* Value banner — photo + gradient overlay */}
       <section className="relative isolate overflow-hidden px-4 py-16 text-center text-white md:px-8 md:py-20">
         <PhotoBg src={IMG.banner} className="opacity-100" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-teal-900/90 via-teal-800/80 to-emerald-800/80" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-teal-900/70 via-teal-800/55 to-emerald-800/55" />
         <div className="mx-auto max-w-2xl">
           <h2 className="text-2xl font-bold leading-snug md:text-3xl">
             এটি শুধু একটি সফটওয়্যার নয় —<br className="hidden sm:block" /> আপনার চেম্বারের বিশ্বস্ত সঙ্গী
@@ -303,8 +303,8 @@ export function Signup() {
       {/* Signup form — at the very bottom of the page. Trust + contact fills the space below
           the form, which also gives scroll room so the mobile keyboard never covers a field. */}
       <section id="signup" className="relative isolate scroll-mt-20 overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-4 pt-14 pb-28 md:px-8 md:py-20">
-        <PhotoBg src={IMG.cta} className="opacity-15" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-teal-800/70 to-emerald-700/60" />
+        <PhotoBg src={IMG.cta} className="opacity-40" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-teal-800/55 to-emerald-700/45" />
         <div className="relative mx-auto max-w-md">
           <div className="mb-5 text-center text-white">
             <h2 className="text-2xl font-bold md:text-3xl">আজই আপনার ক্লিনিক ডিজিটাল করুন</h2>
