@@ -6,7 +6,7 @@ import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, ShieldCheck } from 'lucide-react';
 
-interface User { id: string; username: string; fullName: string; role: string; isActive: boolean; permissions?: string[]; }
+interface User { id: string; phone: string; username?: string; fullName: string; role: string; isActive: boolean; permissions?: string[]; }
 interface Cap { key: string; label: string; }
 
 export function Users() {
@@ -14,14 +14,14 @@ export function Users() {
   const { data: users = [] } = useQuery<User[]>({ queryKey: ['users'], queryFn: async () => (await api.get('/users')).data });
   const { data: caps = [] } = useQuery<Cap[]>({ queryKey: ['capabilities'], queryFn: async () => (await api.get('/users/capabilities')).data });
 
-  const [form, setForm] = useState<{ username: string; password: string; fullName: string; role: string; permissions: string[] }>(
-    { username: '', password: '', fullName: '', role: 'ASSISTANT', permissions: [] },
+  const [form, setForm] = useState<{ phone: string; password: string; fullName: string; role: string; permissions: string[] }>(
+    { phone: '', password: '', fullName: '', role: 'ASSISTANT', permissions: [] },
   );
   const [error, setError] = useState('');
 
   const create = useMutation({
     mutationFn: async () => (await api.post('/users', form)).data,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setForm({ username: '', password: '', fullName: '', role: 'ASSISTANT', permissions: [] }); setError(''); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setForm({ phone: '', password: '', fullName: '', role: 'ASSISTANT', permissions: [] }); setError(''); },
     onError: (e: any) => setError(e?.response?.data?.message || 'Failed to create user'),
   });
   const update = useMutation({
@@ -43,7 +43,7 @@ export function Users() {
           <CardHeader><CardTitle>Add user</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div><Label>Full name</Label><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
-            <div><Label>Username</Label><Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></div>
+            <div><Label>Phone (login)</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="01XXXXXXXXX" inputMode="tel" /></div>
             <div><Label>Password</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div><Label>Role</Label>
               <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
@@ -94,7 +94,7 @@ function UserRow({ user, caps, onUpdate }: { user: User; caps: Cap[]; onUpdate: 
     <div className="rounded-md border border-border p-3">
       <div className="flex items-center justify-between">
         <div>
-          <div className="font-medium">{user.fullName} <span className="text-xs text-muted-foreground">@{user.username}</span></div>
+          <div className="font-medium">{user.fullName} <span className="text-xs text-muted-foreground">{user.phone}</span></div>
           <div className="text-xs">
             <span className={`rounded-full px-2 py-0.5 ${user.role === 'ADMIN' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>{user.role}</span>
             {!user.isActive && <span className="ml-2 text-muted-foreground">inactive</span>}

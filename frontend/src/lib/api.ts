@@ -20,3 +20,23 @@ api.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// Subscription paywall: the backend returns 402 when the clinic's subscription is inactive.
+// Broadcast it so the app can swap to the renew screen without every caller handling it.
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err.response?.status === 402 && err.response?.data?.code === 'SUBSCRIPTION_INACTIVE') {
+      window.dispatchEvent(new CustomEvent('subscription-blocked', { detail: err.response.data }));
+    }
+    return Promise.reject(err);
+  },
+);
+
+// Separate axios instance for the platform super-admin console (its own token).
+export const superApi = axios.create({ baseURL: resolveBaseURL() });
+superApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('superToken');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});

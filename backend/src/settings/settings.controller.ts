@@ -9,9 +9,10 @@ import { UpdateSettingsDto } from './dto';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { dataPaths } from '../data';
+import { currentTenantId } from '../tenant/tenant-context';
 
-// Resolve at request time (env/uploads dir is only ready after bootstrap).
-const logoDir = () => join(dataPaths().uploadsDir, 'clinic');
+// Per-tenant logo dir, resolved at request time (uploads dir only ready after bootstrap).
+const logoDir = () => join(dataPaths().uploadsDir, currentTenantId() || '_shared', 'clinic');
 
 @Controller('settings')
 export class SettingsController {
@@ -23,7 +24,7 @@ export class SettingsController {
     return this.settings.get();
   }
 
-  // Only ADMIN can change clinic settings.
+  // Only ADMIN/OWNER can change clinic settings.
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Put()
@@ -31,7 +32,7 @@ export class SettingsController {
     return this.settings.update(dto);
   }
 
-  // Upload the clinic/doctor logo for the letterhead (admin only).
+  // Upload the clinic/doctor logo for the letterhead (admin/owner only).
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
   @Post('logo')
@@ -49,7 +50,7 @@ export class SettingsController {
     }),
   )
   uploadLogo(@UploadedFile() file: Express.Multer.File) {
-    const logoPath = `/uploads/clinic/${file.filename}`;
+    const logoPath = `/uploads/${currentTenantId() || '_shared'}/clinic/${file.filename}`;
     return this.settings.update({ logoPath });
   }
 }

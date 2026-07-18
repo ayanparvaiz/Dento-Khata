@@ -17,7 +17,8 @@ export function ProtectedRoute({
     return <div className="grid h-full place-items-center text-muted-foreground">Loading…</div>;
   }
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) {
+  // OWNER has full access — treat it as satisfying any role requirement (incl. ADMIN-only pages).
+  if (roles && user.role !== 'OWNER' && !roles.includes(user.role)) {
     return (
       <div className="grid h-full place-items-center text-danger">
         You don’t have permission to view this page.

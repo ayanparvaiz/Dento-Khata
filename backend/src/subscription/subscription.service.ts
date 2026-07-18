@@ -1,0 +1,86 @@
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { SubmitPaymentDto } from './dto';
+
+export interface AccessState {
+  active: boolean;
+  status: string; // PENDING | ACTIVE | PAST_DUE | SUSPENDED | NONE
+  currentPeriodEnd: Date | null;
+  daysLeft: number | null; // days until expiry (incl. grace consumed → negative once past)
+  amount: number;
+  bkashNumber: string;
+  whatsapp: string;
+}
+
+@Injectable()
+export class SubscriptionService {
+  constructor(private prisma: PrismaService) {}
+
+  private graceDays() {
+    return Number(process.env.SUBSCRIPTION_GRACE_DAYS) || 3;
+  }
+  private price() {
+    return Number(process.env.SUBSCRIPTION_PRICE) || 990;
+  }
+  private bkashNumber() {
+    return process.env.BKASH_RECEIVE_NUMBER || '01XXXXXXXXX';
+  }
+  private whatsapp() {
+    return process.env.SUPPORT_WHATSAPP || '';
+  }
+
+  // Live access decision for a subscription row (null = no subscription).
+  computeAccess(sub: { status: string; currentPeriodEnd: Date | null; amount: number } | null): AccessState {
+    const base = { amount: sub?.amount ?? this.price(), bkashNumber: this.bkashNumber(), whatsapp: this.whatsapp() };
+    if (!sub) return { active: false, status: 'NONE', currentPeriodEnd: null, daysLeft: null, ...base };
+
+    if (sub.status === 'SUSPENDED')
+      return { active: false, status: 'SUSPENDED', currentPeriodEnd: sub.currentPeriodEnd, daysLeft: null, ...base };
+
+    if (!sub.currentPeriodEnd)
+      return { active: false, status: sub.status || 'PENDING', currentPeriodEnd: null, daysLeft: null, ...base };
+
+    const now = Date.now();
+    const end = sub.currentPeriodEnd.getTime();
+    const graceMs = this.graceDays() * 86_400_000;
+    const active = now <= end + graceMs;
+    const daysLeft = Math.ceil((end - now) / 86_400_000);
+    const status = active ? (now <= end ? 'ACTIVE' : 'PAST_DUE') : 'PAST_DUE';
+    return { active, status, currentPeriodEnd: sub.currentPeriodEnd, daysLeft, ...base };
+  }
+
+  // The current tenant's subscription (scoped by the request context).
+  async myStatus(): Promise<AccessState & { pendingPayment: boolean }> {
+    const sub = await this.prisma.subscription.findFirst();
+    const state = this.computeAccess(sub);
+    let pendingPayment = false;
+    if (sub) {
+      const p = await this.prisma.subscriptionPayment.findFirst({ where: { status: 'SUBMITTED' } });
+      pendingPayment = !!p;
+    }
+    return { ...state, pendingPayment };
+  }
+
+  // Tenant submits a manual bKash transaction for the admin to verify.
+  async submitPayment(dto: SubmitPaymentDto) {
+    const sub = await this.prisma.subscription.findFirst();
+    if (!sub) throw new NotFoundException('No subscription found for this clinic');
+
+    const dup = await this.prisma.subscriptionPayment.findFirst({ where: { trxId: dto.trxId } });
+    if (dup) throw new BadRequestException('That transaction id was already submitted');
+
+    await this.prisma.subscriptionPayment.create({
+      data: {
+        subscriptionId: sub.id,
+        amount: sub.amount,
+        method: 'BKASH',
+        trxId: dto.trxId,
+        senderMsisdn: dto.senderMsisdn,
+        note: dto.note,
+        status: 'SUBMITTED',
+        periodDays: 30,
+      },
+    });
+    return { submitted: true };
+  }
+}

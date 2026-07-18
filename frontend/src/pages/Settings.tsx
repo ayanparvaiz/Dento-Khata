@@ -24,7 +24,7 @@ interface ClinicSettings {
 
 export function Settings() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER';
   const qc = useQueryClient();
   const { data } = useQuery<ClinicSettings>({
     queryKey: ['settings'],

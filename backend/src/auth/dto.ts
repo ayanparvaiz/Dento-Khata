@@ -1,10 +1,35 @@
-import { IsString, MinLength } from 'class-validator';
+import { IsString, MinLength, IsOptional } from 'class-validator';
 
 export class LoginDto {
+  // Login is by phone number (globally unique) + password. No clinic code needed.
   @IsString()
-  username: string;
+  @MinLength(6)
+  phone: string;
 
   @IsString()
+  password: string;
+}
+
+export class SignupDto {
+  @IsString()
+  @MinLength(2)
+  clinicName: string;
+
+  @IsString()
+  @MinLength(2)
+  ownerName: string;
+
+  // Owner's phone — becomes the login id for the clinic account.
+  @IsString()
+  @MinLength(6)
+  phone: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsString()
+  @MinLength(6)
   password: string;
 }
 

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -22,7 +22,11 @@ import { SystemModule } from './system/system.module';
 import { BackupModule } from './backup/backup.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
+import { SubscriptionGuard } from './subscription/subscription.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
+import { TenantContextMiddleware } from './tenant/tenant-context.middleware';
+import { SubscriptionModule } from './subscription/subscription.module';
+import { SuperAdminModule } from './superadmin/superadmin.module';
 
 @Module({
   imports: [
@@ -45,6 +49,8 @@ import { AuditInterceptor } from './audit/audit.interceptor';
     AppointmentsModule,
     SystemModule,
     BackupModule,
+    SubscriptionModule,
+    SuperAdminModule,
   ],
   controllers: [AppController],
   providers: [
@@ -52,8 +58,15 @@ import { AuditInterceptor } from './audit/audit.interceptor';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // Global: enforce per-assistant capability on routes marked @Requires(...).
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    // Global: block tenant routes when the subscription is inactive/expired.
+    { provide: APP_GUARD, useClass: SubscriptionGuard },
     // Global: record mutating requests for audit.
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Open the tenant AsyncLocalStorage context on every request (before guards).
+    consumer.apply(TenantContextMiddleware).forRoutes('*');
+  }
+}

@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# One-shot VPS deploy for the dental app.
-# Runs FROM your Mac. Syncs source -> VPS, builds, migrates+seeds, starts via pm2,
-# writes an nginx vhost for the domain, and issues HTTPS via certbot.
-# Safe alongside other apps (e.g. ichat): own port, own pm2 process, own nginx block.
+# One-shot VPS deploy for the dental app (MULTI-TENANT SaaS on PostgreSQL).
+# Runs FROM your Mac. Syncs source -> VPS, builds, migrates + seeds the global drug
+# catalog, starts via pm2, writes an nginx vhost, and issues HTTPS via certbot.
+# Safe alongside other apps (e.g. ichat): own port, own pm2 process, own nginx block,
+# own Postgres database.
 #
 # Usage:
-#   deploy/deploy.sh                # uses defaults below
+#   deploy/deploy.sh                          # uses defaults below
 #   SSH_TARGET=ubuntu@1.2.3.4 deploy/deploy.sh
-#   SEED=force deploy/deploy.sh     # reseed demo data even if a DB exists
+#   SEED=force deploy/deploy.sh               # re-run the global drug seed
+#
+# Secrets: pass via env (NEVER commit them). On first deploy the script generates a
+# random Postgres password + JWT secret and stores them in $DATA_DIR/app.env on the
+# server, then reuses them on every later deploy. Override the super-admin login with
+# SUPERADMIN_USERNAME / SUPERADMIN_PASSWORD; set BKASH_RECEIVE_NUMBER for the paywall.
 set -euo pipefail
 
 # ===================== config (override via env) =====================
@@ -15,10 +21,16 @@ SSH_TARGET="${SSH_TARGET:-dentist@dentist.devcenter.dev}"  # who/where to deploy
 DOMAIN="${DOMAIN:-dentist.devcenter.dev}"                  # A-record points here
 PORT="${PORT:-4100}"                                       # internal port (NOT ichat's)
 APP_DIR="${APP_DIR:-/home/dentist/apps/dentist-app}"       # code lives here (dentist owns it)
-DATA_DIR="${DATA_DIR:-/home/dentist/dentist-data}"         # DB+uploads+backups (survive redeploys)
+DATA_DIR="${DATA_DIR:-/home/dentist/dentist-data}"         # uploads+backups+app.env (survive redeploys)
 PM2_NAME="${PM2_NAME:-dentist-api}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-contact@finallyfreeproductions.com}"
 SEED="${SEED:-auto}"                                       # auto | force | never
+PG_DB="${PG_DB:-dental}"                                   # database name
+PG_USER="${PG_USER:-dental}"                               # db role
+# Optional overrides forwarded to the server (blank = keep/generate on server):
+SUPERADMIN_USERNAME="${SUPERADMIN_USERNAME:-}"
+SUPERADMIN_PASSWORD="${SUPERADMIN_PASSWORD:-}"
+BKASH_RECEIVE_NUMBER="${BKASH_RECEIVE_NUMBER:-}"
 # =====================================================================
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -34,6 +46,7 @@ rsync -az --delete \
   --exclude '.git' --exclude 'node_modules' \
   --exclude 'frontend/dist' --exclude 'backend/dist' \
   --exclude '/data' --exclude '*.db' --exclude '*.db-*' \
+  --exclude 'backend/prisma/migrations.sqlite.bak' \
   --exclude 'e2e/shots' --exclude 'e2e/node_modules' \
   "$REPO/" "$SSH_TARGET:$APP_DIR/"
 
@@ -41,7 +54,9 @@ rsync -az --delete \
 echo "==> [2/3] Building & starting on server…"
 ssh "$SSH_TARGET" \
   DOMAIN="$DOMAIN" PORT="$PORT" APP_DIR="$APP_DIR" DATA_DIR="$DATA_DIR" \
-  PM2_NAME="$PM2_NAME" SEED="$SEED" 'bash -s' <<'REMOTE'
+  PM2_NAME="$PM2_NAME" SEED="$SEED" PG_DB="$PG_DB" PG_USER="$PG_USER" \
+  SUPERADMIN_USERNAME="$SUPERADMIN_USERNAME" SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
+  BKASH_RECEIVE_NUMBER="$BKASH_RECEIVE_NUMBER" 'bash -s' <<'REMOTE'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
@@ -50,10 +65,42 @@ if ! command -v node >/dev/null; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
-command -v pnpm >/dev/null || sudo npm i -g pnpm
 command -v pm2  >/dev/null || sudo npm i -g pm2
 command -v nginx >/dev/null || sudo apt-get install -y nginx
 command -v rsync >/dev/null || sudo apt-get install -y rsync
+# PostgreSQL server + client (pg_dump) for the multi-tenant DB.
+command -v psql >/dev/null || sudo apt-get install -y postgresql postgresql-contrib
+sudo systemctl enable --now postgresql
+
+mkdir -p "$DATA_DIR"
+
+# --- secrets: generate once, persist in $DATA_DIR/app.env, reuse forever ---
+ENVFILE="$DATA_DIR/app.env"
+touch "$ENVFILE"; chmod 600 "$ENVFILE"
+get_env() { grep -E "^$1=" "$ENVFILE" | tail -1 | cut -d= -f2- || true; }
+set_env() { grep -qE "^$1=" "$ENVFILE" && sed -i "s|^$1=.*|$1=$2|" "$ENVFILE" || echo "$1=$2" >> "$ENVFILE"; }
+
+PG_PASS="$(get_env PG_PASS)"
+if [ -z "$PG_PASS" ]; then PG_PASS="$(openssl rand -hex 24)"; set_env PG_PASS "$PG_PASS"; fi
+JWT_SECRET="$(get_env JWT_SECRET)"
+if [ -z "$JWT_SECRET" ]; then JWT_SECRET="$(openssl rand -hex 32)"; set_env JWT_SECRET "$JWT_SECRET"; fi
+# super-admin: use override if provided, else keep existing, else generate.
+[ -n "${SUPERADMIN_USERNAME:-}" ] && set_env SUPERADMIN_USERNAME "$SUPERADMIN_USERNAME"
+[ -z "$(get_env SUPERADMIN_USERNAME)" ] && set_env SUPERADMIN_USERNAME "superadmin"
+[ -n "${SUPERADMIN_PASSWORD:-}" ] && set_env SUPERADMIN_PASSWORD "$SUPERADMIN_PASSWORD"
+[ -z "$(get_env SUPERADMIN_PASSWORD)" ] && set_env SUPERADMIN_PASSWORD "$(openssl rand -hex 12)"
+[ -n "${BKASH_RECEIVE_NUMBER:-}" ] && set_env BKASH_RECEIVE_NUMBER "$BKASH_RECEIVE_NUMBER"
+SUPERADMIN_USERNAME="$(get_env SUPERADMIN_USERNAME)"
+SUPERADMIN_PASSWORD="$(get_env SUPERADMIN_PASSWORD)"
+BKASH_NUM="$(get_env BKASH_RECEIVE_NUMBER)"; [ -z "$BKASH_NUM" ] && BKASH_NUM="01XXXXXXXXX"
+
+# --- provision Postgres role + database (idempotent) ---
+sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$PG_USER'" | grep -q 1 \
+  || sudo -u postgres psql -c "CREATE ROLE $PG_USER LOGIN PASSWORD '$PG_PASS';"
+sudo -u postgres psql -c "ALTER ROLE $PG_USER PASSWORD '$PG_PASS';"
+sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$PG_DB'" | grep -q 1 \
+  || sudo -u postgres createdb -O "$PG_USER" "$PG_DB"
+export DATABASE_URL="postgresql://$PG_USER:$PG_PASS@127.0.0.1:5432/$PG_DB"
 
 cd "$APP_DIR"
 
@@ -64,33 +111,32 @@ rm -rf backend/node_modules frontend/node_modules
 npm --prefix backend  install --legacy-peer-deps --no-audit --no-fund
 npm --prefix frontend install --legacy-peer-deps --no-audit --no-fund
 
-( cd backend  && ./node_modules/.bin/prisma generate )                       # query engine + client
-( cd frontend && ./node_modules/.bin/tsc -b && VITE_API_URL=/api ./node_modules/.bin/vite build )  # same-origin API
+( cd backend  && DATABASE_URL="$DATABASE_URL" ./node_modules/.bin/prisma generate )
+( cd frontend && ./node_modules/.bin/tsc -b && VITE_API_URL=/api ./node_modules/.bin/vite build )
 ( cd backend  && ./node_modules/.bin/nest build )
 
-# --- database (persistent, outside the app dir) ---
-# Stop the running app first so it releases the SQLite file (else: "database is locked").
-# pm2 delete returns before the Node process fully exits — wait for the file lock to clear.
+# --- database migrate + global drug seed ---
 pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true
-sleep 3
-mkdir -p "$DATA_DIR"
-FRESH=0; [ -s "$DATA_DIR/dental.db" ] || FRESH=1
-export DATABASE_URL="file:$DATA_DIR/dental.db"
-( cd backend && ./node_modules/.bin/prisma migrate deploy )
-if [ "$SEED" = "force" ] || { [ "$SEED" = "auto" ] && [ "$FRESH" = "1" ]; }; then
-  echo "   seeding demo data…"
-  ( cd backend && ./node_modules/.bin/ts-node prisma/seed.ts ) || echo "   (seed skipped/failed — continuing)"
+( cd backend && DATABASE_URL="$DATABASE_URL" ./node_modules/.bin/prisma migrate deploy )
+if [ "$SEED" = "force" ] || [ "$SEED" = "auto" ]; then
+  echo "   seeding global drug catalog…"
+  ( cd backend && DATABASE_URL="$DATABASE_URL" ./node_modules/.bin/ts-node prisma/seed.ts ) \
+    || echo "   (seed skipped/failed — continuing)"
 fi
 
 # --- run via pm2 (cwd=backend so it can serve ../frontend/dist) ---
 cd "$APP_DIR/backend"
 pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true
 HOST=127.0.0.1 PORT="$PORT" DATA_DIR="$DATA_DIR" NODE_ENV=production \
+  DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT_SECRET" \
+  SUPERADMIN_USERNAME="$SUPERADMIN_USERNAME" SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
+  BKASH_RECEIVE_NUMBER="$BKASH_NUM" SUBSCRIPTION_PRICE="${SUBSCRIPTION_PRICE:-990}" \
+  SUBSCRIPTION_GRACE_DAYS="${SUBSCRIPTION_GRACE_DAYS:-3}" \
   pm2 start dist/main.js --name "$PM2_NAME" --update-env --time
 pm2 save
-# survive reboots (no-op if already configured)
 sudo env PATH="$PATH" pm2 startup systemd -u "$USER" --hp "$HOME" >/dev/null 2>&1 || true
 echo "   pm2 process '$PM2_NAME' running on 127.0.0.1:$PORT"
+echo "   Postgres DB '$PG_DB' ready. Super-admin: $SUPERADMIN_USERNAME (password in $ENVFILE)"
 REMOTE
 
 # 3) nginx vhost + HTTPS (separate file -> ichat untouched)
@@ -131,6 +177,10 @@ REMOTE
 
 echo ""
 echo "==> DONE.  https://$DOMAIN"
-echo "    login: admin / admin123   (change after demo)"
+echo "    Clinics self-register at https://$DOMAIN/signup (start on the paywall)."
+echo "    Super-admin console: https://$DOMAIN/superadmin"
+echo "      (username + password are in $DATA_DIR/app.env on the server)"
+echo "    Daily DB backups: pg_dump -> $DATA_DIR/backups/ (in-app, 03:00, keeps 30)."
+echo "      Off-box copy destination: TBD — wire an rclone/scp cron once you pick storage."
 echo "    logs:  ssh $SSH_TARGET 'pm2 logs $PM2_NAME'"
-echo "    redeploy later: just run this script again (data is preserved)."
+echo "    redeploy later: just run this script again (data + secrets preserved)."

@@ -5,6 +5,7 @@ import { CreateUserDto, UpdateUserDto } from './dto';
 
 const SAFE_SELECT = {
   id: true,
+  phone: true,
   username: true,
   fullName: true,
   role: true,
@@ -27,12 +28,14 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
-    const exists = await this.prisma.user.findUnique({ where: { username: dto.username } });
-    if (exists) throw new BadRequestException('Username already taken');
+    // Phone is the login id — globally unique across all clinics.
+    const exists = await this.prisma.user.findUnique({ where: { phone: dto.phone.trim() } });
+    if (exists) throw new BadRequestException('That phone number is already registered');
 
     const u = await this.prisma.user.create({
       data: {
-        username: dto.username,
+        phone: dto.phone.trim(),
+        username: dto.username ?? dto.fullName,
         passwordHash: await bcrypt.hash(dto.password, 10),
         fullName: dto.fullName,
         role: dto.role,
@@ -49,6 +52,7 @@ export class UsersService {
 
     const data: Record<string, unknown> = {};
     if (dto.fullName !== undefined) data.fullName = dto.fullName;
+    if (dto.phone !== undefined) data.phone = dto.phone.trim();
     if (dto.role !== undefined) data.role = dto.role;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.password) data.passwordHash = await bcrypt.hash(dto.password, 10);

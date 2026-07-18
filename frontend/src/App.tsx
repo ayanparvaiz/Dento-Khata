@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '@/lib/auth';
+import { AuthProvider, useAuth } from '@/lib/auth';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Layout } from '@/components/Layout';
 import { Login } from '@/pages/Login';
+import { Signup } from '@/pages/Signup';
+import { Paywall } from '@/pages/Paywall';
 import { Dashboard } from '@/pages/Dashboard';
 import { Users } from '@/pages/Users';
 import { Settings } from '@/pages/Settings';
@@ -13,6 +15,13 @@ import { ChartingHome } from '@/pages/ChartingHome';
 import { Appointments } from '@/pages/Appointments';
 import { Reports } from '@/pages/Reports';
 import { Catalog } from '@/pages/Catalog';
+import { SuperAdmin } from '@/pages/superadmin/SuperAdmin';
+
+// Swap the whole app for the renew screen when the subscription is inactive.
+function Shell() {
+  const { blocked } = useAuth();
+  return blocked ? <Paywall /> : <Layout />;
+}
 
 export default function App() {
   return (
@@ -20,10 +29,12 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/superadmin/*" element={<SuperAdmin />} />
           <Route
             element={
               <ProtectedRoute>
-                <Layout />
+                <Shell />
               </ProtectedRoute>
             }
           >

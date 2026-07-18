@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Stethoscope } from 'lucide-react';
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,10 +19,10 @@ export function Login() {
     setError('');
     setBusy(true);
     try {
-      await login(username, password);
+      await login(phone.trim(), password);
       navigate('/');
-    } catch {
-      setError('Invalid username or password');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'ফোন নম্বর বা পাসওয়ার্ড ভুল');
     } finally {
       setBusy(false);
     }
@@ -36,29 +36,34 @@ export function Login() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Stethoscope className="h-6 w-6" />
             </div>
-            <h1 className="text-xl font-bold">Dental Clinic Manager</h1>
-            <p className="text-sm text-muted-foreground">Sign in to continue</p>
+            <h1 className="text-xl font-bold">ডেন্টাল ক্লিনিক ম্যানেজার</h1>
+            <p className="text-sm text-muted-foreground">আপনার ক্লিনিকে সাইন ইন করুন</p>
           </div>
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <Label>Username</Label>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+              <Label>ফোন নম্বর</Label>
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="01XXXXXXXXX"
+                inputMode="tel"
+                autoFocus
+              />
             </div>
             <div>
-              <Label>Password</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <Label>পাসওয়ার্ড</Label>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             {error && <p className="text-sm text-danger">{error}</p>}
             <Button type="submit" className="w-full" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign in'}
+              {busy ? 'সাইন ইন হচ্ছে…' : 'সাইন ইন'}
             </Button>
           </form>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Default: admin / admin123 — change after first login
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            নতুন ক্লিনিক?{' '}
+            <Link to="/signup" className="font-medium text-primary hover:underline">
+              অ্যাকাউন্ট তৈরি করুন
+            </Link>
           </p>
         </CardContent>
       </Card>

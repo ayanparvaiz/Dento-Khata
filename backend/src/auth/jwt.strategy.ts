@@ -9,6 +9,7 @@ interface JwtPayload {
   sub: string;
   username: string;
   role: string;
+  tenantId: string;
 }
 
 @Injectable()
@@ -25,9 +26,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<AuthUser> {
-    // Re-check the user still exists and is active on every request.
+    // Re-check the user still exists and is active on every request (scoped to the token's tenant).
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || !user.isActive) throw new UnauthorizedException('Account inactive');
-    return { id: user.id, username: user.username, role: user.role, fullName: user.fullName };
+    return {
+      id: user.id,
+      username: user.username ?? user.phone,
+      role: user.role,
+      fullName: user.fullName,
+      tenantId: payload.tenantId ?? user.tenantId,
+    };
   }
 }

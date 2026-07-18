@@ -18,7 +18,7 @@ export class PermissionsGuard implements CanActivate {
     if (!cap) return true; // no capability required
     const reqUser = context.switchToHttp().getRequest().user;
     if (!reqUser) throw new ForbiddenException();
-    if (reqUser.role === 'ADMIN') return true; // admin can do everything
+    if (reqUser.role === 'ADMIN' || reqUser.role === 'OWNER') return true; // owner/admin can do everything
 
     // ASSISTANT: must have the capability granted (fetched fresh so changes apply immediately).
     const user = await this.prisma.user.findUnique({ where: { id: reqUser.id }, select: { permissions: true } });

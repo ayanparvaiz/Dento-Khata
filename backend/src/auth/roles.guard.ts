@@ -15,7 +15,9 @@ export class RolesGuard implements CanActivate {
     if (!required || required.length === 0) return true; // no @Roles => any authenticated user
 
     const user = context.switchToHttp().getRequest().user;
-    if (!user || !required.includes(user.role)) {
+    if (!user) throw new ForbiddenException('You do not have permission for this action');
+    if (user.role === 'OWNER') return true; // clinic owner can do everything within the tenant
+    if (!required.includes(user.role)) {
       throw new ForbiddenException('You do not have permission for this action');
     }
     return true;

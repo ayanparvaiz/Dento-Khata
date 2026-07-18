@@ -101,12 +101,12 @@ Realistic options:
 
 ---
 
-## 8. Decisions I need from you
+## 8. Decisions — LOCKED (2026-07-18)
 
-1. **Billing path first:** manual-bKash (launch now, no paperwork) vs aggregator recurring (SSLCommerz/aamarPay, needs NID+bank onboarding)?
-2. **Postgres hosting:** self-host on the same VPS (cheap) vs managed (Neon/Supabase/RDS)?
-3. **Tenant access model:** one shared login domain now, or subdomains per clinic later?
-4. **Drug catalog:** shared-global for all tenants (recommended) vs per-tenant copy?
-5. **Trial:** offer a free trial (e.g., 14 days) before first payment?
+1. **Billing path:** ✅ **Manual bKash (Phase 1)** now. Aggregator later, core stays gateway-agnostic.
+2. **Postgres hosting:** ✅ **Self-host on the VPS** now → move to managed when user count grows. **Daily DB backup** (pg_dump) copied to an off-box storage (destination TBD by user).
+3. **Tenant access model:** ✅ **One shared login domain**, single subdomain (no per-clinic subdomains).
+4. **Drug catalog:** ✅ **Shared-global** for all tenants.
+5. **Trial:** ✅ **No automatic free trial.** Instead the **super-admin grants access manually** for an arbitrary number of days (3/7/any) so a clinic can try it. → Subscription core must support an admin "grant N days" action that sets/extends `currentPeriodEnd` and flips status ACTIVE, any day count.
 
-> Nothing is implemented yet — this is the plan. Approve/adjust the decisions above and I'll start with the Postgres switch + tenant model on this `multi-vendor` branch.
+> Approved. Build order = Section 7 roadmap, starting Postgres switch + Tenant model on this `multi-vendor` branch.

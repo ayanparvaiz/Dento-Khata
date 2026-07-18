@@ -1,30 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
-import { existsSync, copyFileSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { execSync } from 'child_process';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { prepareData, dataPaths } from './data';
+import { dataPaths } from './data';
 
 async function bootstrap() {
-  // 1) Persistent data folder (OUTSIDE the app install dir) so updates never lose data.
-  //    Auto-restores from the newest backup if the DB is missing; migrates a legacy in-app DB once.
-  const { dbFile, uploadsDir, backupDir, action } = prepareData();
-  process.env.DATABASE_URL = `file:${dbFile}`;
+  // Persistent uploads/backups dir (OUTSIDE the app install dir). The DB is PostgreSQL
+  // (multi-tenant SaaS) — its connection comes from DATABASE_URL, not a local file.
+  const { uploadsDir, backupDir } = dataPaths();
+  mkdirSync(uploadsDir, { recursive: true });
+  mkdirSync(backupDir, { recursive: true });
   process.env.UPLOAD_DIR = uploadsDir;
-  console.log(`Data: ${dbFile} (${action})`);
+  console.log(`Uploads: ${uploadsDir}`);
 
-  // 2) Safety net: snapshot BEFORE migrating, so a bad update is always reversible.
+  // Apply pending schema migrations (safe + idempotent on updates).
   try {
-    if (existsSync(dbFile)) copyFileSync(dbFile, join(backupDir, `pre-migrate-${Date.now()}.db`));
-  } catch (e) {
-    console.warn('pre-migration backup failed', e);
-  }
-
-  // 3) Apply pending schema migrations to existing data (safe + idempotent on updates).
-  try {
-    // Windows uses prisma.cmd, macOS/Linux uses prisma — works on both.
     const binName = process.platform === 'win32' ? 'prisma.cmd' : 'prisma';
     const prismaBin = join(process.cwd(), 'node_modules', '.bin', binName);
     execSync(`"${prismaBin}" migrate deploy`, { stdio: 'ignore', env: process.env, shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh' });
@@ -34,9 +27,8 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.enableShutdownHooks(); // lets the backup service snapshot on graceful shutdown
+  app.enableShutdownHooks();
 
-  // Permissive CORS — offline private LAN.
   app.enableCors({ origin: true, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix('api');
@@ -44,7 +36,7 @@ async function bootstrap() {
   // Serve uploaded x-rays / photos / documents from the persistent uploads dir.
   app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
 
-  // Single-URL serve: backend also serves the built frontend + SPA fallback (one LAN port).
+  // Single-URL serve: backend also serves the built frontend + SPA fallback (one port).
   const frontendDist = join(process.cwd(), '..', 'frontend', 'dist');
   if (existsSync(frontendDist)) {
     app.useStaticAssets(frontendDist);

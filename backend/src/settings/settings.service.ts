@@ -2,26 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSettingsDto } from './dto';
 
-const SINGLETON_ID = 'clinic';
-
 @Injectable()
 export class SettingsService {
   constructor(private prisma: PrismaService) {}
 
-  // Always returns the single settings row, creating it on first access.
-  get() {
-    return this.prisma.clinicSettings.upsert({
-      where: { id: SINGLETON_ID },
-      update: {},
-      create: { id: SINGLETON_ID },
-    });
+  // The current tenant's settings row (scoped by request context), created on first access.
+  async get() {
+    const existing = await this.prisma.clinicSettings.findFirst();
+    if (existing) return existing;
+    return this.prisma.clinicSettings.create({ data: {} });
   }
 
-  update(dto: UpdateSettingsDto) {
-    return this.prisma.clinicSettings.upsert({
-      where: { id: SINGLETON_ID },
-      update: dto,
-      create: { id: SINGLETON_ID, ...dto },
-    });
+  async update(dto: UpdateSettingsDto) {
+    const current = await this.get();
+    return this.prisma.clinicSettings.update({ where: { id: current.id }, data: dto });
   }
 }

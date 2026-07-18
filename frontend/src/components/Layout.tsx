@@ -30,7 +30,8 @@ const nav: { to: string; label: string; icon: any; end?: boolean; adminOnly?: bo
 export function Layout() {
   const { user, logout, can } = useAuth();
   const [open, setOpen] = useState(false); // mobile drawer
-  const items = nav.filter((n) => (n.adminOnly ? user?.role === 'ADMIN' : n.cap ? can(n.cap) : true));
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER';
+  const items = nav.filter((n) => (n.adminOnly ? isAdmin : n.cap ? can(n.cap) : true));
 
   return (
     <div className="flex h-full">

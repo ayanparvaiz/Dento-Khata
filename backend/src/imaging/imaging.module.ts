@@ -10,9 +10,10 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { Requires } from '../auth/permissions.guard';
+import { currentTenantId } from '../tenant/tenant-context';
 
 // UPLOAD_DIR is set to an absolute persistent path at startup (see main.ts).
-const UPLOAD_ROOT = join(process.env.UPLOAD_DIR || join(process.cwd(), 'uploads'), 'patients');
+const uploadRoot = () => process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
 
 @Injectable()
 class ImagingService {
@@ -27,10 +28,11 @@ class ImagingService {
 
   create(patientId: string, file: Express.Multer.File, body: any, userId?: string) {
     const isImage = file.mimetype.startsWith('image/');
+    const tid = currentTenantId() || '_shared';
     return this.prisma.patientFile.create({
       data: {
         patientId,
-        filePath: `/uploads/patients/${patientId}/${file.filename}`,
+        filePath: `/uploads/${tid}/patients/${patientId}/${file.filename}`,
         fileName: file.originalname,
         mimeType: file.mimetype,
         fileType: isImage ? 'IMAGE' : 'DOCUMENT',
@@ -49,7 +51,7 @@ class ImagingService {
     try {
       // filePath is a URL like /uploads/patients/<id>/<file>; map it back to the persistent disk dir.
       const rel = f.filePath.replace(/^\/uploads\//, '');
-      unlinkSync(join(process.env.UPLOAD_DIR || join(process.cwd(), 'uploads'), rel));
+      unlinkSync(join(uploadRoot(), rel));
     } catch {
       /* file already gone */
     }
@@ -72,7 +74,8 @@ class ImagingController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (req, _file, cb) => {
-          const dir = join(UPLOAD_ROOT, String(req.params.id));
+          const tid = currentTenantId() || '_shared';
+          const dir = join(uploadRoot(), tid, 'patients', String(req.params.id));
           if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
           cb(null, dir);
         },

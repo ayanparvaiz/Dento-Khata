@@ -1,39 +1,113 @@
-// Dental Practice Management - data model (SQLite)
-// Note: SQLite has no native enums/arrays. Statuses/roles use String + app validation.
-// Multi-value fields (allergies, pocket depths) are stored as JSON strings.
+// Dental Practice Management — MULTI-TENANT (SaaS) data model (PostgreSQL)
+// Each clinic = a Tenant. Every tenant-scoped table carries `tenantId`.
+// Isolation is enforced in code by a Prisma middleware that injects/filters tenantId
+// from the request's verified JWT (see src/tenant/*). Never trust a tenantId from the body.
+// Multi-value fields (allergies, pocket depths, exam grid) are stored as JSON strings.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ---------------------------------------------------------------------------
-// Auth & users
-// ---------------------------------------------------------------------------
-model User {
+// ===========================================================================
+// PLATFORM (not tenant-scoped) — the SaaS registry & billing
+// ===========================================================================
+
+// A clinic account. The unit of tenancy.
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique // login code, e.g. "smile-dental" (used at login)
+  name      String
+  ownerName String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true) // super-admin can suspend without deleting
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  subscription Subscription?
+}
+
+// Platform operators (you). Separate from tenant users — cross-tenant, no tenantId.
+model SuperAdmin {
   id           String   @id @default(cuid())
   username     String   @unique
   passwordHash String
   fullName     String
-  role         String   @default("ASSISTANT") // ADMIN | ASSISTANT
-  permissions  String?  // JSON array of capability keys granted to an ASSISTANT (ADMIN = all)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+// One subscription per tenant. Gateway-agnostic (Phase 1 = manual bKash).
+model Subscription {
+  id               String    @id @default(cuid())
+  tenantId         String    @unique @default("")
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan             String    @default("STANDARD")
+  status           String    @default("PENDING") // PENDING | ACTIVE | PAST_DUE | SUSPENDED
+  currentPeriodEnd DateTime? // access allowed while now <= this (+grace)
+  amount           Float     @default(990)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  payments SubscriptionPayment[]
+}
+
+// A payment/verification event: a manual bKash send, or a super-admin manual grant.
+model SubscriptionPayment {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  tenantId       String @default("")
+  amount         Float        @default(0)
+  method         String       @default("BKASH") // BKASH | MANUAL_GRANT
+  trxId          String? // bKash transaction id the tenant submitted
+  senderMsisdn   String? // phone number the money came from
+  status         String       @default("SUBMITTED") // SUBMITTED | VERIFIED | REJECTED
+  periodDays     Int          @default(30) // days added on verification
+  note           String?
+  submittedAt    DateTime     @default(now())
+  verifiedAt     DateTime?
+  verifiedBy     String? // super-admin id
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+// ===========================================================================
+// Auth & users (tenant-scoped)
+// ===========================================================================
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String @default("")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phone        String   @unique // LOGIN identifier — globally unique across all clinics
+  username     String? // optional display/login name
+  passwordHash String
+  fullName     String
+  role         String   @default("ASSISTANT") // OWNER | ADMIN | ASSISTANT
+  permissions  String? // JSON array of capability keys granted to an ASSISTANT (ADMIN/OWNER = all)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
   appointments Appointment[]
   auditLogs    AuditLog[]
+
+  @@index([tenantId])
 }
 
-// ---------------------------------------------------------------------------
-// Patient
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Patient (tenant-scoped)
+// ===========================================================================
 model Patient {
   id             String    @id @default(cuid())
-  code           String    @unique // human-readable id e.g. P-00123
+  tenantId       String @default("")
+  code           String // human-readable id e.g. P-00123 (unique per tenant)
   fullName       String
   photoPath      String?
   dateOfBirth    DateTime?
@@ -52,42 +126,48 @@ model Patient {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  medicalHistory MedicalHistory?
-  appointments   Appointment[]
-  toothRecords   ToothRecord[]
-  perioRecords   PerioRecord[]
+  medicalHistory   MedicalHistory?
+  appointments     Appointment[]
+  toothRecords     ToothRecord[]
+  perioRecords     PerioRecord[]
   treatmentPlans   TreatmentPlan[]
   treatmentRecords TreatmentRecord[]
   clinicalNotes    ClinicalNote[]
-  prescriptions  Prescription[]
-  invoices       Invoice[]
-  payments       Payment[]
-  files          PatientFile[]
+  prescriptions    Prescription[]
+  invoices         Invoice[]
+  payments         Payment[]
+  files            PatientFile[]
 
+  @@unique([tenantId, code])
+  @@index([tenantId])
   @@index([fullName])
   @@index([phone])
 }
 
 model MedicalHistory {
-  id             String   @id @default(cuid())
-  patientId      String   @unique
-  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  allergies      String? // JSON array string
-  medications    String?
-  conditions     String? // diabetes, hypertension, cardiac, bleeding...
-  habits         String? // smoking, tobacco/gutka, betel nut, alcohol
+  id                String   @id @default(cuid())
+  tenantId          String @default("")
+  patientId         String   @unique
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  allergies         String? // JSON array string
+  medications       String?
+  conditions        String? // diabetes, hypertension, cardiac, bleeding...
+  habits            String? // smoking, tobacco/gutka, betel nut, alcohol
   pastDentalHistory String?
-  isPregnant     Boolean  @default(false)
-  premedRequired Boolean  @default(false)
-  notes          String?
-  updatedAt      DateTime @updatedAt
+  isPregnant        Boolean  @default(false)
+  premedRequired    Boolean  @default(false)
+  notes             String?
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
 }
 
-// ---------------------------------------------------------------------------
-// Appointment
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Appointment (tenant-scoped)
+// ===========================================================================
 model Appointment {
   id        String   @id @default(cuid())
+  tenantId  String @default("")
   patientId String
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   dentistId String?
@@ -103,15 +183,17 @@ model Appointment {
   files    PatientFile[]
   payments Payment[]
 
+  @@index([tenantId])
   @@index([startTime])
   @@index([patientId])
 }
 
-// ---------------------------------------------------------------------------
-// Dental charting
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Dental charting (tenant-scoped)
+// ===========================================================================
 model ToothRecord {
   id          String   @id @default(cuid())
+  tenantId    String @default("")
   patientId   String
   patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   toothNumber String // FDI notation e.g. "11", "48", primary "55"
@@ -122,11 +204,13 @@ model ToothRecord {
   recordedAt  DateTime @default(now())
   recordedBy  String?
 
+  @@index([tenantId])
   @@index([patientId])
 }
 
 model PerioRecord {
   id          String   @id @default(cuid())
+  tenantId    String @default("")
   patientId   String
   patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   toothNumber String
@@ -137,15 +221,17 @@ model PerioRecord {
   furcation   Int? // 0-3
   recordedAt  DateTime @default(now())
 
+  @@index([tenantId])
   @@index([patientId])
 }
 
-// ---------------------------------------------------------------------------
-// Treatment & procedures
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Treatment & procedures (tenant-scoped)
+// ===========================================================================
 model Procedure {
   id         String  @id @default(cuid())
-  code       String  @unique // ADA CDT or custom
+  tenantId   String @default("")
+  code       String // ADA CDT or custom (unique per tenant)
   name       String
   category   String?
   defaultFee Float   @default(0)
@@ -153,10 +239,14 @@ model Procedure {
 
   treatmentItems TreatmentItem[]
   invoiceItems   InvoiceItem[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
 }
 
 model TreatmentPlan {
   id        String   @id @default(cuid())
+  tenantId  String @default("")
   patientId String
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   title     String?
@@ -166,12 +256,14 @@ model TreatmentPlan {
   items         TreatmentItem[]
   records       TreatmentRecord[]
   prescriptions Prescription[]
+
+  @@index([tenantId])
 }
 
 // Per-visit treatment log: a dated one-line note of what was done (e.g. RCT day 2).
-// Linked to a plan so the statement/invoice shows which treatment it was for.
 model TreatmentRecord {
   id        String         @id @default(cuid())
+  tenantId  String @default("")
   patientId String
   patient   Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
   planId    String?
@@ -183,11 +275,13 @@ model TreatmentRecord {
 
   payments Payment[]
 
+  @@index([tenantId])
   @@index([patientId])
 }
 
 model TreatmentItem {
   id          String        @id @default(cuid())
+  tenantId    String @default("")
   planId      String
   plan        TreatmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   procedureId String
@@ -198,22 +292,27 @@ model TreatmentItem {
   fee         Float
   completedAt DateTime?
   billed      Boolean       @default(false) // charged to an invoice yet?
+
+  @@index([tenantId])
 }
 
 model ClinicalNote {
   id        String   @id @default(cuid())
+  tenantId  String @default("")
   patientId String
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   content   String
   authorId  String?
   createdAt DateTime @default(now())
 
+  @@index([tenantId])
   @@index([patientId])
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // Prescription & drugs
-// ---------------------------------------------------------------------------
+// Drug catalog is GLOBAL/shared across all tenants (not tenant-scoped).
+// ===========================================================================
 model Drug {
   id       String  @id @default(cuid())
   name     String // brand
@@ -229,10 +328,11 @@ model Drug {
 }
 
 model Prescription {
-  id        String   @id @default(cuid())
-  patientId String
-  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  dentistId String?
+  id             String         @id @default(cuid())
+  tenantId       String @default("")
+  patientId      String
+  patient        Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  dentistId      String?
   // Clinical fields (ZilSoft-style)
   diagnosis      String? // Disease / Condition / Dx
   chiefComplaint String? // C/C
@@ -245,19 +345,21 @@ model Prescription {
   planId         String? // optional link to a treatment plan (Rx Plan)
   plan           TreatmentPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   // Doctor's quick figures (printed on Rx; not the billing ledger)
-  totalBill    Float?
-  discount     Float?
-  paidToday    Float?
-  visitsNeeded Int?
-  createdAt DateTime @default(now())
+  totalBill      Float?
+  discount       Float?
+  paidToday      Float?
+  visitsNeeded   Int?
+  createdAt      DateTime       @default(now())
 
   items PrescriptionItem[]
 
+  @@index([tenantId])
   @@index([patientId])
 }
 
 model PrescriptionItem {
   id             String       @id @default(cuid())
+  tenantId       String @default("")
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
   drugId         String?
@@ -270,14 +372,17 @@ model PrescriptionItem {
   route          String? // oral, topical
   timing         String? // খাবার আগে / খাবার পর / ভরা পেটে
   instruction    String? // after meal...
+
+  @@index([tenantId])
 }
 
-// ---------------------------------------------------------------------------
-// Billing
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Billing (tenant-scoped)
+// ===========================================================================
 model Invoice {
   id        String   @id @default(cuid())
-  number    String   @unique
+  tenantId  String @default("")
+  number    String // unique per tenant
   patientId String
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   subtotal  Float    @default(0)
@@ -289,11 +394,14 @@ model Invoice {
   items    InvoiceItem[]
   payments Payment[]
 
+  @@unique([tenantId, number])
+  @@index([tenantId])
   @@index([patientId])
 }
 
 model InvoiceItem {
   id          String     @id @default(cuid())
+  tenantId    String @default("")
   invoiceId   String
   invoice     Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   procedureId String?
@@ -303,33 +411,38 @@ model InvoiceItem {
   qty         Int        @default(1)
   unitPrice   Float
   amount      Float
+
+  @@index([tenantId])
 }
 
 model Payment {
-  id            String       @id @default(cuid())
+  id                String           @id @default(cuid())
+  tenantId          String @default("")
   // Payments are patient-level installments (collected a bit each visit).
-  patientId     String?
-  patient       Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  appointmentId String? // which visit it was collected at
-  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  patientId         String?
+  patient           Patient?         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointmentId     String? // which visit it was collected at
+  appointment       Appointment?     @relation(fields: [appointmentId], references: [id])
   treatmentRecordId String? // which treatment-record visit this payment is for (per-visit invoice)
   treatmentRecord   TreatmentRecord? @relation(fields: [treatmentRecordId], references: [id], onDelete: SetNull)
-  invoiceId     String? // legacy / optional invoice link
-  invoice       Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  amount        Float
-  method        String // CASH | CARD | BKASH | NAGAD | OTHER
-  paidAt        DateTime     @default(now())
-  receivedBy    String?
-  note          String?
+  invoiceId         String? // legacy / optional invoice link
+  invoice           Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount            Float
+  method            String // CASH | CARD | BKASH | NAGAD | OTHER
+  paidAt            DateTime         @default(now())
+  receivedBy        String?
+  note              String?
 
+  @@index([tenantId])
   @@index([patientId])
 }
 
-// ---------------------------------------------------------------------------
-// Imaging & documents
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Imaging & documents (tenant-scoped)
+// ===========================================================================
 model PatientFile {
   id            String       @id @default(cuid())
+  tenantId      String @default("")
   patientId     String
   patient       Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
   appointmentId String?
@@ -337,27 +450,30 @@ model PatientFile {
   filePath      String // stored path on server PC disk
   fileName      String // original name
   mimeType      String // image/jpeg, image/png, application/pdf
-  fileType      String   @default("IMAGE") // IMAGE | DOCUMENT
+  fileType      String       @default("IMAGE") // IMAGE | DOCUMENT
   category      String? // INTRAORAL | OPG | PERIAPICAL | BITEWING | PHOTO | LAB_REPORT | CONSENT | OTHER
   toothNumber   String?
   caption       String?
   takenAt       DateTime?
-  uploadedAt    DateTime @default(now())
+  uploadedAt    DateTime     @default(now())
   uploadedBy    String?
 
+  @@index([tenantId])
   @@index([patientId])
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // System
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// One settings row PER TENANT (was a global singleton).
 model ClinicSettings {
-  id            String  @id @default("clinic") // singleton row
-  name          String  @default("My Dental Clinic")
-  address       String?
-  phone         String?
-  logoPath      String?
-  letterhead    String?
+  id             String  @id @default(cuid())
+  tenantId       String  @unique @default("")
+  name           String  @default("My Dental Clinic")
+  address        String?
+  phone          String?
+  logoPath       String?
+  letterhead     String?
   // Shared letterhead template for prescription + invoice print
   headerTitle    String? // big title (doctor/clinic name)
   headerSubtitle String? // designation / qualifications
@@ -365,19 +481,21 @@ model ClinicSettings {
   footerLeft     String? // multi-line (clinic name, address)
   footerRight    String? // multi-line (phone, visit hours)
   themeColor     String? // print theme color (hex) for prescription + invoice
-  toothNotation String  @default("FDI") // FDI | UNIVERSAL | PALMER
-  currency      String  @default("BDT")
+  toothNotation  String  @default("FDI") // FDI | UNIVERSAL | PALMER
+  currency       String  @default("BDT")
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  action    String // CREATE | UPDATE | DELETE
-  entity    String // table name
-  entityId  String?
-  detail    String? // JSON diff
+  id       String   @id @default(cuid())
+  tenantId String?
+  userId   String?
+  user     User?    @relation(fields: [userId], references: [id])
+  action   String // CREATE | UPDATE | DELETE
+  entity   String // table name
+  entityId String?
+  detail   String? // JSON diff
   createdAt DateTime @default(now())
 
+  @@index([tenantId])
   @@index([createdAt])
 }

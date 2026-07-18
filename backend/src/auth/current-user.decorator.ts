@@ -5,6 +5,7 @@ export interface AuthUser {
   username: string;
   role: string;
   fullName: string;
+  tenantId: string;
 }
 
 // Usage: someHandler(@CurrentUser() user: AuthUser) {}
