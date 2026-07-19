@@ -153,9 +153,10 @@ export function Signup() {
             className="absolute inset-0 -z-10 h-full w-full object-cover opacity-60"
           />
         )}
-        {/* gradient wash over the photo for text contrast (lighter so the photo shows) */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-teal-800/65 via-teal-700/45 to-emerald-600/35" />
-        <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-black/35 to-transparent" />
+        {/* gradient wash — soft black-green tint over the photo (photo still shows through) */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-black/55 via-teal-950/45 to-emerald-900/40" />
+        <div className="absolute inset-0 -z-10 bg-emerald-950/20" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-black/40 to-transparent" />
 
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/20">
