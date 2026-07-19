@@ -8,9 +8,9 @@ import { Lock, LogOut, CheckCircle2, MessageCircle, Copy, Check } from 'lucide-r
 
 // Package options (must match the landing page).
 const PLANS = [
-  { label: '১ মাস', price: '৳৯৯০', per: '৳৯৯০/মাস', save: '' },
-  { label: '৬ মাস', price: '৳৫,৪৯০', per: '৳৯১৫/মাস', save: '৳৪৫০ সাশ্রয়' },
-  { label: '১২ মাস', price: '৳৯,৯৯০', per: '৳৮৩২/মাস', save: 'সেরা মূল্য' },
+  { label: '১ মাস', price: '৳১,৯৯০', per: '৳১,৯৯০/মাস', save: '' },
+  { label: '৬ মাস', price: '৳১০,৯৯০', per: '৳১,৮৩২/মাস', save: '৳৯৫০ সাশ্রয়' },
+  { label: '১২ মাস', price: '৳১৯,৯৯০', per: '৳১,৬৬৬/মাস', save: 'সেরা মূল্য' },
 ];
 
 function CopyNumber({ number }: { number: string }) {
@@ -53,7 +53,7 @@ export function Paywall() {
     }
   };
 
-  const amount = sub?.amount ?? 990;
+  const amount = sub?.amount ?? 1990;
   const bkash = sub?.bkashNumber ?? '—';
   const whatsapp = sub?.whatsapp || '';
   const suspended = sub?.status === 'SUSPENDED';

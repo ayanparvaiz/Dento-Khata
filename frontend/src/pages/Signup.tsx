@@ -48,11 +48,11 @@ function CopyNumber({ number, dark = false }: { number: string; dark?: boolean }
   );
 }
 
-// Pricing packages (monthly base ৳990; longer terms cheaper per month).
+// Pricing packages (monthly base ৳1990; longer terms cheaper per month).
 const PLANS = [
-  { label: '১ মাস', price: '৳৯৯০', per: '৳৯৯০ / মাস', save: '', best: false },
-  { label: '৬ মাস', price: '৳৫,৪৯০', per: '৳৯১৫ / মাস', save: '৳৪৫০ সাশ্রয়', best: false },
-  { label: '১২ মাস', price: '৳৯,৯৯০', per: '৳৮৩২ / মাস', save: '৳১,৮৯০ সাশ্রয়', best: true },
+  { label: '১ মাস', price: '৳১,৯৯০', per: '৳১,৯৯০ / মাস', save: '', best: false },
+  { label: '৬ মাস', price: '৳১০,৯৯০', per: '৳১,৮৩২ / মাস', save: '৳৯৫০ সাশ্রয়', best: false },
+  { label: '১২ মাস', price: '৳১৯,৯৯০', per: '৳১,৬৬৬ / মাস', save: '৳৩,৮৯০ সাশ্রয়', best: true },
 ];
 
 // Background photo layer with graceful fallback (hides itself if the image fails).
@@ -178,7 +178,7 @@ export function Signup() {
               <MessageCircle className="h-4 w-4" /> কথা বলুন
             </a>
           </div>
-          <p className="mt-5 text-sm text-teal-50/80">মাত্র ৳৯৯০/মাস · কোনো সেটআপ ফি নেই</p>
+          <p className="mt-5 text-sm text-teal-50/80">মাত্র ৳১,৯৯০/মাস · কোনো সেটআপ ফি নেই</p>
 
           {/* Highlighted service promises */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 text-sm font-medium">
