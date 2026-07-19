@@ -171,7 +171,7 @@ export function Signup() {
           </p>
           <div className="mx-auto mt-8 flex max-w-md flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center">
             <Button onClick={scrollToForm} className="h-12 bg-white px-6 text-base font-semibold text-primary shadow-lg shadow-teal-900/20 hover:bg-teal-50">
-              ফ্রি অ্যাকাউন্ট তৈরি করুন <ArrowRight className="ml-1.5 h-4 w-4" />
+              অ্যাকাউন্ট তৈরি করুন <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
             <a href={`https://wa.me/88${WHATSAPP}`} target="_blank" rel="noreferrer"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-white/40 px-6 text-base font-medium hover:bg-white/10">
@@ -273,7 +273,7 @@ export function Signup() {
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             {PLANS.map((pl) => (
               <div key={pl.label} className={`relative rounded-2xl bg-white p-5 text-center shadow-sm ${pl.best ? 'border-2 border-primary shadow-md' : 'border border-slate-100'}`}>
-                {pl.best && <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">সেরা মূল্য · ২ মাস ফ্রি</span>}
+                {pl.best && <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">সেরা মূল্য · ২ মাস সাশ্রয়</span>}
                 <p className="text-sm font-medium text-teal-700">{pl.label}</p>
                 <p className="mt-1 text-3xl font-extrabold">{pl.price}</p>
                 <p className="mt-0.5 text-xs text-slate-500">{pl.per}</p>
@@ -319,7 +319,7 @@ export function Signup() {
         <div className="relative mx-auto max-w-md">
           <div className="mb-5 text-center text-white">
             <h2 className="text-2xl font-bold md:text-3xl">আজই আপনার ক্লিনিক ডিজিটাল করুন</h2>
-            <p className="mt-2 text-sm text-teal-50/90">১ মিনিটেই ফ্রি অ্যাকাউন্ট তৈরি করুন — কোনো সেটআপ ফি নেই।</p>
+            <p className="mt-2 text-sm text-teal-50/90">১ মিনিটেই অ্যাকাউন্ট তৈরি করুন — কোনো সেটআপ ফি নেই।</p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-xl">
             <form onSubmit={submit} className="space-y-3">
