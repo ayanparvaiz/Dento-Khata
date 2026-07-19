@@ -1,33 +1,52 @@
 import { useNavigate } from 'react-router-dom';
 import { useDashboard, taka } from '@/lib/clinical';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, CalendarDays, CalendarRange, Stethoscope, Wallet, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Users, CalendarDays, CalendarRange, Stethoscope, Wallet, AlertCircle, ChevronRight } from 'lucide-react';
 
 const fmtTime = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const STATUS_TONE: Record<string, string> = {
-  SCHEDULED: 'bg-blue-500/10 text-blue-600',
-  COMPLETED: 'bg-emerald-500/10 text-emerald-600',
-  CANCELLED: 'bg-rose-500/10 text-rose-600',
-  NO_SHOW: 'bg-amber-500/10 text-amber-600',
+  BOOKED: 'bg-blue-100 text-blue-700',
+  CONFIRMED: 'bg-sky-100 text-sky-700',
+  ARRIVED: 'bg-amber-100 text-amber-700',
+  IN_CHAIR: 'bg-violet-100 text-violet-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
+  CANCELLED: 'bg-rose-100 text-rose-700',
+  NO_SHOW: 'bg-red-100 text-red-700',
+};
+
+// Soft, distinct colour per KPI — colourful but calm.
+const TONES: Record<string, { card: string; icon: string; val: string; ring: string }> = {
+  primary: { card: 'bg-teal-50', icon: 'bg-teal-500', val: 'text-teal-700', ring: 'hover:ring-teal-300' },
+  blue: { card: 'bg-blue-50', icon: 'bg-blue-500', val: 'text-blue-700', ring: 'hover:ring-blue-300' },
+  green: { card: 'bg-emerald-50', icon: 'bg-emerald-500', val: 'text-emerald-700', ring: 'hover:ring-emerald-300' },
+  violet: { card: 'bg-violet-50', icon: 'bg-violet-500', val: 'text-violet-700', ring: 'hover:ring-violet-300' },
+  amber: { card: 'bg-amber-50', icon: 'bg-amber-500', val: 'text-amber-700', ring: 'hover:ring-amber-300' },
+  red: { card: 'bg-rose-50', icon: 'bg-rose-500', val: 'text-rose-700', ring: 'hover:ring-rose-300' },
 };
 
 function Stat({ icon: Icon, label, value, sub, tone, onClick }: any) {
-  const tones: Record<string, string> = {
-    primary: 'bg-primary/10 text-primary', green: 'bg-emerald-500/10 text-emerald-600',
-    blue: 'bg-blue-500/10 text-blue-600', amber: 'bg-amber-500/10 text-amber-600',
-    red: 'bg-rose-500/10 text-rose-600', violet: 'bg-violet-500/10 text-violet-600',
-  };
+  const t = TONES[tone] || TONES.primary;
   return (
-    <Card className="cursor-pointer transition hover:shadow-md" onClick={onClick}>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tones[tone]}`}><Icon className="h-5 w-5" /></div>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-muted-foreground">{label}</div>
-          <div className="truncate text-2xl font-bold leading-tight">{value}</div>
-          {sub && <div className="truncate text-xs text-muted-foreground">{sub}</div>}
+    <div
+      onClick={onClick}
+      className={cn(
+        'group cursor-pointer rounded-2xl p-4 shadow-sm ring-1 ring-black/5 transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-2',
+        t.card, t.ring,
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-sm', t.icon)}>
+          <Icon className="h-6 w-6" />
         </div>
-      </CardContent>
-    </Card>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium text-slate-600">{label}</div>
+          <div className={cn('truncate text-2xl font-bold leading-tight', t.val)}>{value}</div>
+          {sub && <div className="truncate text-xs text-slate-500">{sub}</div>}
+        </div>
+        <ChevronRight className="ml-auto h-5 w-5 shrink-0 -translate-x-1 text-slate-300 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+      </div>
+    </div>
   );
 }
 
@@ -38,7 +57,7 @@ function Spark({ data }: { data: { date: string; amount: number }[] }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="h-14 w-full">
       {data.map((d, i) => {
         const h = (d.amount / max) * (H - 6);
-        return <rect key={i} x={i * bw + 1} y={H - h} width={bw - 2} height={h} rx={1.5} className="fill-primary/70">
+        return <rect key={i} x={i * bw + 1} y={H - h} width={bw - 2} height={h} rx={1.5} className="fill-primary/70 transition-colors hover:fill-primary">
           <title>{d.date}: {taka(d.amount)}</title>
         </rect>;
       })}
@@ -55,8 +74,8 @@ export function Dashboard() {
       <h1 className="mb-1 text-2xl font-bold">Dashboard</h1>
       <p className="mb-6 text-sm">
         {isError
-          ? <span className="text-danger">Backend unreachable — is the server PC running?</span>
-          : <span className="text-success">Connected ✓ · offline LAN</span>}
+          ? <span className="text-danger">Backend unreachable — is the server running?</span>
+          : <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 font-medium text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Connected</span>}
       </p>
 
       {/* KPI grid */}
@@ -74,7 +93,7 @@ export function Dashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Today's schedule</CardTitle>
-            <button className="text-sm text-primary hover:underline" onClick={() => navigate('/appointments')}>View all →</button>
+            <button className="text-sm font-medium text-primary hover:underline" onClick={() => navigate('/appointments')}>View all →</button>
           </CardHeader>
           <CardContent>
             {(!data?.todaySchedule || data.todaySchedule.length === 0)
@@ -82,13 +101,14 @@ export function Dashboard() {
               : (
                 <div className="space-y-1">
                   {data.todaySchedule.map((a: any) => (
-                    <div key={a.id} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted" onClick={() => a.patientId && navigate(`/patients/${a.patientId}`)}>
-                      <div className="w-16 shrink-0 text-sm font-semibold tabular-nums">{fmtTime(a.time)}</div>
+                    <div key={a.id} className="group flex cursor-pointer items-center gap-3 rounded-lg border border-transparent px-2 py-2 transition-colors hover:border-primary/20 hover:bg-primary/5" onClick={() => a.patientId && navigate(`/patients/${a.patientId}`)}>
+                      <div className="w-16 shrink-0 text-sm font-semibold tabular-nums text-primary">{fmtTime(a.time)}</div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium">{a.patient || 'Unknown'} <span className="font-mono text-xs text-muted-foreground">{a.code}</span></div>
                         {a.reason && <div className="truncate text-xs text-muted-foreground">{a.reason}{a.chair ? ` · ${a.chair}` : ''}</div>}
                       </div>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[a.status] || 'bg-muted text-muted-foreground'}`}>{a.status}</span>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[a.status] || 'bg-slate-100 text-slate-600'}`}>{a.status}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 opacity-0 transition group-hover:opacity-100" />
                     </div>
                   ))}
                 </div>
@@ -101,7 +121,7 @@ export function Dashboard() {
           <Card>
             <CardHeader><CardTitle className="text-sm">Revenue · last 14 days</CardTitle></CardHeader>
             <CardContent>
-              <div className="mb-2 text-2xl font-bold">{data ? taka((data.spark ?? []).reduce((s: number, d: any) => s + d.amount, 0)) : '—'} <span className="text-sm font-normal text-muted-foreground">last 14 days</span></div>
+              <div className="mb-2 text-2xl font-bold text-emerald-700">{data ? taka((data.spark ?? []).reduce((s: number, d: any) => s + d.amount, 0)) : '—'} <span className="text-sm font-normal text-muted-foreground">last 14 days</span></div>
               {data?.spark && <Spark data={data.spark} />}
             </CardContent>
           </Card>
@@ -114,9 +134,9 @@ export function Dashboard() {
                 : (
                   <div className="space-y-1">
                     {data.topDues.map((d: any) => (
-                      <div key={d.patientId} className="flex cursor-pointer items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted" onClick={() => navigate(`/patients/${d.patientId}`)}>
+                      <div key={d.patientId} className="group flex cursor-pointer items-center justify-between rounded-lg border border-transparent px-2 py-1.5 transition-colors hover:border-rose-200 hover:bg-rose-50" onClick={() => navigate(`/patients/${d.patientId}`)}>
                         <span className="truncate text-sm">{d.patient}</span>
-                        <span className="ml-2 shrink-0 text-sm font-semibold text-rose-600">{taka(d.balance)}</span>
+                        <span className="ml-2 flex shrink-0 items-center gap-1 text-sm font-semibold text-rose-600">{taka(d.balance)}<ChevronRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" /></span>
                       </div>
                     ))}
                   </div>
