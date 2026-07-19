@@ -178,6 +178,16 @@ export function Signup() {
             </a>
           </div>
           <p className="mt-5 text-sm text-teal-50/80">মাত্র ৳৯৯০/মাস · কোনো সেটআপ ফি নেই</p>
+
+          {/* Highlighted service promises */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 text-sm font-medium">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 ring-1 ring-white/25">
+              <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" /><span className="inline-flex h-2 w-2 rounded-full bg-emerald-300" /></span>
+              ২৪/৭ সাপোর্ট
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 ring-1 ring-white/25">🔄 নিয়মিত নতুন আপডেট</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 ring-1 ring-white/25">☁️ প্রতিদিন ব্যাকআপ</span>
+          </div>
         </div>
       </section>
 
