@@ -19,8 +19,15 @@ const j = async (path, opts = {}) => {
 };
 
 const run = async () => {
-  const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // Headed + non-automation UA: Meta's `botblocking` pixel plugin silently drops
+  // every event from headless Chromium, so headless would report 0 pixel hits.
+  const browser = await chromium.launch({ headless: false, args: ['--disable-blink-features=AutomationControlled'] });
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    userAgent:
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  });
+  await ctx.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => undefined }));
   const page = await ctx.newPage();
 
   // Capture every Meta pixel hit (browser side)
