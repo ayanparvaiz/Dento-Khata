@@ -31,6 +31,11 @@ export class SignupDto {
   @IsString()
   @MinLength(6)
   password: string;
+
+  // Meta ad attribution (sent by the browser pixel) — optional.
+  @IsOptional() @IsString() fbp?: string;
+  @IsOptional() @IsString() fbc?: string;
+  @IsOptional() @IsString() eventId?: string; // shared with the browser CompleteRegistration
 }
 
 export class ChangePasswordDto {

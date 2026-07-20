@@ -25,8 +25,22 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Dento Khata — Dental Software in Bangladesh" />
     <meta name="twitter:description" content="বাংলাদেশের ডেন্টাল চেম্বারের জন্য সম্পূর্ণ সমাধান। ডেন্টিস্ট ম্যানেজমেন্ট সফটওয়্যার।" />
+
+    <!-- Meta Pixel (browser). Server-side Conversions API mirrors these with the same
+         event_id for deduplication — see backend/src/meta/meta.service.ts -->
+    <script>
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+      document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '1611647527154508');
+      fbq('track', 'PageView');
+    </script>
   </head>
   <body>
+    <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=1611647527154508&ev=PageView&noscript=1" alt="" /></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

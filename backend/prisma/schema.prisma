@@ -27,6 +27,10 @@ model Tenant {
   email     String?
   isActive  Boolean  @default(true) // super-admin can suspend without deleting
   signupIp  String? // captured at signup — helps spot spam/abuse (many clinics from one IP)
+  // Meta ad attribution: browser/click ids captured at signup, replayed on the (offline) purchase.
+  fbp       String?
+  fbc       String?
+  signupUa  String? // user agent at signup (improves CAPI match quality)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -52,6 +56,7 @@ model Subscription {
   plan             String    @default("STANDARD")
   status           String    @default("PENDING") // PENDING | ACTIVE | PAST_DUE | SUSPENDED
   currentPeriodEnd DateTime? // access allowed while now <= this (+grace)
+  purchaseTrackedAt DateTime? // Meta Purchase event sent once, on first activated visit
   amount           Float     @default(990)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

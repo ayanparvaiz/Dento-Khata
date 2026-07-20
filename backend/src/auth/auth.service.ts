@@ -6,6 +6,7 @@ import { runInTenant } from '../tenant/tenant-context';
 import { SignupDto } from './dto';
 import { DEFAULT_PROCEDURES } from './default-procedures';
 import { clinicSuspended } from './suspended';
+import { MetaService } from '../meta/meta.service';
 
 // Simple in-memory per-IP signup throttle (anti-spam). No external dep needed.
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -17,6 +18,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private meta: MetaService,
   ) {}
 
   private throttleSignup(ip: string) {
@@ -55,7 +57,7 @@ export class AuthService {
   }
 
   // --- Tenant signup: create clinic + owner + pending subscription -------
-  async signup(dto: SignupDto, ip = '') {
+  async signup(dto: SignupDto, ip = '', ua = '') {
     this.throttleSignup(ip); // anti-spam: cap signups per IP per hour
     const phone = dto.phone.trim();
     // Phone is the login id — must be unique across the whole platform.
@@ -69,7 +71,12 @@ export class AuthService {
     for (let i = 1; await this.prisma.tenant.findUnique({ where: { slug } }); i++) slug = `${base}-${i}`;
 
     const tenant = await this.prisma.tenant.create({
-      data: { slug, name: dto.clinicName, ownerName: dto.ownerName, phone, email: dto.email, signupIp: ip || null },
+      data: {
+        slug, name: dto.clinicName, ownerName: dto.ownerName, phone, email: dto.email,
+        signupIp: ip || null,
+        // Meta attribution — replayed later on the offline purchase.
+        fbp: dto.fbp || null, fbc: dto.fbc || null, signupUa: ua || null,
+      },
     });
 
     const price = Number(process.env.SUBSCRIPTION_PRICE) || 990;
@@ -95,6 +102,14 @@ export class AuthService {
       // Give the clinic a starter procedure list to edit (drug catalog is global/shared).
       await this.prisma.procedure.createMany({ data: DEFAULT_PROCEDURES });
     });
+
+    // Server-side signup conversion (same eventId as the browser pixel → deduplicated).
+    if (dto.eventId) {
+      void this.meta.send({
+        eventName: 'CompleteRegistration', eventId: dto.eventId,
+        phone, externalId: tenant.id, fbp: dto.fbp, fbc: dto.fbc, ip, ua,
+      });
+    }
 
     // Auto-login the owner so onboarding continues straight to the paywall/pay screen.
     return this.login(phone, dto.password);

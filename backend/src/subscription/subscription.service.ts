@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitPaymentDto } from './dto';
+import { MetaService } from '../meta/meta.service';
 
 export interface AccessState {
   active: boolean;
@@ -14,7 +16,7 @@ export interface AccessState {
 
 @Injectable()
 export class SubscriptionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private meta: MetaService) {}
 
   private graceDays() {
     return Number(process.env.SUBSCRIPTION_GRACE_DAYS) || 3;
@@ -50,7 +52,10 @@ export class SubscriptionService {
   }
 
   // The current tenant's subscription (scoped by the request context).
-  async myStatus(): Promise<AccessState & { pendingPayment: boolean }> {
+  // Also the moment we can detect the (offline/manual bKash) purchase: the first time
+  // an activated clinic loads the app we fire Meta Purchase — once — server-side,
+  // replaying the fbp/fbc captured at signup so Meta attributes it to the ad click.
+  async myStatus(): Promise<AccessState & { pendingPayment: boolean; trackPurchase?: boolean; purchaseEventId?: string; purchaseValue?: number }> {
     const sub = await this.prisma.subscription.findFirst();
     const state = this.computeAccess(sub);
     let pendingPayment = false;
@@ -58,7 +63,32 @@ export class SubscriptionService {
       const p = await this.prisma.subscriptionPayment.findFirst({ where: { status: 'SUBMITTED' } });
       pendingPayment = !!p;
     }
-    return { ...state, pendingPayment };
+
+    let trackPurchase = false;
+    let purchaseEventId: string | undefined;
+    let purchaseValue: number | undefined;
+
+    if (sub && state.active && !sub.purchaseTrackedAt) {
+      // value = what they actually paid (latest verified payment), else the plan price
+      const paid = await this.prisma.subscriptionPayment.findFirst({
+        where: { status: 'VERIFIED', amount: { gt: 0 } }, orderBy: { verifiedAt: 'desc' },
+      });
+      purchaseValue = paid?.amount ?? sub.amount;
+      purchaseEventId = `purchase-${sub.tenantId}-${crypto.randomBytes(6).toString('hex')}`;
+      // mark first so a double request can't double-fire
+      await this.prisma.subscription.update({ where: { id: sub.id }, data: { purchaseTrackedAt: new Date() } });
+      trackPurchase = true;
+
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: sub.tenantId } });
+      void this.meta.send({
+        eventName: 'Purchase', eventId: purchaseEventId,
+        phone: tenant?.phone, externalId: sub.tenantId,
+        fbp: tenant?.fbp, fbc: tenant?.fbc, ip: tenant?.signupIp, ua: tenant?.signupUa,
+        value: purchaseValue, currency: 'BDT',
+      });
+    }
+
+    return { ...state, pendingPayment, trackPurchase, purchaseEventId, purchaseValue };
   }
 
   // Tenant submits a manual bKash transaction for the admin to verify.

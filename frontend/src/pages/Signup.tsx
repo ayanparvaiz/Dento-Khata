@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input, Label, PasswordInput } from '@/components/ui/input';
+import { fbTrack } from '@/lib/meta';
 import { Check, MessageCircle, AlertTriangle, ArrowRight, Copy } from 'lucide-react';
 import { ToothIcon } from '@/components/ToothLogo';
 
@@ -112,7 +113,10 @@ export function Signup() {
     }
   };
 
-  const scrollToForm = () => document.getElementById('signup')?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToForm = () => {
+    fbTrack('ViewContent', { content_name: 'pricing_cta' });
+    document.getElementById('signup')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <div className="min-h-full overflow-x-hidden bg-white text-slate-800">

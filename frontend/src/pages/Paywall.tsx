@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Lock, LogOut, CheckCircle2, MessageCircle, Copy, Check } from 'lucide-react';
+import { fbTrack } from '@/lib/meta';
 
 // Package options (must match the landing page).
 const PLANS = [
@@ -69,7 +70,8 @@ export function Paywall() {
     setMsg('');
     try {
       await api.post('/subscription/pay', { trxId: trxId.trim(), senderMsisdn: sender.trim() });
-      setMsg('পেমেন্ট জমা হয়েছে। যাচাই করে আপনার ক্লিনিক শীঘ্রই চালু করা হবে।');
+      fbTrack('InitiateCheckout', { value: amount, currency: 'BDT' }); // paid, awaiting verification
+      setMsg('পেমেন্ট জমা হয়েছে। যাচাই হলে আপনার ক্লিনিক স্বয়ংক্রিয়ভাবে চালু হয়ে যাবে — এই পেজ খোলা রাখুন।');
       setTrxId('');
       setSender('');
       await refreshSub();

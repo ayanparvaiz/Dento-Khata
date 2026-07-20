@@ -27,7 +27,7 @@ export class AuthController {
   @Public()
   @Post('signup')
   signup(@Body() dto: SignupDto, @Req() req: Request) {
-    return this.auth.signup(dto, clientIp(req));
+    return this.auth.signup(dto, clientIp(req), String(req.headers['user-agent'] || ''));
   }
 
   // Returns the currently authenticated user + granted permissions (used on app load).

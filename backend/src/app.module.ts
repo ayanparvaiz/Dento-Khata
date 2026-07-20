@@ -27,6 +27,7 @@ import { AuditInterceptor } from './audit/audit.interceptor';
 import { TenantContextMiddleware } from './tenant/tenant-context.middleware';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { SuperAdminModule } from './superadmin/superadmin.module';
+import { MetaModule } from './meta/meta.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SuperAdminModule } from './superadmin/superadmin.module';
     BackupModule,
     SubscriptionModule,
     SuperAdminModule,
+    MetaModule,
   ],
   controllers: [AppController],
   providers: [
