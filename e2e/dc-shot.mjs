@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const B='https://dento.devcenter.dev';
+const b=await chromium.launch();
+const p=await (await b.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1'})).newPage();
+await p.goto(B+'/login',{waitUntil:'networkidle'});
+await p.locator('input[placeholder="01XXXXXXXXX"]').fill('01711111111');
+await p.locator('input[type=password]').fill('demo1234');
+await p.locator('button[type=submit]').click(); await p.waitForTimeout(3500);
+await p.goto(B+'/charting',{waitUntil:'networkidle'}); await p.waitForTimeout(1500);
+await p.locator('text=রেহানা পারভীন').first().click().catch(()=>{});
+await p.waitForTimeout(2500);
+await p.screenshot({path:'/tmp/dc-mobile-before.png',fullPage:true});
+console.log('shot saved');
+await b.close();

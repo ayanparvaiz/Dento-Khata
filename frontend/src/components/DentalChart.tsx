@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ADULT_LOWER, ADULT_UPPER, CHILD_LOWER, CHILD_UPPER,
   CONDITION_COLOR, CONDITIONS, STATUSES, WHOLE_CONDITIONS,
@@ -15,6 +15,45 @@ import { Trash2, X, Pencil } from 'lucide-react';
 
 const isAnterior = (fdi: string) => ['1', '2', '3'].includes(fdi[1]);
 const surfacesFor = (fdi: string) => ['M', 'D', isAnterior(fdi) ? 'I' : 'O', 'B', 'L'];
+
+// Scales its content down to fit the available width. When the content already fits
+// (desktop), scale stays 1 → pixel-identical to before. On a narrow phone it shrinks
+// the whole dental arch so all 16 teeth stay visible instead of being clipped inside a
+// horizontal scroll. Layout metrics (scrollWidth/offsetHeight) are unaffected by the
+// transform, so measuring never loops.
+function FitWidth({ children }: { children: React.ReactNode }) {
+  const outer = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [h, setH] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const measure = () => {
+      const o = outer.current, i = inner.current;
+      if (!o || !i) return;
+      const natural = i.scrollWidth;
+      const avail = o.clientWidth;
+      const s = natural > avail ? avail / natural : 1;
+      setScale(s);
+      setH(i.offsetHeight * s);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (outer.current) ro.observe(outer.current);
+    if (inner.current) ro.observe(inner.current);
+    return () => ro.disconnect();
+  }, [children]);
+
+  return (
+    <div ref={outer} className="w-full overflow-hidden" style={{ height: h }}>
+      <div className="flex justify-center">
+        <div ref={inner} className="w-max" style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function DentalChart({ patientId }: { patientId: string }) {
   const { data: chart } = useChart(patientId);
@@ -86,11 +125,16 @@ export function DentalChart({ patientId }: { patientId: string }) {
                 <p className="text-xs text-muted-foreground">Click a tooth surface to record or edit a finding.</p>
               </div>
 
-              {/* Anatomical odontogram */}
-              <div className="space-y-3 overflow-x-auto rounded-lg bg-muted/40 p-4">
-                {arch(upper)}
-                <div className="my-1 border-t border-dashed border-border" />
-                {arch(lower)}
+              {/* Anatomical odontogram — fits the full arch to the screen width on mobile,
+                  unchanged (scale 1) on desktop where it already fits. */}
+              <div className="rounded-lg bg-muted/40 p-4">
+                <FitWidth>
+                  <div className="space-y-3">
+                    {arch(upper)}
+                    <div className="my-1 border-t border-dashed border-border" />
+                    {arch(lower)}
+                  </div>
+                </FitWidth>
               </div>
 
               {/* Legend */}
