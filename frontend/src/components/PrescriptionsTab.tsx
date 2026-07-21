@@ -222,9 +222,9 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
         {/* বাম — ক্লিনিক্যাল */}
-        <div className="space-y-3 lg:col-span-3">
+        <div className="space-y-3 xl:col-span-3">
           <div className={box}>
             <div><Label className={lbl}>Chief Complaint (C/C)</Label><textarea className="min-h-[44px] w-full rounded-md border border-border p-2 text-sm" value={d.cc} onChange={(e) => set('cc', e.target.value)} /></div>
             <div className="mt-2">
@@ -258,7 +258,7 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
         </div>
 
         {/* মাঝে — প্রেসক্রিপশন */}
-        <div className="space-y-3 lg:col-span-6">
+        <div className="space-y-3 xl:col-span-6">
           <div className={box}>
             {picked ? (
               <div className="mb-2 flex items-center justify-between rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
@@ -331,7 +331,7 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
         </div>
 
         {/* ডান — ইতিহাস */}
-        <div className="space-y-3 lg:col-span-3">
+        <div className="space-y-3 xl:col-span-3">
           <div className={box}>
             <div className="mb-2 text-[11px] font-semibold text-slate-600">পূর্বের প্রেসক্রিপশন ({bn(history.length)})</div>
             {history.length === 0 && <p className="text-sm text-muted-foreground">এখনো নেই।</p>}

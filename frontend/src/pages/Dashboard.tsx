@@ -127,9 +127,9 @@ export function Dashboard() {
         <Stat icon={AlertCircle} tone="red" label="Outstanding Dues" value={data ? taka(data.outstanding) : '—'} sub={`${data?.topDues?.length ?? 0} patients owe`} onClick={() => navigate('/reports')} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* Today's schedule */}
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Today's schedule</CardTitle>
             <button className="text-sm font-medium text-primary hover:underline" onClick={() => navigate('/appointments')}>View all →</button>

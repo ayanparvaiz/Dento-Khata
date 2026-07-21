@@ -37,9 +37,9 @@ export function Users() {
       <h1 className="mb-1 text-2xl font-bold">Users &amp; Roles</h1>
       <p className="mb-6 text-sm text-muted-foreground">Admin can do everything. An assistant can only do what you tick below.</p>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* Add user */}
-        <Card className="lg:col-span-1 self-start">
+        <Card className="xl:col-span-1 self-start">
           <CardHeader><CardTitle>Add user</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div><Label>Full name</Label><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
@@ -70,7 +70,7 @@ export function Users() {
         </Card>
 
         {/* Existing users */}
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader><CardTitle>All users ({users.length})</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {users.map((u) => (

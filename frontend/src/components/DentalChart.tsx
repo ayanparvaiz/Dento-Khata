@@ -67,8 +67,8 @@ export function DentalChart({ patientId }: { patientId: string }) {
       {view === 'perio' ? (
         <PerioChart perio={chart?.perio ?? []} onSave={savePerioRows} saving={m.perio.isPending} />
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <Card className="xl:col-span-2">
             <CardContent className="space-y-4 pt-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">

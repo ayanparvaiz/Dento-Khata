@@ -279,7 +279,7 @@ function PatientAppointments({ patientId, patientName }: { patientId: string; pa
   );
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle>Upcoming ({upcoming.length})</CardTitle>
@@ -343,7 +343,7 @@ function OverviewTab({ patient, onTab }: { patient: import('@/lib/patients').Pat
         <Tile label="Invoices" value={String(c.invoices ?? 0)} onClick={() => onTab('Treatment & Billing')} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card>
           <CardHeader><CardTitle>Personal</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">

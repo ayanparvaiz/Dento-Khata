@@ -27,7 +27,7 @@ export function BillingTab({ patient }: { patient: Patient }) {
         <Card><CardContent className="pt-5"><div className="text-xs text-muted-foreground">Balance due</div><div className={`text-xl font-bold ${balance > 0 ? 'text-danger' : 'text-success'}`}>{taka(balance)}</div></CardContent></Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {/* Collect installment */}
         <Card>
           <CardHeader><CardTitle>Collect payment</CardTitle></CardHeader>

@@ -52,7 +52,7 @@ export function Settings() {
       <h1 className="mb-6 text-2xl font-bold">Clinic Settings</h1>
       {isAdmin && <BackupCard />}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2">
         {/* Clinic profile */}
         <Card>
           <CardHeader><CardTitle>Clinic profile</CardTitle></CardHeader>
