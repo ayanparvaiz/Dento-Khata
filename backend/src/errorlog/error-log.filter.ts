@@ -30,13 +30,17 @@ export class ErrorLogFilter extends BaseExceptionFilter {
     const status = exception instanceof HttpException ? exception.getStatus() : 500;
     const path: string = req?.originalUrl || req?.url || '';
     const method: string = req?.method || '';
-    const isLogin = /\/auth\/login$/.test(path.split('?')[0]);
+    const cleanPath = path.split('?')[0];
+    const isLogin = /\/auth\/login$/.test(cleanPath);
+    const isSignup = /\/auth\/signup$/.test(cleanPath);
 
-    // Only keep operator-relevant events: server errors (5xx), login failures, and
-    // access-denied (403). Routine 400 validation noise is skipped.
+    // Only keep operator-relevant events: server errors (5xx), login failures, signup
+    // failures (so we can reach out to someone who couldn't register), and access-denied.
+    // Routine 400 validation noise on other routes is skipped.
     let kind: string | null = null;
     if (status >= 500) kind = 'ERROR';
     else if (isLogin && status === 401) kind = 'LOGIN_FAIL';
+    else if (isSignup && status >= 400) kind = 'SIGNUP_FAIL';
     else if (status === 403) kind = 'FORBIDDEN';
     if (!kind) return;
 
@@ -51,6 +55,8 @@ export class ErrorLogFilter extends BaseExceptionFilter {
     } else {
       message = (exception as Error)?.message || 'Unknown error';
     }
+    // For a signup failure, note the clinic name so the operator knows who to help.
+    if (isSignup && req?.body?.clinicName) message = `${message} — clinic: ${req.body.clinicName}`;
 
     void this.prisma.errorLog
       .create({
@@ -60,7 +66,7 @@ export class ErrorLogFilter extends BaseExceptionFilter {
           method,
           path: path.slice(0, 200),
           message: String(message).slice(0, 500),
-          phone: isLogin ? String(req?.body?.phone || '').slice(0, 20) || null : null,
+          phone: (isLogin || isSignup) ? String(req?.body?.phone || '').slice(0, 20) || null : null,
           tenantId: store?.tenantId || null,
           userId: store?.userId || null,
           ip: ip ? String(ip).trim().slice(0, 60) : null,

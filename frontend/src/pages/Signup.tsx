@@ -320,56 +320,6 @@ export function Signup() {
         </div>
       </section>
 
-      {/* Signup form — at the very bottom of the page. Trust + contact fills the space below
-          the form, which also gives scroll room so the mobile keyboard never covers a field. */}
-      <section id="signup" className="relative isolate scroll-mt-20 overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-4 pt-14 pb-28 md:px-8 md:py-20">
-        <PhotoBg src={IMG.cta} className="opacity-40" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-teal-800/55 to-emerald-700/45" />
-        <div className="relative mx-auto max-w-md">
-          <div className="mb-5 text-center text-white">
-            <h2 className="text-2xl font-bold md:text-3xl">আজই আপনার ক্লিনিক ডিজিটাল করুন</h2>
-            <p className="mt-2 text-sm text-teal-50/90">১ মিনিটেই অ্যাকাউন্ট তৈরি করুন — কোনো সেটআপ ফি নেই।</p>
-          </div>
-          <div className="rounded-2xl bg-white p-6 shadow-xl">
-            <form onSubmit={submit} className="space-y-3">
-              <div><Label>ক্লিনিকের নাম</Label><Input value={f.clinicName} onChange={set('clinicName')} placeholder="স্মাইল ডেন্টাল কেয়ার" /></div>
-              <div><Label>মালিক / ডাক্তারের নাম</Label><Input value={f.ownerName} onChange={set('ownerName')} placeholder="ডাঃ ..." /></div>
-              <div><Label>ফোন নম্বর (এটি দিয়েই লগইন হবে)</Label><Input value={f.phone} onChange={set('phone')} placeholder="01XXXXXXXXX" inputMode="tel" /></div>
-              <div><Label>পাসওয়ার্ড</Label><PasswordInput value={f.password} onChange={set('password')} placeholder="কমপক্ষে ৬ অক্ষর" /></div>
-              {error && <p className="text-sm text-danger">{error}</p>}
-              <Button type="submit" className="h-11 w-full text-base" disabled={busy}>
-                {busy ? 'তৈরি হচ্ছে…' : 'অ্যাকাউন্ট তৈরি করুন'}
-              </Button>
-              <p className="text-center text-xs text-slate-400">অ্যাকাউন্ট তৈরি করে আপনি আমাদের শর্তাবলীতে সম্মত হচ্ছেন।</p>
-            </form>
-            <p className="mt-3 text-center text-sm text-slate-500">
-              আগে থেকে অ্যাকাউন্ট আছে?{' '}
-              <Link to="/login" className="font-medium text-primary hover:underline">সাইন ইন করুন</Link>
-            </p>
-          </div>
-
-          {/* Trust + contact (fills the space, builds confidence) */}
-          <div className="mt-8 flex flex-wrap justify-center gap-2 text-xs text-white/90">
-            <span className="rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">🔒 তথ্য ১০০% নিরাপদ ও গোপন</span>
-            <span className="rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">☁️ প্রতিদিন ব্যাকআপ</span>
-            <span className="rounded-full bg-white/10 px-3 py-1 ring-1 ring-white/20">🇧🇩 বাংলায় সাপোর্ট</span>
-          </div>
-
-          <div className="mx-auto mt-6 max-w-sm rounded-2xl bg-white/10 p-5 text-center text-white ring-1 ring-white/20 backdrop-blur">
-            <p className="font-semibold">প্রশ্ন আছে? সরাসরি কথা বলুন</p>
-            <p className="mt-1 text-sm text-teal-50/80">সেটআপ থেকে দৈনন্দিন ব্যবহার — যেকোনো প্রয়োজনে আমাদের টিম আপনার পাশে।</p>
-            <div className="mt-4 flex flex-col items-center gap-3">
-              <a href={`https://wa.me/88${WHATSAPP}`} target="_blank" rel="noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 font-semibold text-white hover:bg-emerald-600">
-                <MessageCircle className="h-5 w-5" /> WhatsApp-এ মেসেজ দিন
-              </a>
-              <CopyNumber number={WHATSAPP} dark />
-            </div>
-            <p className="mt-4 text-xs text-teal-50/70">🇧🇩 বাংলাদেশের ডেন্টিস্টদের বিশ্বস্ত সঙ্গী</p>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="border-t border-slate-100 px-4 py-8 text-center text-sm text-slate-500 md:px-8">
         <div className="flex items-center justify-center gap-2 font-semibold text-slate-700">

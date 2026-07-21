@@ -44,10 +44,12 @@ function FitWidth({ children }: { children: React.ReactNode }) {
     return () => ro.disconnect();
   }, [children]);
 
+  // When it fits (desktop), apply NO transform at all → byte-for-byte the same render.
+  const scaling = scale < 1;
   return (
-    <div ref={outer} className="w-full overflow-hidden" style={{ height: h }}>
+    <div ref={outer} className="w-full overflow-hidden" style={scaling ? { height: h } : undefined}>
       <div className="flex justify-center">
-        <div ref={inner} className="w-max" style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+        <div ref={inner} className="w-max" style={scaling ? { transform: `scale(${scale})`, transformOrigin: 'top center' } : undefined}>
           {children}
         </div>
       </div>

@@ -88,6 +88,9 @@ export function SuperAdmin() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
   const [errors, setErrors] = useState<ErrLog[]>([]);
+  const [errTotal, setErrTotal] = useState(0);
+  const [errSkip, setErrSkip] = useState(0);
+  const ERR_TAKE = 25;
   const [grantDays, setGrantDays] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -130,12 +133,13 @@ export function SuperAdmin() {
         superApi.get('/superadmin/analytics'),
         superApi.get('/superadmin/tenants'),
         superApi.get('/superadmin/payments/pending'),
-        superApi.get('/superadmin/errors').catch(() => ({ data: [] })),
+        superApi.get(`/superadmin/errors?skip=${errSkip}&take=${ERR_TAKE}`).catch(() => ({ data: { rows: [], total: 0 } })),
       ]);
       setAn(a.data);
       setTenants(t.data);
       setPending(p.data);
-      setErrors(er.data);
+      setErrors(er.data.rows || []);
+      setErrTotal(er.data.total || 0);
     } catch (e: any) {
       if (e?.response?.status === 403 || e?.response?.status === 401) {
         localStorage.removeItem('superToken');
@@ -144,7 +148,7 @@ export function SuperAdmin() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [errSkip]);
 
   useEffect(() => {
     if (authed) load();
@@ -430,39 +434,52 @@ export function SuperAdmin() {
           </div>
         </section>
 
-        {/* Error & login-failure log */}
+        {/* Error / login / signup failure log (paginated) */}
         <section>
           <h2 className="mb-2 text-lg font-semibold">
-            Errors &amp; login failures {errors.length > 0 && <span className="text-rose-600">({errors.length})</span>}
+            Errors, login &amp; signup failures {errTotal > 0 && <span className="text-rose-600">({errTotal})</span>}
           </h2>
-          {errors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No errors or failed logins recorded. 🎉</p>
+          {errTotal === 0 ? (
+            <p className="text-sm text-muted-foreground">No errors or failed logins/signups recorded. 🎉</p>
           ) : (
-            <div className="max-h-96 overflow-auto rounded-lg border bg-white">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-slate-100 text-left uppercase text-slate-500">
-                  <tr>
-                    <th className="p-2">When</th>
-                    <th className="p-2">Type</th>
-                    <th className="p-2">Detail</th>
-                    <th className="p-2">Who</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {errors.map((e) => {
-                    const tone = e.kind === 'ERROR' ? 'bg-rose-100 text-rose-700' : e.kind === 'LOGIN_FAIL' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700';
-                    return (
-                      <tr key={e.id} className="border-t align-top">
-                        <td className="whitespace-nowrap p-2 text-muted-foreground">{fmtDateTime(e.createdAt)}</td>
-                        <td className="p-2"><span className={`whitespace-nowrap rounded px-1.5 py-0.5 font-medium ${tone}`}>{e.kind === 'LOGIN_FAIL' ? 'LOGIN FAIL' : e.kind}{e.status ? ` · ${e.status}` : ''}</span></td>
-                        <td className="p-2"><span className="font-mono text-[11px] text-muted-foreground">{e.method} {e.path}</span><br />{e.message}</td>
-                        <td className="whitespace-nowrap p-2">{e.clinicName || e.phone || e.ip || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="max-h-96 overflow-auto rounded-lg border bg-white">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-slate-100 text-left uppercase text-slate-500">
+                    <tr>
+                      <th className="p-2">When</th>
+                      <th className="p-2">Type</th>
+                      <th className="p-2">Detail</th>
+                      <th className="p-2">Who</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {errors.map((e) => {
+                      const tone = e.kind === 'ERROR' ? 'bg-rose-100 text-rose-700'
+                        : e.kind === 'SIGNUP_FAIL' ? 'bg-orange-100 text-orange-700'
+                        : e.kind === 'LOGIN_FAIL' ? 'bg-amber-100 text-amber-700'
+                        : 'bg-slate-200 text-slate-700';
+                      const label = e.kind === 'LOGIN_FAIL' ? 'LOGIN FAIL' : e.kind === 'SIGNUP_FAIL' ? 'SIGNUP FAIL' : e.kind;
+                      return (
+                        <tr key={e.id} className="border-t align-top">
+                          <td className="whitespace-nowrap p-2 text-muted-foreground">{fmtDateTime(e.createdAt)}</td>
+                          <td className="p-2"><span className={`whitespace-nowrap rounded px-1.5 py-0.5 font-medium ${tone}`}>{label}{e.status ? ` · ${e.status}` : ''}</span></td>
+                          <td className="p-2"><span className="font-mono text-[11px] text-muted-foreground">{e.method} {e.path}</span><br />{e.message}</td>
+                          <td className="whitespace-nowrap p-2">{e.clinicName || e.phone || e.ip || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                <span>{errSkip + 1}–{Math.min(errSkip + ERR_TAKE, errTotal)} of {errTotal}</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" disabled={errSkip === 0} onClick={() => setErrSkip(Math.max(0, errSkip - ERR_TAKE))}>Prev</Button>
+                  <Button size="sm" variant="outline" disabled={errSkip + ERR_TAKE >= errTotal} onClick={() => setErrSkip(errSkip + ERR_TAKE)}>Next</Button>
+                </div>
+              </div>
+            </>
           )}
         </section>
 

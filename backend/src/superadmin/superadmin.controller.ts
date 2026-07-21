@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { SuperAdminService } from './superadmin.service';
 import { SuperAdminGuard } from './superadmin.guard';
 import { Public } from '../auth/public.decorator';
@@ -41,8 +41,8 @@ export class SuperAdminController {
   @Public()
   @UseGuards(SuperAdminGuard)
   @Get('errors')
-  errors() {
-    return this.svc.errorLogs();
+  errors(@Query('skip') skip?: string, @Query('take') take?: string) {
+    return this.svc.errorLogs(Number(skip) || 0, Number(take) || 25);
   }
 
   @Public()

@@ -253,19 +253,27 @@ export class SuperAdminService implements OnModuleInit {
     return out;
   }
 
-  // Recent platform errors + failed logins (written by the global ErrorLogFilter).
-  async errorLogs(limit = 100) {
-    const rows = await this.prisma.errorLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: Math.min(limit, 300),
-    });
+  // Platform errors + failed logins/signups (written by the global ErrorLogFilter),
+  // paginated because the log can grow large.
+  async errorLogs(skip = 0, take = 25) {
+    const safeTake = Math.min(Math.max(take, 1), 100);
+    const safeSkip = Math.max(skip, 0);
+    const [rows, total] = await Promise.all([
+      this.prisma.errorLog.findMany({ orderBy: { createdAt: 'desc' }, skip: safeSkip, take: safeTake }),
+      this.prisma.errorLog.count(),
+    ]);
     // Attach clinic name where we know the tenant.
     const tids = [...new Set(rows.map((r) => r.tenantId).filter(Boolean))] as string[];
     const tenants = tids.length
       ? await this.prisma.tenant.findMany({ where: { id: { in: tids } }, select: { id: true, name: true } })
       : [];
     const nameById = new Map(tenants.map((t) => [t.id, t.name]));
-    return rows.map((r) => ({ ...r, clinicName: r.tenantId ? nameById.get(r.tenantId) || null : null }));
+    return {
+      rows: rows.map((r) => ({ ...r, clinicName: r.tenantId ? nameById.get(r.tenantId) || null : null })),
+      total,
+      skip: safeSkip,
+      take: safeTake,
+    };
   }
 
   // --- Tenant users (support desk) ---
