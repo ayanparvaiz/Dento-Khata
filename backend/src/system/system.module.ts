@@ -1,17 +1,5 @@
-import {
-  Controller, Get, Injectable, Module, Res, UseGuards,
-} from '@nestjs/common';
-import type { Response } from 'express';
-import { join } from 'path';
-import { existsSync, statSync } from 'fs';
+import { Controller, Get, Injectable, Module } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { dataPaths } from '../data';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
-
-function dbPath(): string {
-  return dataPaths().dbFile; // persistent data folder
-}
 
 @Injectable()
 class SystemService {
@@ -91,13 +79,6 @@ class SystemService {
       topDues: dues.slice(0, 6),
     };
   }
-
-  backupInfo() {
-    const p = dbPath();
-    if (!existsSync(p)) return { exists: false };
-    const st = statSync(p);
-    return { exists: true, sizeKB: Math.round(st.size / 1024), modified: st.mtime };
-  }
 }
 
 @Controller()
@@ -107,21 +88,6 @@ class SystemController {
   @Get('stats/dashboard')
   dashboard() {
     return this.svc.dashboard();
-  }
-
-  @UseGuards(RolesGuard) @Roles('ADMIN')
-  @Get('backup/info')
-  info() {
-    return this.svc.backupInfo();
-  }
-
-  // Download the SQLite database file as a backup (admin only).
-  @UseGuards(RolesGuard) @Roles('ADMIN')
-  @Get('backup/export')
-  export(@Res() res: Response) {
-    const p = dbPath();
-    const stamp = new Date().toISOString().slice(0, 10);
-    return res.download(p, `dental-backup-${stamp}.db`);
   }
 }
 
