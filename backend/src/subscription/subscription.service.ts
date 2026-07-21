@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitPaymentDto } from './dto';
 import { MetaService } from '../meta/meta.service';
+import { TelegramService } from '../telegram/telegram.service';
 
 export interface AccessState {
   active: boolean;
@@ -16,7 +17,7 @@ export interface AccessState {
 
 @Injectable()
 export class SubscriptionService {
-  constructor(private prisma: PrismaService, private meta: MetaService) {}
+  constructor(private prisma: PrismaService, private meta: MetaService, private telegram: TelegramService) {}
 
   private graceDays() {
     return Number(process.env.SUBSCRIPTION_GRACE_DAYS) || 3;
@@ -111,6 +112,14 @@ export class SubscriptionService {
         periodDays: 30,
       },
     });
+
+    // Alert the operator (Telegram) that a payment needs verification.
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: sub.tenantId } });
+    void this.telegram.notifyPayment({
+      clinicName: tenant?.name, ownerName: tenant?.ownerName, phone: tenant?.phone,
+      trxId: dto.trxId, senderMsisdn: dto.senderMsisdn, amount: sub.amount,
+    });
+
     return { submitted: true };
   }
 }

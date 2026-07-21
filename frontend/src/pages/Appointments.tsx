@@ -238,9 +238,9 @@ export function Appointments() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 2xl:grid-cols-3">
         {/* Booking */}
-        <Card className={cn('xl:col-span-1 self-start', editingId && 'ring-2 ring-amber-400')}>
+        <Card className={cn('2xl:col-span-1 self-start', editingId && 'ring-2 ring-amber-400')}>
           <CardHeader><CardTitle>{editingId ? '🔄 Reschedule appointment' : 'Book appointment'}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {editingId && (
@@ -364,7 +364,7 @@ export function Appointments() {
         </Card>
 
         {/* Schedule */}
-        <div className="xl:col-span-2">
+        <div className="2xl:col-span-2">
           {view === 'month' ? (
             <Card>
               <CardHeader className="flex-row items-center justify-between">

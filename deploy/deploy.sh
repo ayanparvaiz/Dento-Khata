@@ -35,6 +35,9 @@ SUPPORT_WHATSAPP="${SUPPORT_WHATSAPP:-}"
 # Meta tracking (secrets — stored in $DATA_DIR/app.env on the server, never in git)
 META_PIXEL_ID="${META_PIXEL_ID:-}"
 META_CAPI_TOKEN="${META_CAPI_TOKEN:-}"
+# Telegram operator alerts (secrets — stored in $DATA_DIR/app.env on the server)
+TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
 # =====================================================================
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -62,7 +65,8 @@ ssh "$SSH_TARGET" \
   SUPERADMIN_USERNAME="$SUPERADMIN_USERNAME" SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
   BKASH_RECEIVE_NUMBER="$BKASH_RECEIVE_NUMBER" SUPPORT_WHATSAPP="$SUPPORT_WHATSAPP" \
   SUBSCRIPTION_PRICE="${SUBSCRIPTION_PRICE:-990}" \
-  META_PIXEL_ID="$META_PIXEL_ID" META_CAPI_TOKEN="$META_CAPI_TOKEN" 'bash -s' <<'REMOTE'
+  META_PIXEL_ID="$META_PIXEL_ID" META_CAPI_TOKEN="$META_CAPI_TOKEN" \
+  TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID" 'bash -s' <<'REMOTE'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
@@ -99,12 +103,16 @@ if [ -z "$JWT_SECRET" ]; then JWT_SECRET="$(openssl rand -hex 32)"; set_env JWT_
 [ -n "${SUPPORT_WHATSAPP:-}" ] && set_env SUPPORT_WHATSAPP "$SUPPORT_WHATSAPP"
 [ -n "${META_PIXEL_ID:-}" ] && set_env META_PIXEL_ID "$META_PIXEL_ID"
 [ -n "${META_CAPI_TOKEN:-}" ] && set_env META_CAPI_TOKEN "$META_CAPI_TOKEN"
+[ -n "${TELEGRAM_BOT_TOKEN:-}" ] && set_env TELEGRAM_BOT_TOKEN "$TELEGRAM_BOT_TOKEN"
+[ -n "${TELEGRAM_CHAT_ID:-}" ] && set_env TELEGRAM_CHAT_ID "$TELEGRAM_CHAT_ID"
 SUPERADMIN_USERNAME="$(get_env SUPERADMIN_USERNAME)"
 SUPERADMIN_PASSWORD="$(get_env SUPERADMIN_PASSWORD)"
 BKASH_NUM="$(get_env BKASH_RECEIVE_NUMBER)"; [ -z "$BKASH_NUM" ] && BKASH_NUM="01XXXXXXXXX"
 SUPPORT_WA="$(get_env SUPPORT_WHATSAPP)"
 META_PID="$(get_env META_PIXEL_ID)"
 META_TOK="$(get_env META_CAPI_TOKEN)"
+TG_TOKEN="$(get_env TELEGRAM_BOT_TOKEN)"
+TG_CHAT="$(get_env TELEGRAM_CHAT_ID)"
 
 # --- provision Postgres role + database (idempotent) ---
 sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$PG_USER'" | grep -q 1 \
@@ -145,6 +153,7 @@ HOST=127.0.0.1 PORT="$PORT" DATA_DIR="$DATA_DIR" NODE_ENV=production \
   BKASH_RECEIVE_NUMBER="$BKASH_NUM" SUPPORT_WHATSAPP="$SUPPORT_WA" \
   SUBSCRIPTION_PRICE="${SUBSCRIPTION_PRICE:-990}" SUBSCRIPTION_GRACE_DAYS="${SUBSCRIPTION_GRACE_DAYS:-3}" \
   META_PIXEL_ID="$META_PID" META_CAPI_TOKEN="$META_TOK" PUBLIC_URL="https://$DOMAIN" \
+  TELEGRAM_BOT_TOKEN="$TG_TOKEN" TELEGRAM_CHAT_ID="$TG_CHAT" \
   pm2 start dist/main.js --name "$PM2_NAME" --update-env --time
 pm2 save
 sudo env PATH="$PATH" pm2 startup systemd -u "$USER" --hp "$HOME" >/dev/null 2>&1 || true

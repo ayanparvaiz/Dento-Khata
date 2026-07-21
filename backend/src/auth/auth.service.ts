@@ -7,6 +7,7 @@ import { SignupDto } from './dto';
 import { DEFAULT_PROCEDURES } from './default-procedures';
 import { clinicSuspended } from './suspended';
 import { MetaService } from '../meta/meta.service';
+import { TelegramService } from '../telegram/telegram.service';
 
 // Simple in-memory per-IP signup throttle (anti-spam). No external dep needed.
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -19,6 +20,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private meta: MetaService,
+    private telegram: TelegramService,
   ) {}
 
   private throttleSignup(ip: string) {
@@ -101,6 +103,11 @@ export class AuthService {
       });
       // Give the clinic a starter procedure list to edit (drug catalog is global/shared).
       await this.prisma.procedure.createMany({ data: DEFAULT_PROCEDURES });
+    });
+
+    // Alert the operator (Telegram) with everything the clinic entered.
+    void this.telegram.notifySignup({
+      clinicName: dto.clinicName, ownerName: dto.ownerName, phone, email: dto.email, ip,
     });
 
     // Server-side signup conversion (same eventId as the browser pixel → deduplicated).

@@ -29,6 +29,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { SuperAdminModule } from './superadmin/superadmin.module';
 import { MetaModule } from './meta/meta.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     SuperAdminModule,
     MetaModule,
     AnalyticsModule,
+    TelegramModule,
   ],
   controllers: [AppController],
   providers: [
