@@ -162,31 +162,41 @@ function LetterheadCard({ form, setForm, isAdmin, onSave, saving, saved, qc }: a
 }
 
 function BackupCard() {
-  const { data: info } = useQuery({ queryKey: ['backup-info'], queryFn: async () => (await api.get('/backup/info')).data });
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
 
+  // Downloads THIS clinic's data (patients, appointments, treatments, prescriptions,
+  // billing, notes) as one JSON file the owner can keep safe.
   const download = async () => {
     setBusy(true);
+    setErr('');
     try {
       const res = await api.get('/backup/export', { responseType: 'blob' });
       const url = URL.createObjectURL(res.data as Blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `dental-backup-${new Date().toISOString().slice(0, 10)}.db`;
+      a.download = `dentokhata-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(url);
-    } finally { setBusy(false); }
+    } catch {
+      setErr('ব্যাকআপ ডাউনলোড করা যায়নি। আবার চেষ্টা করুন বা সাপোর্টে যোগাযোগ করুন।');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Card className="mb-6 max-w-2xl">
-      <CardHeader><CardTitle>Backup</CardTitle></CardHeader>
-      <CardContent className="flex items-center justify-between">
+      <CardHeader><CardTitle>ডেটা ব্যাকআপ</CardTitle></CardHeader>
+      <CardContent className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">
-          Database{info?.exists ? ` · ${info.sizeKB} KB · updated ${new Date(info.modified).toLocaleString()}` : ' not found'}.
-          <br />Download a copy to a USB/pendrive regularly.
+          আপনার ক্লিনিকের সব তথ্য — রোগী, অ্যাপয়েন্টমেন্ট, চিকিৎসা, প্রেসক্রিপশন, বিলিং — একটি ফাইলে ডাউনলোড করুন।
+          <br />নিয়মিত ডাউনলোড করে নিরাপদ জায়গায় (পেনড্রাইভ/গুগল ড্রাইভ) রাখুন।
+          {err && <span className="mt-1 block text-danger">{err}</span>}
         </div>
-        <Button onClick={download} disabled={busy}>{busy ? 'Exporting…' : 'Download backup'}</Button>
+        <Button onClick={download} disabled={busy}>{busy ? 'ডাউনলোড হচ্ছে…' : 'ব্যাকআপ ডাউনলোড করুন'}</Button>
       </CardContent>
     </Card>
   );

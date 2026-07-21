@@ -93,13 +93,18 @@ export function Appointments() {
   // Inline new-patient quick-add (so receptionist needn't leave the booking screen).
   const [quick, setQuick] = useState<{ name: string; phone: string } | null>(null);
   const [quickBusy, setQuickBusy] = useState(false);
+  const [quickErr, setQuickErr] = useState('');
   const createPatientInline = async () => {
-    if (!quick?.name.trim()) return;
+    setQuickErr('');
+    if (!quick?.name.trim() || quick.name.trim().length < 2) { setQuickErr('রোগীর নাম দিন'); return; }
+    if (!/^01\d{9}$/.test((quick?.phone || '').trim())) { setQuickErr('সঠিক মোবাইল নম্বর দিন (১১ সংখ্যা)'); return; }
     setQuickBusy(true);
     try {
-      const { data } = await api.post('/patients', { fullName: quick.name, phone: quick.phone || undefined });
+      const { data } = await api.post('/patients', { fullName: quick.name.trim(), phone: quick.phone.trim() });
       setForm((f) => ({ ...f, patientId: data.id, patientName: data.fullName }));
       setQuick(null); setPsearch('');
+    } catch (e: any) {
+      setQuickErr(e?.response?.data?.message || 'রোগী তৈরি করা যায়নি');
     } finally {
       setQuickBusy(false);
     }
@@ -259,11 +264,12 @@ export function Appointments() {
               ) : quick ? (
                 /* Inline new-patient form — no need to leave the booking screen */
                 <div className="space-y-2 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2">
-                  <Input placeholder="Full name *" value={quick.name} onChange={(e) => setQuick({ ...quick, name: e.target.value })} autoFocus />
-                  <Input placeholder="Phone" value={quick.phone} onChange={(e) => setQuick({ ...quick, phone: e.target.value })} />
+                  <Input placeholder="Full name *" value={quick.name} onChange={(e) => { setQuick({ ...quick, name: e.target.value }); setQuickErr(''); }} autoFocus />
+                  <Input placeholder="Phone * (01XXXXXXXXX)" value={quick.phone} inputMode="tel" onChange={(e) => { setQuick({ ...quick, phone: e.target.value }); setQuickErr(''); }} />
+                  {quickErr && <p className="text-xs text-danger">{quickErr}</p>}
                   <div className="flex gap-2">
                     <Button size="sm" disabled={!quick.name.trim() || quickBusy} onClick={createPatientInline}>Create &amp; select</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setQuick(null)}>Cancel</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setQuick(null); setQuickErr(''); }}>Cancel</Button>
                   </div>
                 </div>
               ) : (

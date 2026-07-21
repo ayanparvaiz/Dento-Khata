@@ -4,14 +4,18 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Matches,
   MinLength,
 } from 'class-validator';
 
+// BD mobile: 11 digits starting 01 (e.g. 01712345678).
+const BD_PHONE = /^01\d{9}$/;
+
 export class CreatePatientDto {
-  @IsString() @MinLength(2) fullName: string;
+  @IsString() @MinLength(2, { message: 'রোগীর নাম দিন (কমপক্ষে ২ অক্ষর)' }) fullName: string;
+  @IsString() @Matches(BD_PHONE, { message: 'সঠিক মোবাইল নম্বর দিন (১১ সংখ্যা, 01 দিয়ে শুরু)' }) phone: string;
   @IsOptional() @IsIn(['MALE', 'FEMALE', 'OTHER']) gender?: string;
   @IsOptional() @IsString() dateOfBirth?: string; // ISO date
-  @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() address?: string;
   @IsOptional() @IsString() bloodGroup?: string;
@@ -25,8 +29,9 @@ export class CreatePatientDto {
 }
 
 export class UpdatePatientDto extends CreatePatientDto {
-  // All fields optional on update (partial PATCH) — override the required fullName.
+  // All fields optional on update (partial PATCH) — override the required fields.
   @IsOptional() @IsString() @MinLength(2) fullName: string;
+  @IsOptional() @IsString() @Matches(BD_PHONE, { message: 'সঠিক মোবাইল নম্বর দিন (১১ সংখ্যা, 01 দিয়ে শুরু)' }) phone: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
 

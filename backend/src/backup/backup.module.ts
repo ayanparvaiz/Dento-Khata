@@ -1,4 +1,5 @@
-import { Controller, Get, Injectable, Module, OnModuleInit, Post, UseGuards } from '@nestjs/common';
+import { Controller, ForbiddenException, Get, Injectable, Module, OnModuleInit, Post, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { Cron } from '@nestjs/schedule';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -6,6 +7,9 @@ import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { dataPaths } from '../data';
 import { Public } from '../auth/public.decorator';
+import { NoSubscription } from '../subscription/no-subscription.decorator';
+import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { PrismaService } from '../prisma/prisma.service';
 import { SuperAdminGuard } from '../superadmin/superadmin.guard';
 
 const execFileAsync = promisify(execFile);
@@ -16,8 +20,40 @@ const KEEP = 30; // keep last 30 daily dumps
 // are therefore restricted to the super-admin, never a clinic owner.
 @Injectable()
 export class BackupService implements OnModuleInit {
+  constructor(private prisma: PrismaService) {}
+
   async onModuleInit() {
     try { await this.backupNow(); } catch (e) { console.warn('startup backup failed', e); }
+  }
+
+  // Per-tenant data export: EVERYTHING belonging to the calling clinic (auto-scoped by
+  // the tenant context), as one JSON object the owner can download and keep. This is the
+  // clinic-facing backup — NOT the platform pg_dump (which spans all tenants).
+  async exportTenantData() {
+    const p = this.prisma;
+    const [
+      patients, medicalHistory, appointments, toothRecords, perioRecords, procedures,
+      treatmentPlans, treatmentRecords, treatmentItems, clinicalNotes, prescriptions,
+      prescriptionItems, invoices, invoiceItems, payments, files, settings,
+    ] = await Promise.all([
+      p.patient.findMany(), p.medicalHistory.findMany(), p.appointment.findMany(),
+      p.toothRecord.findMany(), p.perioRecord.findMany(), p.procedure.findMany(),
+      p.treatmentPlan.findMany(), p.treatmentRecord.findMany(), p.treatmentItem.findMany(),
+      p.clinicalNote.findMany(), p.prescription.findMany(), p.prescriptionItem.findMany(),
+      p.invoice.findMany(), p.invoiceItem.findMany(), p.payment.findMany(),
+      p.patientFile.findMany(), p.clinicSettings.findMany(),
+    ]);
+    return {
+      exportedAt: new Date().toISOString(),
+      version: 1,
+      clinic: settings[0]?.name || null,
+      counts: { patients: patients.length, appointments: appointments.length, treatmentRecords: treatmentRecords.length, prescriptions: prescriptions.length, invoices: invoices.length, payments: payments.length },
+      data: {
+        patients, medicalHistory, appointments, toothRecords, perioRecords, procedures,
+        treatmentPlans, treatmentRecords, treatmentItems, clinicalNotes, prescriptions,
+        prescriptionItems, invoices, invoiceItems, payments, files, settings,
+      },
+    };
   }
 
   @Cron('0 3 * * *') // daily at 03:00
@@ -66,6 +102,7 @@ export class BackupService implements OnModuleInit {
 class BackupController {
   constructor(private svc: BackupService) {}
 
+  // --- Platform (super-admin) — full multi-tenant pg_dump ---
   @Public() @UseGuards(SuperAdminGuard)
   @Get('list')
   list() {
@@ -76,6 +113,20 @@ class BackupController {
   @Post('now')
   now() {
     return this.svc.backupNow();
+  }
+
+  // --- Clinic-facing — the owner/admin downloads THEIR OWN data as JSON ---
+  // Works even when the subscription has lapsed (data ownership / portability).
+  @NoSubscription()
+  @Get('export')
+  async export(@CurrentUser() user: AuthUser, @Res() res: Response) {
+    if (user.role !== 'OWNER' && user.role !== 'ADMIN')
+      throw new ForbiddenException('শুধু ক্লিনিকের মালিক/অ্যাডমিন ব্যাকআপ ডাউনলোড করতে পারবেন');
+    const payload = await this.svc.exportTenantData();
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="dentokhata-backup-${date}.json"`);
+    res.send(JSON.stringify(payload, null, 2));
   }
 }
 

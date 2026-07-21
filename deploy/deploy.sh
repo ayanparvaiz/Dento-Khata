@@ -127,7 +127,10 @@ cd "$APP_DIR"
 # --- install + build ---
 # Use npm on the server: pnpm 10 hard-aborts on "ignored build scripts" and won't run
 # Prisma's engine build non-interactively. npm runs lifecycle scripts by default.
-rm -rf backend/node_modules frontend/node_modules
+# Wipe prior build outputs too: rsync preserves source mtimes, so nest's incremental
+# tsc can wrongly judge a stale compiled file "up to date" and skip recompiling it
+# (this is how old backup routes kept running after the source changed).
+rm -rf backend/node_modules frontend/node_modules backend/dist frontend/dist backend/tsconfig.build.tsbuildinfo backend/tsconfig.tsbuildinfo
 npm --prefix backend  install --legacy-peer-deps --no-audit --no-fund
 npm --prefix frontend install --legacy-peer-deps --no-audit --no-fund
 

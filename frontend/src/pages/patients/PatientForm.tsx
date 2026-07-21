@@ -56,6 +56,15 @@ export function PatientForm() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    // Required-field validation (name + phone).
+    if (form.fullName.trim().length < 2) {
+      setError('রোগীর নাম দিন (কমপক্ষে ২ অক্ষর)');
+      return;
+    }
+    if (!/^01\d{9}$/.test(form.phone.trim())) {
+      setError('সঠিক মোবাইল নম্বর দিন (১১ সংখ্যা, 01 দিয়ে শুরু — যেমন 01712345678)');
+      return;
+    }
     setBusy(true);
     // Drop empty strings so optional fields stay null/valid.
     const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ''));
@@ -142,8 +151,8 @@ export function PatientForm() {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>Phone</Label>
-              <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} />
+              <Label>Phone *</Label>
+              <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="01712345678" inputMode="tel" required />
             </div>
             <div>
               <Label>Email</Label>

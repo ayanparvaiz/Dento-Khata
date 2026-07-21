@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFiles, useFileMutations, type PatientFile } from '@/lib/clinical';
+import { api } from '@/lib/api';
 import { fmtDate } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Label, Select } from '@/components/ui/input';
@@ -10,7 +11,9 @@ import {
 } from 'lucide-react';
 
 const CATEGORIES = ['INTRAORAL', 'OPG', 'PERIAPICAL', 'BITEWING', 'PHOTO', 'LAB_REPORT', 'CONSENT', 'OTHER'];
-const fileUrl = (p: string) => `${location.protocol}//${location.hostname}:3000${p}`;
+// Uploads are served from the same origin as the API (prod: '/api' → '' → relative
+// '/uploads/...'; dev: 'http://host:3000/api' → 'http://host:3000'). Never hardcode :3000.
+const fileUrl = (p: string) => `${(api.defaults.baseURL || '').replace(/\/api\/?$/, '') || window.location.origin}${p}`;
 const isImg = (f: PatientFile) => f.fileType === 'IMAGE';
 
 export function ImagingTab({ patientId }: { patientId: string }) {
