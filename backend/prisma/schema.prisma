@@ -71,6 +71,25 @@ model VisitSession {
   @@index([createdAt])
 }
 
+// Platform-level error / failed-login log so the super-admin can see when a clinic hits
+// a server error or can't log in. Written by a global exception filter; never tenant-scoped.
+model ErrorLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  kind      String   @default("ERROR") // ERROR (5xx) | LOGIN_FAIL | FORBIDDEN
+  status    Int? // HTTP status
+  method    String?
+  path      String?
+  message   String?
+  phone     String? // attempted login phone (for LOGIN_FAIL)
+  tenantId  String?
+  userId    String?
+  ip        String?
+  ua        String?
+
+  @@index([createdAt])
+}
+
 // One subscription per tenant. Gateway-agnostic (Phase 1 = manual bKash).
 model Subscription {
   id               String    @id @default(cuid())

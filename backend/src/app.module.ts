@@ -30,6 +30,7 @@ import { SuperAdminModule } from './superadmin/superadmin.module';
 import { MetaModule } from './meta/meta.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { ErrorLogModule } from './errorlog/errorlog.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { TelegramModule } from './telegram/telegram.module';
     MetaModule,
     AnalyticsModule,
     TelegramModule,
+    ErrorLogModule,
   ],
   controllers: [AppController],
   providers: [

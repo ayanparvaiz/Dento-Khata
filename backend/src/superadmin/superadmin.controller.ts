@@ -40,6 +40,13 @@ export class SuperAdminController {
 
   @Public()
   @UseGuards(SuperAdminGuard)
+  @Get('errors')
+  errors() {
+    return this.svc.errorLogs();
+  }
+
+  @Public()
+  @UseGuards(SuperAdminGuard)
   @Get('payments/pending')
   pending() {
     return this.svc.pendingPayments();

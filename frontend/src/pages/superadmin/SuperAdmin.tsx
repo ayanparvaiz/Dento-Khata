@@ -64,9 +64,18 @@ function fmtDuration(sec: number) {
   return s ? `${m}m ${s}s` : `${m}m`;
 }
 
+interface ErrLog {
+  id: string; createdAt: string; kind: string; status?: number | null;
+  method?: string | null; path?: string | null; message?: string | null;
+  phone?: string | null; clinicName?: string | null; ip?: string | null;
+}
+
 function fmtDate(s: string | null) {
   if (!s) return '—';
   return new Date(s).toLocaleDateString();
+}
+function fmtDateTime(s: string) {
+  return new Date(s).toLocaleString();
 }
 
 export function SuperAdmin() {
@@ -78,8 +87,10 @@ export function SuperAdmin() {
   const [an, setAn] = useState<Analytics | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
+  const [errors, setErrors] = useState<ErrLog[]>([]);
   const [grantDays, setGrantDays] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   // Users panel (support-desk credential reset)
   const [usersFor, setUsersFor] = useState<Tenant | null>(null);
@@ -115,14 +126,16 @@ export function SuperAdmin() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [a, t, p] = await Promise.all([
+      const [a, t, p, er] = await Promise.all([
         superApi.get('/superadmin/analytics'),
         superApi.get('/superadmin/tenants'),
         superApi.get('/superadmin/payments/pending'),
+        superApi.get('/superadmin/errors').catch(() => ({ data: [] })),
       ]);
       setAn(a.data);
       setTenants(t.data);
       setPending(p.data);
+      setErrors(er.data);
     } catch (e: any) {
       if (e?.response?.status === 403 || e?.response?.status === 401) {
         localStorage.removeItem('superToken');
@@ -326,7 +339,10 @@ export function SuperAdmin() {
 
         {/* Tenants */}
         <section>
-          <h2 className="mb-2 text-lg font-semibold">Clinics</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Clinics</h2>
+            <Button size="sm" onClick={() => setShowCreate(true)}>+ Create clinic</Button>
+          </div>
           <div className="overflow-x-auto rounded-lg border bg-white">
             <table className="w-full text-sm">
               <thead className="bg-slate-100 text-left text-xs uppercase text-slate-500">
@@ -414,8 +430,47 @@ export function SuperAdmin() {
           </div>
         </section>
 
+        {/* Error & login-failure log */}
+        <section>
+          <h2 className="mb-2 text-lg font-semibold">
+            Errors &amp; login failures {errors.length > 0 && <span className="text-rose-600">({errors.length})</span>}
+          </h2>
+          {errors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No errors or failed logins recorded. 🎉</p>
+          ) : (
+            <div className="max-h-96 overflow-auto rounded-lg border bg-white">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-slate-100 text-left uppercase text-slate-500">
+                  <tr>
+                    <th className="p-2">When</th>
+                    <th className="p-2">Type</th>
+                    <th className="p-2">Detail</th>
+                    <th className="p-2">Who</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {errors.map((e) => {
+                    const tone = e.kind === 'ERROR' ? 'bg-rose-100 text-rose-700' : e.kind === 'LOGIN_FAIL' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700';
+                    return (
+                      <tr key={e.id} className="border-t align-top">
+                        <td className="whitespace-nowrap p-2 text-muted-foreground">{fmtDateTime(e.createdAt)}</td>
+                        <td className="p-2"><span className={`whitespace-nowrap rounded px-1.5 py-0.5 font-medium ${tone}`}>{e.kind === 'LOGIN_FAIL' ? 'LOGIN FAIL' : e.kind}{e.status ? ` · ${e.status}` : ''}</span></td>
+                        <td className="p-2"><span className="font-mono text-[11px] text-muted-foreground">{e.method} {e.path}</span><br />{e.message}</td>
+                        <td className="whitespace-nowrap p-2">{e.clinicName || e.phone || e.ip || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
         {loading && <p className="text-center text-sm text-muted-foreground">Loading…</p>}
       </div>
+
+      {/* Create-clinic modal */}
+      {showCreate && <CreateClinicModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load(); }} />}
 
       {/* Users / credential-reset modal */}
       {usersFor && (
@@ -468,6 +523,60 @@ export function SuperAdmin() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Super-admin provisions a clinic directly (no self-signup). Starts PENDING — grant days
+// to activate. Uses the existing POST /superadmin/tenants endpoint.
+function CreateClinicModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [f, setF] = useState({ clinicName: '', clinicCode: '', ownerName: '', phone: '', password: '' });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr('');
+    if (f.clinicName.trim().length < 2) return setErr('ক্লিনিকের নাম দিন');
+    if (f.ownerName.trim().length < 2) return setErr('মালিকের নাম দিন');
+    if (!/^01\d{9}$/.test(f.phone.trim())) return setErr('সঠিক মোবাইল নম্বর দিন (১১ সংখ্যা, 01…)');
+    if (f.password.length < 6) return setErr('পাসওয়ার্ড কমপক্ষে ৬ অক্ষর');
+    setBusy(true);
+    try {
+      const payload: any = { clinicName: f.clinicName.trim(), ownerName: f.ownerName.trim(), phone: f.phone.trim(), password: f.password };
+      if (f.clinicCode.trim()) payload.clinicCode = f.clinicCode.trim();
+      await superApi.post('/superadmin/tenants', payload);
+      onCreated();
+    } catch (e: any) {
+      const m = e?.response?.data?.message;
+      setErr(Array.isArray(m) ? m.join(', ') : m || 'তৈরি করা যায়নি');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-semibold">নতুন ক্লিনিক তৈরি করুন</h3>
+          <button onClick={onClose} className="text-sm text-muted-foreground hover:text-foreground">Close</button>
+        </div>
+        <form onSubmit={submit} className="space-y-3">
+          <div><Label>ক্লিনিকের নাম *</Label><Input value={f.clinicName} onChange={set('clinicName')} autoFocus /></div>
+          <div><Label>মালিক / ডাক্তারের নাম *</Label><Input value={f.ownerName} onChange={set('ownerName')} /></div>
+          <div><Label>ফোন নম্বর * (এটি দিয়েই লগইন হবে)</Label><Input value={f.phone} onChange={set('phone')} placeholder="01XXXXXXXXX" inputMode="tel" /></div>
+          <div><Label>পাসওয়ার্ড *</Label><Input value={f.password} onChange={set('password')} placeholder="কমপক্ষে ৬ অক্ষর" /></div>
+          <div><Label>ক্লিনিক কোড (ঐচ্ছিক)</Label><Input value={f.clinicCode} onChange={set('clinicCode')} placeholder="auto from name" /></div>
+          {err && <p className="text-sm text-danger">{err}</p>}
+          <p className="text-xs text-muted-foreground">তৈরির পর অ্যাকাউন্ট PENDING থাকবে — অ্যাক্সেস দিতে "Grant days" ব্যবহার করুন।</p>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={busy} className="flex-1">{busy ? 'তৈরি হচ্ছে…' : 'তৈরি করুন'}</Button>
+            <Button type="button" variant="outline" onClick={onClose}>বাতিল</Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
