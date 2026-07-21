@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboard, taka } from '@/lib/clinical';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Users, CalendarDays, CalendarRange, Stethoscope, Wallet, AlertCircle, ChevronRight } from 'lucide-react';
+import { Users, CalendarDays, CalendarRange, Stethoscope, Wallet, AlertCircle, ChevronRight, PlayCircle, X } from 'lucide-react';
+import { OVERVIEW_VIDEO_ID, ytThumb } from '@/lib/tutorials';
 
 const fmtTime = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const STATUS_TONE: Record<string, string> = {
@@ -65,6 +67,41 @@ function Spark({ data }: { data: { date: string; amount: number }[] }) {
   );
 }
 
+// Focused "watch how to use the system" card. Users understand this is THE walkthrough
+// video. Dismissible (remembered), but always available again from the side menu.
+function TutorialBanner() {
+  const navigate = useNavigate();
+  const [hidden, setHidden] = useState(() => localStorage.getItem('dk_tut_dismissed') === '1');
+  if (hidden) return null;
+  const dismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    localStorage.setItem('dk_tut_dismissed', '1');
+    setHidden(true);
+  };
+  return (
+    <div
+      onClick={() => navigate('/tutorial')}
+      className="group relative mb-6 flex cursor-pointer items-center gap-4 overflow-hidden rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 p-4 text-white shadow-sm ring-1 ring-black/5 transition-all hover:shadow-md"
+    >
+      <div className="relative h-16 w-28 shrink-0 overflow-hidden rounded-xl ring-1 ring-white/30">
+        <img src={ytThumb(OVERVIEW_VIDEO_ID)} alt="" className="h-full w-full object-cover" loading="lazy" />
+        <PlayCircle className="absolute inset-0 m-auto h-8 w-8 drop-shadow" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-medium uppercase tracking-wide text-white/80">টিউটোরিয়াল ভিডিও</div>
+        <div className="truncate text-lg font-bold">এই ভিডিওটি দেখলেই বুঝবেন কীভাবে ব্যবহার করবেন</div>
+        <div className="truncate text-sm text-white/85">শুরু থেকে শেষ — পুরো সিস্টেমের সহজ পরিচিতি (মাত্র কয়েক মিনিট)</div>
+      </div>
+      <span className="hidden shrink-0 items-center gap-1 rounded-lg bg-white/15 px-3 py-1.5 text-sm font-semibold transition-colors group-hover:bg-white/25 sm:inline-flex">
+        দেখুন <ChevronRight className="h-4 w-4" />
+      </span>
+      <button onClick={dismiss} aria-label="বন্ধ করুন" className="absolute right-2 top-2 rounded-full p-1 text-white/70 hover:bg-white/20 hover:text-white">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
   const { data, isError } = useDashboard();
@@ -77,6 +114,8 @@ export function Dashboard() {
           ? <span className="text-danger">Backend unreachable — is the server running?</span>
           : <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 font-medium text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Connected</span>}
       </p>
+
+      <TutorialBanner />
 
       {/* KPI grid */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
