@@ -342,6 +342,41 @@ export class SuperAdminService implements OnModuleInit {
     return { suspended: true };
   }
 
+  // Permanently delete a clinic and ALL of its data (test/spam cleanup). Irreversible.
+  // Deletes child rows before parents to respect foreign keys; everything is filtered by
+  // tenantId (super-admin context bypasses the auto tenant scope, so the filter is explicit).
+  async deleteTenant(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Clinic not found');
+    const p = this.prisma;
+    const w = { where: { tenantId } };
+    await this.prisma.$transaction([
+      p.payment.deleteMany(w),
+      p.invoiceItem.deleteMany(w),
+      p.invoice.deleteMany(w),
+      p.prescriptionItem.deleteMany(w),
+      p.prescription.deleteMany(w),
+      p.treatmentItem.deleteMany(w),
+      p.treatmentRecord.deleteMany(w),
+      p.treatmentPlan.deleteMany(w),
+      p.toothRecord.deleteMany(w),
+      p.perioRecord.deleteMany(w),
+      p.clinicalNote.deleteMany(w),
+      p.medicalHistory.deleteMany(w),
+      p.patientFile.deleteMany(w),
+      p.appointment.deleteMany(w),
+      p.patient.deleteMany(w),
+      p.procedure.deleteMany(w),
+      p.clinicSettings.deleteMany(w),
+      p.auditLog.deleteMany(w),
+      p.subscriptionPayment.deleteMany(w),
+      p.subscription.deleteMany(w),
+      p.user.deleteMany(w),
+      p.tenant.delete({ where: { id: tenantId } }),
+    ]);
+    return { deleted: true, name: tenant.name };
+  }
+
   async activateTenant(tenantId: string) {
     await this.prisma.tenant.update({ where: { id: tenantId }, data: { isActive: true } });
     const sub = await this.prisma.subscription.findUnique({ where: { tenantId } });

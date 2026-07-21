@@ -387,6 +387,17 @@ export function SuperAdmin() {
                           ) : (
                             <Button size="sm" onClick={() => act(() => superApi.post(`/superadmin/tenants/${t.id}/activate`))}>Activate</Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              if (!confirm(`Permanently DELETE "${t.name}" and ALL its data (${t.users} users, ${t.patients} patients)? This cannot be undone.`)) return;
+                              act(() => superApi.post(`/superadmin/tenants/${t.id}/delete`));
+                            }}
+                          >
+                            Delete
+                          </Button>
                         </div>
                       </td>
                     </tr>

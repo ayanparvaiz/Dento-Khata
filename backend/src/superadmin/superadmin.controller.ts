@@ -82,6 +82,13 @@ export class SuperAdminController {
 
   @Public()
   @UseGuards(SuperAdminGuard)
+  @Post('tenants/:id/delete')
+  deleteTenant(@Param('id') id: string) {
+    return this.svc.deleteTenant(id);
+  }
+
+  @Public()
+  @UseGuards(SuperAdminGuard)
   @Post('tenants')
   createTenant(@Body() dto: CreateTenantAdminDto) {
     return this.svc.createTenant(dto);
