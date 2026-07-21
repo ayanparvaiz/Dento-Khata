@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input, Label, PasswordInput } from '@/components/ui/input';
 import { fbTrack } from '@/lib/meta';
+import { startVisitTracking, markVisitSignup } from '@/lib/visitTracker';
 import { Check, MessageCircle, AlertTriangle, ArrowRight, Copy } from 'lucide-react';
 import { ToothIcon } from '@/components/ToothLogo';
 
@@ -99,12 +100,16 @@ export function Signup() {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
 
+  // Measure landing-page engagement (time on page + scroll depth) for the super-admin.
+  useEffect(() => startVisitTracking(), []);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setBusy(true);
     try {
       await signup({ ...f, phone: f.phone.trim() });
+      markVisitSignup(); // this visit converted
       navigate('/'); // lands on the paywall
     } catch (err: any) {
       setError(err?.response?.data?.message || 'অ্যাকাউন্ট তৈরি করা যায়নি');

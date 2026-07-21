@@ -141,6 +141,9 @@ export class SuperAdminService implements OnModuleInit {
         status: this.subs.computeAccess(t.subscription).status,
       }));
 
+    // --- Landing-page traffic (how engaged visitors are) ---
+    const traffic = await this.traffic();
+
     return {
       totals: { tenants: tenants.length, active, pending, suspended },
       mrr, revenueTotal, revenueThisMonth,
@@ -148,6 +151,79 @@ export class SuperAdminService implements OnModuleInit {
       spam: { neverActivated, duplicateIps, lastHour },
       topClinics: withCounts.slice(0, 5),
       recentSignups,
+      traffic,
+    };
+  }
+
+  // Landing-page engagement over the last 30 days: how long people stay and how far
+  // down they read. Only counts "real" visits (>=2s) so bots/instant bounces don't skew
+  // the averages; bounces are reported separately.
+  private async traffic() {
+    const since = new Date(Date.now() - 30 * DAY);
+    const visits = await this.prisma.visitSession.findMany({
+      where: { createdAt: { gte: since } },
+      select: { durationMs: true, maxScroll: true, device: true, signedUp: true, utmSource: true, createdAt: true },
+    });
+
+    const total = visits.length;
+    const real = visits.filter((v) => v.durationMs >= 2000);
+    const bounces = total - real.length; // left in under 2s
+    const n = real.length || 1;
+
+    const avgTimeSec = Math.round(real.reduce((s, v) => s + v.durationMs, 0) / n / 1000);
+    const avgScroll = Math.round(real.reduce((s, v) => s + v.maxScroll, 0) / n);
+    const signups = visits.filter((v) => v.signedUp).length;
+    const conversionRate = total ? Math.round((signups / total) * 1000) / 10 : 0; // % 1dp
+
+    // Scroll-depth buckets — how much of the page people actually read.
+    const buckets = [
+      { label: '0–25%', min: 0, max: 25, count: 0 },
+      { label: '25–50%', min: 25, max: 50, count: 0 },
+      { label: '50–75%', min: 50, max: 75, count: 0 },
+      { label: '75–100%', min: 75, max: 101, count: 0 },
+    ];
+    real.forEach((v) => {
+      const b = buckets.find((x) => v.maxScroll >= x.min && v.maxScroll < x.max);
+      if (b) b.count++;
+    });
+
+    // Time-on-page distribution.
+    const timeBuckets = [
+      { label: '<10s', min: 0, max: 10, count: 0 },
+      { label: '10–30s', min: 10, max: 30, count: 0 },
+      { label: '30–60s', min: 30, max: 60, count: 0 },
+      { label: '1–3m', min: 60, max: 180, count: 0 },
+      { label: '3m+', min: 180, max: Infinity, count: 0 },
+    ];
+    real.forEach((v) => {
+      const s = v.durationMs / 1000;
+      const b = timeBuckets.find((x) => s >= x.min && s < x.max);
+      if (b) b.count++;
+    });
+
+    const mobile = real.filter((v) => v.device === 'mobile').length;
+    const desktop = real.length - mobile;
+
+    // Visits per day, last 14 days.
+    const days: { date: string; count: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+      days.push({ date: d.toISOString().slice(0, 10), count: 0 });
+    }
+    const dayMap = new Map(days.map((d) => [d.date, d]));
+    visits.forEach((v) => { const e = dayMap.get(v.createdAt.toISOString().slice(0, 10)); if (e) e.count++; });
+
+    const fromAds = visits.filter((v) => v.utmSource).length;
+
+    return {
+      total, real: real.length, bounces,
+      avgTimeSec, avgScroll,
+      signups, conversionRate,
+      fromAds,
+      device: { mobile, desktop },
+      scrollBuckets: buckets.map((b) => ({ label: b.label, count: b.count })),
+      timeBuckets: timeBuckets.map((b) => ({ label: b.label, count: b.count })),
+      visitsByDay: days,
     };
   }
 

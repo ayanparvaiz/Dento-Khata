@@ -48,6 +48,29 @@ model SuperAdmin {
   createdAt    DateTime @default(now())
 }
 
+// A landing-page visit (not tenant-scoped — visitors aren't logged in).
+// The browser upserts this by `sid` while reading the page: it reports total time
+// on the page and how far down it scrolled, so the super-admin can see how engaging
+// the marketing page is (avg read time + scroll depth = how much people actually read).
+model VisitSession {
+  id          String   @id @default(cuid())
+  sid         String   @unique // client-generated visit id (sessionStorage)
+  path        String   @default("/")
+  referrer    String? // where they came from
+  utmSource   String? // ?utm_source= (e.g. "fb")
+  utmCampaign String? // ?utm_campaign=
+  ip          String?
+  ua          String?
+  device      String? // "mobile" | "desktop"
+  durationMs  Int      @default(0) // total active time on the page (max reported)
+  maxScroll   Int      @default(0) // furthest scroll depth, 0–100 %
+  signedUp    Boolean  @default(false) // did this visit convert to a signup?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
 // One subscription per tenant. Gateway-agnostic (Phase 1 = manual bKash).
 model Subscription {
   id               String    @id @default(cuid())

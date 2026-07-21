@@ -41,6 +41,24 @@ interface Analytics {
   spam: { neverActivated: number; duplicateIps: { ip: string; count: number }[]; lastHour: number };
   topClinics: { name: string; slug: string; patients: number }[];
   recentSignups: { name: string; slug: string; phone?: string; signupIp?: string; isActive: boolean; createdAt: string; status: string }[];
+  traffic: Traffic;
+}
+
+interface Traffic {
+  total: number; real: number; bounces: number;
+  avgTimeSec: number; avgScroll: number;
+  signups: number; conversionRate: number; fromAds: number;
+  device: { mobile: number; desktop: number };
+  scrollBuckets: { label: string; count: number }[];
+  timeBuckets: { label: string; count: number }[];
+  visitsByDay: { date: string; count: number }[];
+}
+
+function fmtDuration(sec: number) {
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s ? `${m}m ${s}s` : `${m}m`;
 }
 
 function fmtDate(s: string | null) {
@@ -272,6 +290,9 @@ export function SuperAdmin() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Landing-page engagement */}
+            {an.traffic && <TrafficPanel t={an.traffic} />}
           </div>
         )}
 
@@ -431,6 +452,81 @@ export function SuperAdmin() {
         </div>
       )}
     </div>
+  );
+}
+
+// Landing-page engagement: how long visitors stay and how far they read.
+function TrafficPanel({ t }: { t: Traffic }) {
+  const maxDay = Math.max(1, ...t.visitsByDay.map((d) => d.count));
+  const barMax = (arr: { count: number }[]) => Math.max(1, ...arr.map((b) => b.count));
+  const sMax = barMax(t.scrollBuckets);
+  const tMax = barMax(t.timeBuckets);
+  return (
+    <Card className="border-teal-100">
+      <CardContent className="space-y-4 pt-5">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold">Landing page engagement <span className="font-normal text-muted-foreground">— last 30 days</span></p>
+          <span className="text-xs text-muted-foreground">{t.real} real visits · {t.bounces} bounced</span>
+        </div>
+
+        {/* Headline metrics */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+          <Kpi label="Visitors" value={t.total} sub={`${t.fromAds} from ads`} />
+          <Kpi label="Avg. time on page" value={fmtDuration(t.avgTimeSec)} tone="text-teal-700" />
+          <Kpi label="Avg. read (scroll)" value={`${t.avgScroll}%`} tone="text-teal-700" />
+          <Kpi label="Signups" value={t.signups} tone="text-emerald-600" />
+          <Kpi label="Conversion" value={`${t.conversionRate}%`} tone="text-emerald-600" sub="visit → signup" />
+          <Kpi label="Mobile / Desktop" value={`${t.device.mobile} / ${t.device.desktop}`} />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* How far they read */}
+          <div className="rounded-lg border p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">কতদূর পড়ছে (scroll depth)</p>
+            <div className="space-y-1.5">
+              {t.scrollBuckets.map((b) => (
+                <div key={b.label} className="flex items-center gap-2 text-xs">
+                  <span className="w-16 flex-none text-muted-foreground">{b.label}</span>
+                  <div className="h-3 flex-1 overflow-hidden rounded bg-slate-100">
+                    <div className="h-full rounded bg-teal-500" style={{ width: `${(b.count / sMax) * 100}%` }} />
+                  </div>
+                  <span className="w-6 flex-none text-right font-semibold">{b.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* How long they stay */}
+          <div className="rounded-lg border p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">কতক্ষণ থাকছে (time on page)</p>
+            <div className="space-y-1.5">
+              {t.timeBuckets.map((b) => (
+                <div key={b.label} className="flex items-center gap-2 text-xs">
+                  <span className="w-16 flex-none text-muted-foreground">{b.label}</span>
+                  <div className="h-3 flex-1 overflow-hidden rounded bg-slate-100">
+                    <div className="h-full rounded bg-indigo-500" style={{ width: `${(b.count / tMax) * 100}%` }} />
+                  </div>
+                  <span className="w-6 flex-none text-right font-semibold">{b.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Visits per day */}
+          <div className="rounded-lg border p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">ভিজিট — ১৪ দিন</p>
+            <div className="flex h-24 items-end gap-1">
+              {t.visitsByDay.map((d) => (
+                <div key={d.date} className="flex flex-1 flex-col items-center gap-1" title={`${d.date}: ${d.count}`}>
+                  <div className="w-full rounded-t bg-teal-400" style={{ height: `${(d.count / maxDay) * 100}%`, minHeight: d.count ? 3 : 0 }} />
+                  <span className="text-[8px] text-muted-foreground">{d.date.slice(8)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

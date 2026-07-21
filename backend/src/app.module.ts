@@ -28,6 +28,7 @@ import { TenantContextMiddleware } from './tenant/tenant-context.middleware';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { SuperAdminModule } from './superadmin/superadmin.module';
 import { MetaModule } from './meta/meta.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { MetaModule } from './meta/meta.module';
     SubscriptionModule,
     SuperAdminModule,
     MetaModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
