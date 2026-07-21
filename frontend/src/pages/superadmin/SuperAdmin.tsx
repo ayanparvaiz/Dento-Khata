@@ -14,6 +14,9 @@ interface Tenant {
   isActive: boolean;
   users: number;
   patients: number;
+  pendingPayment?: boolean;
+  lastPaymentStatus?: string | null;
+  lastPaymentAmount?: number | null;
   subscription: { status: string; active: boolean; currentPeriodEnd: string | null; daysLeft: number | null; amount: number } | null;
 }
 interface Pending {
@@ -340,11 +343,14 @@ export function SuperAdmin() {
               <tbody>
                 {tenants.map((t) => {
                   const s = t.subscription;
-                  const badge = !t.isActive
-                    ? 'bg-red-100 text-red-700'
-                    : s?.active
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-amber-100 text-amber-700';
+                  // Distinct, non-ambiguous status: suspended > active > payment-in-review >
+                  // last-rejected > plain pending. So the operator always knows the real state.
+                  let label: string, badge: string;
+                  if (!t.isActive) { label = 'SUSPENDED'; badge = 'bg-red-100 text-red-700'; }
+                  else if (s?.active) { label = s.status; badge = 'bg-emerald-100 text-emerald-700'; }
+                  else if (t.pendingPayment) { label = '⏳ PAYMENT REVIEW'; badge = 'bg-blue-100 text-blue-700'; }
+                  else if (t.lastPaymentStatus === 'REJECTED') { label = '❌ REJECTED'; badge = 'bg-rose-100 text-rose-700'; }
+                  else { label = s?.status || 'PENDING'; badge = 'bg-amber-100 text-amber-700'; }
                   return (
                     <tr key={t.id} className="border-t">
                       <td className="p-3">
@@ -353,8 +359,8 @@ export function SuperAdmin() {
                       </td>
                       <td className="p-3 font-mono text-xs">{t.slug}</td>
                       <td className="p-3">
-                        <span className={`rounded px-2 py-0.5 text-xs font-medium ${badge}`}>
-                          {!t.isActive ? 'SUSPENDED' : s?.status || 'NONE'}
+                        <span className={`whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium ${badge}`}>
+                          {label}
                         </span>
                       </td>
                       <td className="p-3">{fmtDate(s?.currentPeriodEnd ?? null)}{s?.daysLeft != null && s.active && <span className="ml-1 text-xs text-muted-foreground">({s.daysLeft}d)</span>}</td>

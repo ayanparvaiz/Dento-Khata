@@ -8,6 +8,7 @@ import { DEFAULT_PROCEDURES } from './default-procedures';
 import { clinicSuspended } from './suspended';
 import { MetaService } from '../meta/meta.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { DEFAULT_PLAN } from '../subscription/plans';
 
 // Simple in-memory per-IP signup throttle (anti-spam). No external dep needed.
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -81,7 +82,7 @@ export class AuthService {
       },
     });
 
-    const price = Number(process.env.SUBSCRIPTION_PRICE) || 990;
+    const price = Number(process.env.SUBSCRIPTION_PRICE) || DEFAULT_PLAN.price;
 
     await runInTenant(tenant.id, async () => {
       await this.prisma.user.create({

@@ -13,4 +13,8 @@ export class SubmitPaymentDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @IsOptional()
+  @IsString()
+  plan?: string; // selected package key: '1m' | '6m' | '12m'
 }

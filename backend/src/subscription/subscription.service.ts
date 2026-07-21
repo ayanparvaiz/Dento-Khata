@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitPaymentDto } from './dto';
+import { planByKey, DEFAULT_PLAN } from './plans';
 import { MetaService } from '../meta/meta.service';
 import { TelegramService } from '../telegram/telegram.service';
 
@@ -23,7 +24,7 @@ export class SubscriptionService {
     return Number(process.env.SUBSCRIPTION_GRACE_DAYS) || 3;
   }
   private price() {
-    return Number(process.env.SUBSCRIPTION_PRICE) || 990;
+    return Number(process.env.SUBSCRIPTION_PRICE) || DEFAULT_PLAN.price;
   }
   private bkashNumber() {
     return process.env.BKASH_RECEIVE_NUMBER || '01XXXXXXXXX';
@@ -100,16 +101,19 @@ export class SubscriptionService {
     const dup = await this.prisma.subscriptionPayment.findFirst({ where: { trxId: dto.trxId } });
     if (dup) throw new BadRequestException('That transaction id was already submitted');
 
+    // The clinic picked a package on the paywall — its price + duration are authoritative.
+    const plan = planByKey(dto.plan);
+
     await this.prisma.subscriptionPayment.create({
       data: {
         subscriptionId: sub.id,
-        amount: sub.amount,
+        amount: plan.price,
         method: 'BKASH',
         trxId: dto.trxId,
         senderMsisdn: dto.senderMsisdn,
         note: dto.note,
         status: 'SUBMITTED',
-        periodDays: 30,
+        periodDays: plan.days,
       },
     });
 
@@ -117,7 +121,7 @@ export class SubscriptionService {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: sub.tenantId } });
     void this.telegram.notifyPayment({
       clinicName: tenant?.name, ownerName: tenant?.ownerName, phone: tenant?.phone,
-      trxId: dto.trxId, senderMsisdn: dto.senderMsisdn, amount: sub.amount,
+      trxId: dto.trxId, senderMsisdn: dto.senderMsisdn, amount: plan.price, planLabel: plan.label,
     });
 
     return { submitted: true };

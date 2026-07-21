@@ -46,11 +46,18 @@ export class SuperAdminService implements OnModuleInit {
       orderBy: { createdAt: 'desc' },
       include: { subscription: true, _count: { select: { users: true } } },
     });
-    // Attach live access state + patient counts.
+    // Attach live access state + patient counts + latest payment so the operator can
+    // tell apart a fresh signup (no payment), a payment awaiting review, and a rejected one
+    // — instead of all three looking identical as "PENDING".
     const out = [] as any[];
     for (const t of tenants) {
       const access = this.subs.computeAccess(t.subscription);
       const patients = await this.prisma.patient.count({ where: { tenantId: t.id } });
+      const lastPay = await this.prisma.subscriptionPayment.findFirst({
+        where: { tenantId: t.id },
+        orderBy: { submittedAt: 'desc' },
+        select: { status: true, amount: true, trxId: true, submittedAt: true },
+      });
       out.push({
         id: t.id,
         slug: t.slug,
@@ -62,6 +69,9 @@ export class SuperAdminService implements OnModuleInit {
         createdAt: t.createdAt,
         users: t._count.users,
         patients,
+        pendingPayment: lastPay?.status === 'SUBMITTED',
+        lastPaymentStatus: lastPay?.status ?? null,
+        lastPaymentAmount: lastPay?.amount ?? null,
         subscription: t.subscription
           ? { status: access.status, active: access.active, currentPeriodEnd: t.subscription.currentPeriodEnd, daysLeft: access.daysLeft, amount: t.subscription.amount }
           : null,

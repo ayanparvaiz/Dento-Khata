@@ -7,12 +7,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Lock, LogOut, CheckCircle2, MessageCircle, Copy, Check } from 'lucide-react';
 import { fbTrack } from '@/lib/meta';
 
-// Package options (must match the landing page).
+// Package options (keys + amounts must match the backend catalog in subscription/plans.ts).
 const PLANS = [
-  { label: '১ মাস', price: '৳১,৯৯০', per: '৳১,৯৯০/মাস', save: '' },
-  { label: '৬ মাস', price: '৳১০,৯৯০', per: '৳১,৮৩২/মাস', save: '৳৯৫০ সাশ্রয়' },
-  { label: '১২ মাস', price: '৳১৯,৯৯০', per: '৳১,৬৬৬/মাস', save: 'সেরা মূল্য' },
+  { key: '1m', label: '১ মাস', price: '৳১,৯৯০', amount: 1990, per: '৳১,৯৯০/মাস', save: '' },
+  { key: '6m', label: '৬ মাস', price: '৳১০,৯৯০', amount: 10990, per: '৳১,৮৩২/মাস', save: '৳৯৫০ সাশ্রয়' },
+  { key: '12m', label: '১২ মাস', price: '৳১৯,৯৯০', amount: 19990, per: '৳১,৬৬৬/মাস', save: 'সেরা মূল্য' },
 ];
+const bn = (n: number) => n.toLocaleString('en-US').replace(/[0-9]/g, (d) => '০১২৩৪৫৬৭৮৯'[+d]);
 
 function CopyNumber({ number }: { number: string }) {
   const [copied, setCopied] = useState(false);
@@ -33,6 +34,8 @@ export function Paywall() {
   const { user, sub, logout, refreshSub } = useAuth();
   const [trxId, setTrxId] = useState('');
   const [sender, setSender] = useState('');
+  const [planKey, setPlanKey] = useState('1m'); // selected package
+  const selectedPlan = PLANS.find((p) => p.key === planKey) || PLANS[0];
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
@@ -54,7 +57,7 @@ export function Paywall() {
     }
   };
 
-  const amount = sub?.amount ?? 1990;
+  const amount = PLANS[0].amount; // monthly base reference (packages below drive the real price)
   const bkash = sub?.bkashNumber ?? '—';
   const whatsapp = sub?.whatsapp || '';
   const suspended = sub?.status === 'SUSPENDED';
@@ -69,8 +72,8 @@ export function Paywall() {
     setError('');
     setMsg('');
     try {
-      await api.post('/subscription/pay', { trxId: trxId.trim(), senderMsisdn: sender.trim() });
-      fbTrack('InitiateCheckout', { value: amount, currency: 'BDT' }); // paid, awaiting verification
+      await api.post('/subscription/pay', { trxId: trxId.trim(), senderMsisdn: sender.trim(), plan: planKey });
+      fbTrack('InitiateCheckout', { value: selectedPlan.amount, currency: 'BDT' }); // paid, awaiting verification
       setMsg('পেমেন্ট জমা হয়েছে। যাচাই হলে আপনার ক্লিনিক স্বয়ংক্রিয়ভাবে চালু হয়ে যাবে — এই পেজ খোলা রাখুন।');
       setTrxId('');
       setSender('');
@@ -117,29 +120,41 @@ export function Paywall() {
                   <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-extrabold text-white" style={{ background: '#8c3494' }}>Rocket</span>
                 </div>
 
-                {/* Package table so the user doesn't need to go back to the landing page */}
+                {/* Selectable packages — the chosen one drives the amount to send + verify */}
                 <div className="mb-3 grid grid-cols-3 gap-2">
-                  {PLANS.map((pl) => (
-                    <div key={pl.label} className="rounded-lg border border-teal-100 bg-teal-50/60 p-2 text-center">
-                      <p className="text-xs text-teal-700">{pl.label}</p>
-                      <p className="text-base font-extrabold text-foreground">{pl.price}</p>
-                      <p className="text-[10px] text-muted-foreground">{pl.per}</p>
-                      {pl.save && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">{pl.save}</p>}
-                    </div>
-                  ))}
+                  {PLANS.map((pl) => {
+                    const active = pl.key === planKey;
+                    return (
+                      <button
+                        type="button"
+                        key={pl.key}
+                        onClick={() => setPlanKey(pl.key)}
+                        className={`relative rounded-lg border p-2 text-center transition-colors ${active ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-400' : 'border-teal-100 bg-teal-50/40 hover:bg-teal-50'}`}
+                      >
+                        {active && <Check className="absolute right-1 top-1 h-3.5 w-3.5 text-teal-600" />}
+                        <p className="text-xs text-teal-700">{pl.label}</p>
+                        <p className="text-base font-extrabold text-foreground">{pl.price}</p>
+                        <p className="text-[10px] text-muted-foreground">{pl.per}</p>
+                        {pl.save && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">{pl.save}</p>}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Copyable number */}
-                <div className="mb-3">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">আমাদের বিকাশ / রকেট নম্বর (Send Money)</p>
+                {/* Copyable number + the exact amount to send for the chosen package */}
+                <div className="mb-3 rounded-lg bg-teal-50 p-3 ring-1 ring-teal-100">
+                  <p className="mb-1 text-xs font-medium text-teal-800">
+                    <b>{selectedPlan.label}</b> প্যাকেজের জন্য পাঠান{' '}
+                    <span className="text-base font-extrabold text-teal-900">৳{bn(selectedPlan.amount)}</span>
+                  </p>
+                  <p className="mb-2 text-xs text-muted-foreground">আমাদের বিকাশ / রকেট নম্বরে (Send Money):</p>
                   <CopyNumber number={bkash} />
                 </div>
 
                 <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
                   <li>
-                    আপনার প্যাকেজের টাকা পাঠান{' '}
-                    <span className="font-mono font-semibold text-foreground">{bkash}</span> নম্বরে
-                    (Send Money)
+                    <span className="font-semibold text-foreground">৳{bn(selectedPlan.amount)}</span> পাঠান{' '}
+                    <span className="font-mono font-semibold text-foreground">{bkash}</span> নম্বরে (Send Money)
                   </li>
                   <li>কনফার্মেশন SMS থেকে Transaction ID (TrxID) কপি করুন</li>
                   <li>নিচে সেটি বসিয়ে জমা দিন — যাচাইয়ের পর অ্যাকাউন্ট চালু হবে</li>

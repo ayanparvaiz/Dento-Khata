@@ -53,7 +53,7 @@ export class TelegramService {
   }
 
   // 💳 A clinic submitted a bKash TrxID — needs manual verification.
-  async notifyPayment(d: { clinicName?: string | null; ownerName?: string | null; phone?: string | null; trxId?: string | null; senderMsisdn?: string | null; amount?: number | null }) {
+  async notifyPayment(d: { clinicName?: string | null; ownerName?: string | null; phone?: string | null; trxId?: string | null; senderMsisdn?: string | null; amount?: number | null; planLabel?: string | null }) {
     const lines = [
       '🔴 <b>PAYMENT VERIFICATION NEEDED</b>',
       '',
@@ -62,6 +62,7 @@ export class TelegramService {
       `📞 <b>Phone:</b> ${this.esc(d.phone)}`,
       `🧾 <b>TrxID:</b> <code>${this.esc(d.trxId)}</code>`,
       `📲 <b>bKash number:</b> ${this.esc(d.senderMsisdn)}`,
+      d.planLabel ? `📦 <b>Package:</b> ${this.esc(d.planLabel)}` : '',
       d.amount ? `💰 <b>Amount:</b> ৳${d.amount}` : '',
       '',
       '➡️ Verify in the super-admin console.',
