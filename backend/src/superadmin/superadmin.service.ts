@@ -204,10 +204,12 @@ export class SuperAdminService implements OnModuleInit {
     const mobile = real.filter((v) => v.device === 'mobile').length;
     const desktop = real.length - mobile;
 
-    // Visits per day, last 14 days.
+    // Visits per day, last 14 days. Keyed in UTC on both sides so the bucket dates
+    // line up with createdAt.toISOString() regardless of the server's local timezone.
     const days: { date: string; count: number }[] = [];
+    const todayUtc = new Date(); todayUtc.setUTCHours(0, 0, 0, 0);
     for (let i = 13; i >= 0; i--) {
-      const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+      const d = new Date(todayUtc.getTime() - i * DAY);
       days.push({ date: d.toISOString().slice(0, 10), count: 0 });
     }
     const dayMap = new Map(days.map((d) => [d.date, d]));
