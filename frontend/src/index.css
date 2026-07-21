@@ -15,6 +15,12 @@
   --color-warning: #d97706;
   --color-success: #16a34a;
   --radius: 0.625rem;
+  --animate-fade-in-up: fade-in-up 0.35s ease-out both;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 * {
