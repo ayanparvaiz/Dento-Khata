@@ -187,7 +187,6 @@ export function Signup() {
               <MessageCircle className="h-4 w-4" /> কথা বলুন
             </a>
           </div>
-          <p className="mt-5 text-sm text-teal-50/80">মাত্র ৳১,৯৯০/মাস · কোনো সেটআপ ফি নেই</p>
 
           {/* Highlighted service promises */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 text-sm font-medium">
