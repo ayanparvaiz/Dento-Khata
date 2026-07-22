@@ -42,6 +42,7 @@ interface Analytics {
   mrr: number; revenueTotal: number; revenueThisMonth: number;
   signups: { date: string; count: number }[];
   spam: { neverActivated: number; duplicateIps: { ip: string; count: number }[]; lastHour: number };
+  suspicious?: { sharedIps: { ip: string; count: number; clinics: { name: string; slug: string; via: string }[] }[] };
   topClinics: { name: string; slug: string; patients: number }[];
   recentSignups: { name: string; slug: string; phone?: string; signupIp?: string; isActive: boolean; createdAt: string; status: string }[];
   traffic: Traffic;
@@ -277,6 +278,33 @@ export function SuperAdmin() {
               </Card>
             </div>
 
+            {/* Suspicious: one IP → multiple clinics (signup or login) */}
+            {an.suspicious && an.suspicious.sharedIps.length > 0 && (
+              <Card className="border-rose-300">
+                <CardContent className="pt-5">
+                  <p className="mb-2 text-sm font-semibold text-rose-700">⚠ Suspicious — same IP, multiple clinics</p>
+                  <p className="mb-3 text-xs text-muted-foreground">One device/network tied to several clinics (via signup or login). Possible multi-account or shared credentials.</p>
+                  <div className="space-y-2">
+                    {an.suspicious.sharedIps.map((s) => (
+                      <div key={s.ip} className="rounded-lg bg-rose-50 p-2 text-xs">
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="font-mono font-semibold">{s.ip}</span>
+                          <span className="font-bold text-rose-700">{s.count} clinics</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {s.clinics.map((c) => (
+                            <span key={c.slug} className="rounded bg-white px-1.5 py-0.5 ring-1 ring-rose-200">
+                              {c.name} <span className="text-[10px] text-muted-foreground">({c.via})</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid gap-4 lg:grid-cols-2">
               {/* Top clinics */}
               {an.topClinics.length > 0 && (
@@ -367,6 +395,7 @@ export function SuperAdmin() {
                   // last-rejected > plain pending. So the operator always knows the real state.
                   let label: string, badge: string;
                   if (!t.isActive) { label = 'SUSPENDED'; badge = 'bg-red-100 text-red-700'; }
+                  else if (s?.active && s.status === 'TRIAL') { label = `🎁 TRIAL${s.daysLeft != null ? ` (${s.daysLeft}d)` : ''}`; badge = 'bg-violet-100 text-violet-700'; }
                   else if (s?.active) { label = s.status; badge = 'bg-emerald-100 text-emerald-700'; }
                   else if (t.pendingPayment) { label = '⏳ PAYMENT REVIEW'; badge = 'bg-blue-100 text-blue-700'; }
                   else if (t.lastPaymentStatus === 'REJECTED') { label = '❌ REJECTED'; badge = 'bg-rose-100 text-rose-700'; }

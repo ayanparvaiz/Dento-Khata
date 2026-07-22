@@ -19,12 +19,13 @@ export interface AuthUser {
 
 export interface SubStatus {
   active: boolean;
-  status: string; // PENDING | ACTIVE | PAST_DUE | SUSPENDED | NONE
+  status: string; // PENDING | ACTIVE | TRIAL | PAST_DUE | SUSPENDED | NONE
   currentPeriodEnd: string | null;
   daysLeft: number | null;
   amount: number;
   bkashNumber: string;
   whatsapp: string;
+  isTrial: boolean;
   pendingPayment?: boolean;
   // Meta: set once, the first time an activated clinic loads (offline purchase)
   trackPurchase?: boolean;
@@ -141,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { fbp, fbc } = fbCookies();
     const { data } = await api.post('/auth/signup', { ...payload, fbp, fbc, eventId });
     localStorage.setItem('token', data.access_token);
+    localStorage.setItem('dk_trial_welcome', '1'); // show the "trial started" dialog once
     setUser({ ...data.user, tenant: data.tenant });
     fbTrack('CompleteRegistration', { content_name: 'clinic_signup' }, eventId);
     await refreshSub();

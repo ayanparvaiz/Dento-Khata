@@ -8,7 +8,7 @@ import { DEFAULT_PROCEDURES } from './default-procedures';
 import { clinicSuspended } from './suspended';
 import { MetaService } from '../meta/meta.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { DEFAULT_PLAN } from '../subscription/plans';
+import { DEFAULT_PLAN, TRIAL_DAYS, TRIAL_PLAN } from '../subscription/plans';
 
 // Simple in-memory per-IP signup throttle (anti-spam). No external dep needed.
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -36,7 +36,7 @@ export class AuthService {
   }
 
   // --- Tenant login: (phone, password) -----------------------------------
-  async login(phone: string, password: string) {
+  async login(phone: string, password: string, ip = '', ua = '') {
     // Phone is globally unique → resolves the user (and thus the clinic) directly.
     // No tenant context here (public route); the Prisma extension leaves this query unscoped.
     const user = await this.prisma.user.findUnique({ where: { phone: phone.trim() } });
@@ -55,6 +55,11 @@ export class AuthService {
       role: user.role,
       tenantId: tenant.id,
     });
+
+    // Record the login IP (super-admin uses this to spot suspicious patterns).
+    void this.prisma.loginLog.create({
+      data: { tenantId: tenant.id, userId: user.id, phone: user.phone, clinicName: tenant.name, ip: ip || null, ua: ua || null },
+    }).catch(() => {});
 
     return { access_token: token, user: this.shape(user), tenant: this.tenantShape(tenant) };
   }
@@ -95,9 +100,11 @@ export class AuthService {
           isActive: true,
         },
       });
-      // New clinics start PENDING — no access until a payment is verified or the admin grants days.
+      // New clinics start on an automatic free trial — active immediately for TRIAL_DAYS,
+      // then the paywall kicks in. (plan=TRIAL so it's not counted as a paid Purchase.)
+      const trialEnd = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
       await this.prisma.subscription.create({
-        data: { plan: 'STANDARD', status: 'PENDING', amount: price, currentPeriodEnd: null },
+        data: { plan: TRIAL_PLAN, status: 'ACTIVE', amount: price, currentPeriodEnd: trialEnd },
       });
       await this.prisma.clinicSettings.create({
         data: { name: dto.clinicName, phone },
@@ -119,8 +126,8 @@ export class AuthService {
       });
     }
 
-    // Auto-login the owner so onboarding continues straight to the paywall/pay screen.
-    return this.login(phone, dto.password);
+    // Auto-login the owner so onboarding continues straight into the app (trial active).
+    return this.login(phone, dto.password, ip, ua);
   }
 
   // Current user incl. granted permissions (admin/owner = all).

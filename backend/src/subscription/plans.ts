@@ -17,6 +17,10 @@ export const PLANS: Plan[] = [
 
 export const DEFAULT_PLAN = PLANS[0];
 
+// Every new clinic starts on an automatic free trial of this many days.
+export const TRIAL_DAYS = 3;
+export const TRIAL_PLAN = 'TRIAL';
+
 export function planByKey(key?: string | null): Plan {
   return PLANS.find((p) => p.key === key) || DEFAULT_PLAN;
 }

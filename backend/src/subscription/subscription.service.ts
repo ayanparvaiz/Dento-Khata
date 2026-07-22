@@ -2,18 +2,19 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitPaymentDto } from './dto';
-import { planByKey, DEFAULT_PLAN } from './plans';
+import { planByKey, DEFAULT_PLAN, TRIAL_PLAN } from './plans';
 import { MetaService } from '../meta/meta.service';
 import { TelegramService } from '../telegram/telegram.service';
 
 export interface AccessState {
   active: boolean;
-  status: string; // PENDING | ACTIVE | PAST_DUE | SUSPENDED | NONE
+  status: string; // PENDING | ACTIVE | TRIAL | PAST_DUE | SUSPENDED | NONE
   currentPeriodEnd: Date | null;
   daysLeft: number | null; // days until expiry (incl. grace consumed → negative once past)
   amount: number;
   bkashNumber: string;
   whatsapp: string;
+  isTrial: boolean; // true while (or after) the free trial — never a paid period
 }
 
 @Injectable()
@@ -34,8 +35,9 @@ export class SubscriptionService {
   }
 
   // Live access decision for a subscription row (null = no subscription).
-  computeAccess(sub: { status: string; currentPeriodEnd: Date | null; amount: number } | null): AccessState {
-    const base = { amount: sub?.amount ?? this.price(), bkashNumber: this.bkashNumber(), whatsapp: this.whatsapp() };
+  computeAccess(sub: { status: string; currentPeriodEnd: Date | null; amount: number; plan?: string } | null): AccessState {
+    const trial = sub?.plan === TRIAL_PLAN;
+    const base = { amount: sub?.amount ?? this.price(), bkashNumber: this.bkashNumber(), whatsapp: this.whatsapp(), isTrial: trial };
     if (!sub) return { active: false, status: 'NONE', currentPeriodEnd: null, daysLeft: null, ...base };
 
     if (sub.status === 'SUSPENDED')
@@ -46,10 +48,13 @@ export class SubscriptionService {
 
     const now = Date.now();
     const end = sub.currentPeriodEnd.getTime();
-    const graceMs = this.graceDays() * 86_400_000;
+    // No grace period on a free trial — it ends exactly on time so the paywall converts.
+    const graceMs = trial ? 0 : this.graceDays() * 86_400_000;
     const active = now <= end + graceMs;
     const daysLeft = Math.ceil((end - now) / 86_400_000);
-    const status = active ? (now <= end ? 'ACTIVE' : 'PAST_DUE') : 'PAST_DUE';
+    const status = trial
+      ? (active ? 'TRIAL' : 'PAST_DUE')
+      : (active ? (now <= end ? 'ACTIVE' : 'PAST_DUE') : 'PAST_DUE');
     return { active, status, currentPeriodEnd: sub.currentPeriodEnd, daysLeft, ...base };
   }
 
@@ -71,23 +76,26 @@ export class SubscriptionService {
     let purchaseValue: number | undefined;
 
     if (sub && state.active && !sub.purchaseTrackedAt) {
-      // value = what they actually paid (latest verified payment), else the plan price
+      // Fire Purchase ONLY for a real paid verification — never for a free trial or a
+      // comp grant (amount 0). Otherwise every trial signup would look like a sale to Meta.
       const paid = await this.prisma.subscriptionPayment.findFirst({
         where: { status: 'VERIFIED', amount: { gt: 0 } }, orderBy: { verifiedAt: 'desc' },
       });
-      purchaseValue = paid?.amount ?? sub.amount;
-      purchaseEventId = `purchase-${sub.tenantId}-${crypto.randomBytes(6).toString('hex')}`;
-      // mark first so a double request can't double-fire
-      await this.prisma.subscription.update({ where: { id: sub.id }, data: { purchaseTrackedAt: new Date() } });
-      trackPurchase = true;
+      if (paid) {
+        purchaseValue = paid.amount;
+        purchaseEventId = `purchase-${sub.tenantId}-${crypto.randomBytes(6).toString('hex')}`;
+        // mark first so a double request can't double-fire
+        await this.prisma.subscription.update({ where: { id: sub.id }, data: { purchaseTrackedAt: new Date() } });
+        trackPurchase = true;
 
-      const tenant = await this.prisma.tenant.findUnique({ where: { id: sub.tenantId } });
-      void this.meta.send({
-        eventName: 'Purchase', eventId: purchaseEventId,
-        phone: tenant?.phone, externalId: sub.tenantId,
-        fbp: tenant?.fbp, fbc: tenant?.fbc, ip: tenant?.signupIp, ua: tenant?.signupUa,
-        value: purchaseValue, currency: 'BDT',
-      });
+        const tenant = await this.prisma.tenant.findUnique({ where: { id: sub.tenantId } });
+        void this.meta.send({
+          eventName: 'Purchase', eventId: purchaseEventId,
+          phone: tenant?.phone, externalId: sub.tenantId,
+          fbp: tenant?.fbp, fbc: tenant?.fbc, ip: tenant?.signupIp, ua: tenant?.signupUa,
+          value: purchaseValue, currency: 'BDT',
+        });
+      }
     }
 
     return { ...state, pendingPayment, trackPurchase, purchaseEventId, purchaseValue };

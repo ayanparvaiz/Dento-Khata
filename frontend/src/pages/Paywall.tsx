@@ -61,6 +61,8 @@ export function Paywall() {
   const bkash = sub?.bkashNumber ?? '—';
   const whatsapp = sub?.whatsapp || '';
   const suspended = sub?.status === 'SUSPENDED';
+  const onTrial = !!sub?.isTrial && !!sub?.active; // active trial (early subscribe screen)
+  const trialEnded = !!sub?.isTrial && !sub?.active && !suspended; // trial expired → real paywall
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,13 +96,23 @@ export function Paywall() {
               <Lock className="h-6 w-6" />
             </div>
             <h1 className="text-xl font-bold">
-              {suspended ? 'অ্যাকাউন্ট স্থগিত' : 'সাবস্ক্রিপশন চালু করুন'}
+              {suspended
+                ? 'অ্যাকাউন্ট স্থগিত'
+                : trialEnded
+                  ? 'আপনার ফ্রি ট্রায়াল শেষ হয়েছে'
+                  : onTrial
+                    ? 'সাবস্ক্রাইব করুন'
+                    : 'সাবস্ক্রিপশন চালু করুন'}
             </h1>
             <p className="text-sm text-muted-foreground">
               {user?.tenant?.name ? `${user.tenant.name} — ` : ''}
               {suspended
                 ? 'আপনার ক্লিনিক অ্যাকাউন্ট স্থগিত করা হয়েছে। সাপোর্টে যোগাযোগ করুন।'
-                : `অ্যাপ ব্যবহার করতে সক্রিয় সাবস্ক্রিপশন প্রয়োজন (৳${amount}/মাস)।`}
+                : trialEnded
+                  ? 'অ্যাপ ব্যবহার চালিয়ে যেতে একটি প্যাকেজ নিন। আপনার সব তথ্য অক্ষত আছে।'
+                  : onTrial
+                    ? 'আপনি এখন ফ্রি ট্রায়ালে আছেন। এখনই সাবস্ক্রাইব করে নিশ্চিন্ত থাকুন — ট্রায়াল শেষেই চালু হয়ে যাবে।'
+                    : `অ্যাপ ব্যবহার করতে সক্রিয় সাবস্ক্রিপশন প্রয়োজন (৳${amount}/মাস)।`}
             </p>
           </div>
 

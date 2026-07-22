@@ -90,6 +90,24 @@ model ErrorLog {
   @@index([createdAt])
 }
 
+// A successful login (platform-level, not tenant-scoped). Captured on every login so the
+// super-admin can spot suspicious patterns: one IP into many clinics, or one clinic from
+// many IPs (shared/leaked credentials or multi-account abuse).
+model LoginLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  tenantId   String?
+  userId     String?
+  phone      String?
+  clinicName String?
+  ip         String?
+  ua         String?
+
+  @@index([createdAt])
+  @@index([ip])
+  @@index([tenantId])
+}
+
 // One subscription per tenant. Gateway-agnostic (Phase 1 = manual bKash).
 model Subscription {
   id               String    @id @default(cuid())

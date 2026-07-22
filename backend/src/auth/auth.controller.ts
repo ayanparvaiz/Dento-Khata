@@ -19,8 +19,8 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto.phone, dto.password);
+  login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.auth.login(dto.phone, dto.password, clientIp(req), String(req.headers['user-agent'] || ''));
   }
 
   // Public clinic self-registration → creates tenant + owner + pending subscription.

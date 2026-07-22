@@ -154,15 +154,56 @@ export class SuperAdminService implements OnModuleInit {
     // --- Landing-page traffic (how engaged visitors are) ---
     const traffic = await this.traffic();
 
+    // --- Suspicious: one IP tied to multiple clinics (signup + login) ---
+    const suspicious = await this.suspicious(tenants);
+
     return {
       totals: { tenants: tenants.length, active, pending, suspended },
       mrr, revenueTotal, revenueThisMonth,
       signups: days,
       spam: { neverActivated, duplicateIps, lastHour },
+      suspicious,
       topClinics: withCounts.slice(0, 5),
       recentSignups,
       traffic,
     };
+  }
+
+  // Suspicious-IP report: an IP that touched 2+ different clinics — via signup or login —
+  // is the strongest multi-account / shared-credential signal. Returns the clinics per IP.
+  private async suspicious(tenants: { id: string; name: string; slug: string; signupIp: string | null }[]) {
+    const byIp = new Map<string, Map<string, { name: string; slug: string; via: Set<string> }>>();
+    const add = (ip: string | null | undefined, tid: string, name: string, slug: string, via: string) => {
+      if (!ip) return;
+      if (!byIp.has(ip)) byIp.set(ip, new Map());
+      const clinics = byIp.get(ip)!;
+      if (!clinics.has(tid)) clinics.set(tid, { name, slug, via: new Set() });
+      clinics.get(tid)!.via.add(via);
+    };
+
+    // signup IPs
+    tenants.forEach((t) => add(t.signupIp, t.id, t.name, t.slug, 'signup'));
+
+    // login IPs (last 30 days)
+    const since = new Date(Date.now() - 30 * DAY);
+    const logins = await this.prisma.loginLog.findMany({
+      where: { createdAt: { gte: since } },
+      select: { ip: true, tenantId: true, clinicName: true },
+    });
+    const slugById = new Map(tenants.map((t) => [t.id, t.slug]));
+    logins.forEach((l) => { if (l.tenantId) add(l.ip, l.tenantId, l.clinicName || '—', slugById.get(l.tenantId) || '', 'login'); });
+
+    const sharedIps = [...byIp.entries()]
+      .filter(([, clinics]) => clinics.size >= 2)
+      .map(([ip, clinics]) => ({
+        ip,
+        count: clinics.size,
+        clinics: [...clinics.values()].map((c) => ({ name: c.name, slug: c.slug, via: [...c.via].join('+') })),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 20);
+
+    return { sharedIps };
   }
 
   // Landing-page engagement over the last 30 days: how long people stay and how far
@@ -324,7 +365,8 @@ export class SuperAdminService implements OnModuleInit {
       }),
       this.prisma.subscription.update({
         where: { id: sub.id },
-        data: { status: 'ACTIVE', currentPeriodEnd: newEnd },
+        // paid → leave the trial, become a real STANDARD subscription
+        data: { status: 'ACTIVE', currentPeriodEnd: newEnd, plan: 'STANDARD' },
       }),
     ]);
     return { verified: true, currentPeriodEnd: newEnd };
@@ -348,7 +390,8 @@ export class SuperAdminService implements OnModuleInit {
     await this.prisma.$transaction([
       this.prisma.subscription.update({
         where: { id: sub.id },
-        data: { status: 'ACTIVE', currentPeriodEnd: newEnd },
+        // operator-granted access is no longer a trial (comp, but not the auto free trial)
+        data: { status: 'ACTIVE', currentPeriodEnd: newEnd, plan: 'STANDARD' },
       }),
       this.prisma.subscriptionPayment.create({
         data: {

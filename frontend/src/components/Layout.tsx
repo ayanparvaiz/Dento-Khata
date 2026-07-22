@@ -17,6 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import { ToothIcon } from '@/components/ToothLogo';
+import { TrialWelcome, TrialBanner } from '@/components/TrialBits';
 
 const nav: { to: string; label: string; icon: any; end?: boolean; adminOnly?: boolean; cap?: string; divider?: boolean }[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -100,10 +101,12 @@ export function Layout() {
             <span className="font-semibold">Dento Khata</span>
           </div>
         </header>
+        <TrialBanner />
         <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
       </div>
+      <TrialWelcome />
     </div>
   );
 }

@@ -49,6 +49,7 @@ export default function App() {
             <Route path="charting" element={<ChartingHome />} />
             <Route path="reports" element={<Reports />} />
             <Route path="tutorial" element={<Tutorial />} />
+            <Route path="subscribe" element={<Paywall />} />
             <Route path="catalog" element={<ProtectedRoute roles={['ADMIN']}><Catalog /></ProtectedRoute>} />
             <Route path="users" element={<ProtectedRoute roles={['ADMIN']}><Users /></ProtectedRoute>} />
             <Route path="settings" element={<Settings />} />
