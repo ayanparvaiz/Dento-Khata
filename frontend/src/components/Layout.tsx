@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
+import { bn } from '@/lib/pricing';
 import { ToothIcon } from '@/components/ToothLogo';
 import { TrialWelcome, TrialBanner } from '@/components/TrialBits';
 
@@ -32,7 +33,7 @@ const nav: { to: string; label: string; icon: any; end?: boolean; adminOnly?: bo
 ];
 
 export function Layout() {
-  const { user, logout, can } = useAuth();
+  const { user, logout, can, sub } = useAuth();
   const [open, setOpen] = useState(false); // mobile drawer
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER';
   const items = nav.filter((n) => (n.adminOnly ? isAdmin : n.cap ? can(n.cap) : true));
@@ -78,6 +79,24 @@ export function Layout() {
           ))}
         </nav>
         <div className="border-t border-border p-3">
+          {/* Subscription status + quick renew */}
+          {sub && (
+            <NavLink
+              to="/subscribe"
+              onClick={() => setOpen(false)}
+              className="mb-2 block rounded-[var(--radius)] border border-border p-2.5 transition-colors hover:bg-muted"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">{sub.isTrial ? 'ফ্রি ট্রায়াল' : 'সাবস্ক্রিপশন'}</span>
+                <span className="text-xs font-semibold text-primary">নবায়ন →</span>
+              </div>
+              {sub.daysLeft != null && (
+                <div className={cn('mt-0.5 text-sm font-bold', sub.daysLeft <= 3 ? 'text-danger' : 'text-foreground')}>
+                  {bn(Math.max(0, sub.daysLeft))} দিন বাকি
+                </div>
+              )}
+            </NavLink>
+          )}
           <div className="mb-2 px-1">
             <div className="text-sm font-medium">{user?.fullName}</div>
             <div className="text-xs text-muted-foreground">{user?.role}</div>

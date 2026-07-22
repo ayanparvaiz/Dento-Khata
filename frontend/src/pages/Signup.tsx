@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, PasswordInput } from '@/components/ui/input';
 import { fbTrack } from '@/lib/meta';
 import { startVisitTracking, markVisitSignup } from '@/lib/visitTracker';
+import { PLANS, bn, perMonth, savings } from '@/lib/pricing';
 import { Check, MessageCircle, AlertTriangle, ArrowRight, Copy, X } from 'lucide-react';
 import { ToothIcon } from '@/components/ToothLogo';
 
@@ -50,12 +51,7 @@ function CopyNumber({ number, dark = false }: { number: string; dark?: boolean }
   );
 }
 
-// Pricing packages (monthly base ৳1990; longer terms cheaper per month).
-const PLANS = [
-  { label: '১ মাস', price: '৳১,৯৯০', per: '৳১,৯৯০ / মাস', save: '', best: false },
-  { label: '৬ মাস', price: '৳১০,৯৯০', per: '৳১,৮৩২ / মাস', save: '৳৯৫০ সাশ্রয়', best: false },
-  { label: '১২ মাস', price: '৳১৯,৯৯০', per: '৳১,৬৬৬ / মাস', save: '৳৩,৮৯০ সাশ্রয়', best: true },
-];
+// Pricing packages come from the shared catalog (lib/pricing.ts) so every screen matches.
 
 // Background photo layer with graceful fallback (hides itself if the image fails).
 function PhotoBg({ src, className = 'opacity-25' }: { src: string; className?: string }) {
@@ -330,12 +326,13 @@ export function Signup() {
 
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             {PLANS.map((pl) => (
-              <div key={pl.label} className={`relative rounded-2xl bg-white p-5 text-center shadow-sm ${pl.best ? 'border-2 border-primary shadow-md' : 'border border-slate-100'}`}>
+              <div key={pl.key} className={`relative rounded-2xl bg-white p-5 text-center shadow-sm ${pl.best ? 'border-2 border-primary shadow-md' : 'border border-slate-100'}`}>
                 {pl.best && <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">সেরা মূল্য · ২ মাস সাশ্রয়</span>}
                 <p className="text-sm font-medium text-teal-700">{pl.label}</p>
-                <p className="mt-1 text-3xl font-extrabold">{pl.price}</p>
-                <p className="mt-0.5 text-xs text-slate-500">{pl.per}</p>
-                {pl.save && <p className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">{pl.save}</p>}
+                <p className="mt-1 text-sm font-medium text-slate-400 line-through">৳{bn(pl.oldPrice)}</p>
+                <p className="text-3xl font-extrabold text-slate-900">৳{bn(pl.price)}</p>
+                <p className="mt-0.5 text-xs text-slate-500">৳{bn(perMonth(pl))} / মাস</p>
+                {savings(pl) > 0 && <p className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">৳{bn(savings(pl))} সাশ্রয়</p>}
               </div>
             ))}
           </div>

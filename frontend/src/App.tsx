@@ -16,6 +16,7 @@ import { Appointments } from '@/pages/Appointments';
 import { Reports } from '@/pages/Reports';
 import { Catalog } from '@/pages/Catalog';
 import { Tutorial } from '@/pages/Tutorial';
+import { Subscribe } from '@/pages/Subscribe';
 import { SuperAdmin } from '@/pages/superadmin/SuperAdmin';
 
 // Root "/" gate:
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="charting" element={<ChartingHome />} />
             <Route path="reports" element={<Reports />} />
             <Route path="tutorial" element={<Tutorial />} />
+            <Route path="subscribe" element={<Subscribe />} />
             <Route path="subscribe" element={<Paywall />} />
             <Route path="catalog" element={<ProtectedRoute roles={['ADMIN']}><Catalog /></ProtectedRoute>} />
             <Route path="users" element={<ProtectedRoute roles={['ADMIN']}><Users /></ProtectedRoute>} />

@@ -5,14 +5,15 @@ export interface Plan {
   key: string;
   label: string; // Bangla label shown on the paywall
   months: number;
-  price: number; // ৳ total for the term
+  price: number; // ৳ total for the term (current/effective price)
+  oldPrice: number; // ৳ struck-through anchor price shown next to the new price
   days: number; // access days granted on verification
 }
 
 export const PLANS: Plan[] = [
-  { key: '1m', label: '১ মাস', months: 1, price: 1990, days: 30 },
-  { key: '6m', label: '৬ মাস', months: 6, price: 10990, days: 180 },
-  { key: '12m', label: '১২ মাস', months: 12, price: 19990, days: 365 },
+  { key: '1m', label: '১ মাস', months: 1, price: 990, oldPrice: 1990, days: 30 },
+  { key: '6m', label: '৬ মাস', months: 6, price: 5490, oldPrice: 10990, days: 180 },
+  { key: '12m', label: '১২ মাস', months: 12, price: 9990, oldPrice: 19990, days: 365 },
 ];
 
 export const DEFAULT_PLAN = PLANS[0];

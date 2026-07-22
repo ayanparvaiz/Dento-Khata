@@ -6,14 +6,7 @@ import { Input, Label } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Lock, LogOut, CheckCircle2, MessageCircle, Copy, Check } from 'lucide-react';
 import { fbTrack } from '@/lib/meta';
-
-// Package options (keys + amounts must match the backend catalog in subscription/plans.ts).
-const PLANS = [
-  { key: '1m', label: '১ মাস', price: '৳১,৯৯০', amount: 1990, per: '৳১,৯৯০/মাস', save: '' },
-  { key: '6m', label: '৬ মাস', price: '৳১০,৯৯০', amount: 10990, per: '৳১,৮৩২/মাস', save: '৳৯৫০ সাশ্রয়' },
-  { key: '12m', label: '১২ মাস', price: '৳১৯,৯৯০', amount: 19990, per: '৳১,৬৬৬/মাস', save: 'সেরা মূল্য' },
-];
-const bn = (n: number) => n.toLocaleString('en-US').replace(/[0-9]/g, (d) => '০১২৩৪৫৬৭৮৯'[+d]);
+import { PLANS, bn, perMonth, savings } from '@/lib/pricing';
 
 function CopyNumber({ number }: { number: string }) {
   const [copied, setCopied] = useState(false);
@@ -57,7 +50,7 @@ export function Paywall() {
     }
   };
 
-  const amount = PLANS[0].amount; // monthly base reference (packages below drive the real price)
+  const amount = PLANS[0].price; // monthly base reference (packages below drive the real price)
   const bkash = sub?.bkashNumber ?? '—';
   const whatsapp = sub?.whatsapp || '';
   const suspended = sub?.status === 'SUSPENDED';
@@ -75,7 +68,7 @@ export function Paywall() {
     setMsg('');
     try {
       await api.post('/subscription/pay', { trxId: trxId.trim(), senderMsisdn: sender.trim(), plan: planKey });
-      fbTrack('InitiateCheckout', { value: selectedPlan.amount, currency: 'BDT' }); // paid, awaiting verification
+      fbTrack('InitiateCheckout', { value: selectedPlan.price, currency: 'BDT' }); // paid, awaiting verification
       setMsg('পেমেন্ট জমা হয়েছে। যাচাই হলে আপনার ক্লিনিক স্বয়ংক্রিয়ভাবে চালু হয়ে যাবে — এই পেজ খোলা রাখুন।');
       setTrxId('');
       setSender('');
@@ -145,9 +138,10 @@ export function Paywall() {
                       >
                         {active && <Check className="absolute right-1 top-1 h-3.5 w-3.5 text-teal-600" />}
                         <p className="text-xs text-teal-700">{pl.label}</p>
-                        <p className="text-base font-extrabold text-foreground">{pl.price}</p>
-                        <p className="text-[10px] text-muted-foreground">{pl.per}</p>
-                        {pl.save && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">{pl.save}</p>}
+                        <p className="text-[10px] font-medium text-slate-400 line-through">৳{bn(pl.oldPrice)}</p>
+                        <p className="text-base font-extrabold text-foreground">৳{bn(pl.price)}</p>
+                        <p className="text-[10px] text-muted-foreground">৳{bn(perMonth(pl))}/মাস</p>
+                        {savings(pl) > 0 && <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">৳{bn(savings(pl))} সাশ্রয়</p>}
                       </button>
                     );
                   })}
@@ -157,7 +151,7 @@ export function Paywall() {
                 <div className="mb-3 rounded-lg bg-teal-50 p-3 ring-1 ring-teal-100">
                   <p className="mb-1 text-xs font-medium text-teal-800">
                     <b>{selectedPlan.label}</b> প্যাকেজের জন্য পাঠান{' '}
-                    <span className="text-base font-extrabold text-teal-900">৳{bn(selectedPlan.amount)}</span>
+                    <span className="text-base font-extrabold text-teal-900">৳{bn(selectedPlan.price)}</span>
                   </p>
                   <p className="mb-2 text-xs text-muted-foreground">আমাদের বিকাশ / রকেট নম্বরে (Send Money):</p>
                   <CopyNumber number={bkash} />
@@ -165,7 +159,7 @@ export function Paywall() {
 
                 <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
                   <li>
-                    <span className="font-semibold text-foreground">৳{bn(selectedPlan.amount)}</span> পাঠান{' '}
+                    <span className="font-semibold text-foreground">৳{bn(selectedPlan.price)}</span> পাঠান{' '}
                     <span className="font-mono font-semibold text-foreground">{bkash}</span> নম্বরে (Send Money)
                   </li>
                   <li>কনফার্মেশন SMS থেকে Transaction ID (TrxID) কপি করুন</li>
