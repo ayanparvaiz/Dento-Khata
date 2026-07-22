@@ -191,7 +191,8 @@ export class SuperAdminService implements OnModuleInit {
       select: { ip: true, tenantId: true, clinicName: true },
     });
     const slugById = new Map(tenants.map((t) => [t.id, t.slug]));
-    logins.forEach((l) => { if (l.tenantId) add(l.ip, l.tenantId, l.clinicName || '—', slugById.get(l.tenantId) || '', 'login'); });
+    // Only count clinics that still exist — ignore orphan login rows from deleted clinics.
+    logins.forEach((l) => { if (l.tenantId && slugById.has(l.tenantId)) add(l.ip, l.tenantId, l.clinicName || '—', slugById.get(l.tenantId)!, 'login'); });
 
     const sharedIps = [...byIp.entries()]
       .filter(([, clinics]) => clinics.size >= 2)
@@ -447,6 +448,7 @@ export class SuperAdminService implements OnModuleInit {
       p.auditLog.deleteMany(w),
       p.subscriptionPayment.deleteMany(w),
       p.subscription.deleteMany(w),
+      p.loginLog.deleteMany(w),
       p.user.deleteMany(w),
       p.tenant.delete({ where: { id: tenantId } }),
     ]);
