@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input, Label, PasswordInput } from '@/components/ui/input';
-import { fbTrack } from '@/lib/meta';
+import { fbTrack, fbTrackReliable } from '@/lib/meta';
 import { startVisitTracking, markVisitSignup } from '@/lib/visitTracker';
 import { PLANS, bn, perMonth, savings } from '@/lib/pricing';
 import { Check, MessageCircle, AlertTriangle, ArrowRight, Copy, X } from 'lucide-react';
@@ -406,7 +406,7 @@ function WhatsAppFab() {
       {/* Attention greeting bubble */}
       {bubble && (
         <div className="animate-fade-in-up flex max-w-[15rem] items-start gap-2 rounded-2xl rounded-br-sm bg-white p-3 shadow-xl ring-1 ring-black/5">
-          <a href={href} target="_blank" rel="noreferrer" onClick={() => fbTrack('Contact', { method: 'whatsapp' })} className="text-sm text-slate-700">
+          <a href={href} target="_blank" rel="noreferrer" onClick={() => fbTrackReliable('Contact', { method: 'whatsapp' })} className="text-sm text-slate-700">
             <span className="font-semibold text-slate-900">সাহায্য লাগবে? 👋</span>
             <br />সরাসরি WhatsApp-এ আমাদের জিজ্ঞাসা করুন — সাইন আপ না বুঝলেও সমস্যা নেই।
           </a>
@@ -421,7 +421,7 @@ function WhatsAppFab() {
         href={href}
         target="_blank"
         rel="noreferrer"
-        onClick={() => fbTrack('Contact', { method: 'whatsapp' })}
+        onClick={() => fbTrackReliable('Contact', { method: 'whatsapp' })}
         aria-label="WhatsApp-এ যোগাযোগ করুন"
         className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-emerald-700/30 transition-transform hover:scale-110"
       >

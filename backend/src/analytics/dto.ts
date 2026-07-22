@@ -1,4 +1,20 @@
-import { IsBoolean, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+
+// A browser-fired conversion we ALSO want to send server-side (Conversions API) so it
+// reliably reaches Meta even when the browser pixel is blocked. Same eventId as the
+// pixel → Meta deduplicates. Event name is whitelisted to prevent abuse of this public route.
+export class TrackEventDto {
+  @IsString()
+  @IsIn(['Contact', 'Lead', 'ViewContent', 'InitiateCheckout'])
+  event!: string;
+
+  @IsString() @MaxLength(80)
+  eventId!: string;
+
+  @IsOptional() @IsString() @MaxLength(300) fbp?: string;
+  @IsOptional() @IsString() @MaxLength(300) fbc?: string;
+  @IsOptional() @IsString() @MaxLength(300) sourceUrl?: string;
+}
 
 // One engagement report for a landing-page visit. Upserted by `sid`.
 export class VisitDto {
