@@ -11,9 +11,9 @@ export interface Plan {
 }
 
 export const PLANS: Plan[] = [
-  { key: '1m', label: '১ মাস', months: 1, price: 990, oldPrice: 1990, days: 30 },
-  { key: '6m', label: '৬ মাস', months: 6, price: 5490, oldPrice: 10990, days: 180 },
-  { key: '12m', label: '১২ মাস', months: 12, price: 9990, oldPrice: 19990, days: 365 },
+  { key: '1m', label: '১ মাস', months: 1, price: 490, oldPrice: 990, days: 30 },
+  { key: '6m', label: '৬ মাস', months: 6, price: 2690, oldPrice: 5490, days: 180 },
+  { key: '12m', label: '১২ মাস', months: 12, price: 4990, oldPrice: 9990, days: 365 },
 ];
 
 export const DEFAULT_PLAN = PLANS[0];

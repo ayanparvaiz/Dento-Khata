@@ -6,6 +6,7 @@ import { SubscriptionService } from '../subscription/subscription.service';
 import { runInTenant } from '../tenant/tenant-context';
 import { GrantDaysDto, CreateTenantAdminDto, ResetUserDto } from './dto';
 import { DEFAULT_PROCEDURES } from '../auth/default-procedures';
+import { DEFAULT_PLAN } from '../subscription/plans';
 
 const DAY = 86_400_000;
 
@@ -479,7 +480,7 @@ export class SuperAdminService implements OnModuleInit {
     const tenant = await this.prisma.tenant.create({
       data: { slug, name: dto.clinicName, ownerName: dto.ownerName, phone: dto.phone },
     });
-    const price = Number(process.env.SUBSCRIPTION_PRICE) || 990;
+    const price = Number(process.env.SUBSCRIPTION_PRICE) || DEFAULT_PLAN.price;
     await runInTenant(tenant.id, async () => {
       await this.prisma.user.create({
         data: {
