@@ -7,7 +7,7 @@ import { fbTrack, fbTrackReliable } from '@/lib/meta';
 import { startVisitTracking, markVisitSignup } from '@/lib/visitTracker';
 import { PLANS, bn, perMonth, savings } from '@/lib/pricing';
 import { COMMUNITY_URL } from '@/lib/links';
-import { Check, MessageCircle, AlertTriangle, ArrowRight, Copy, X } from 'lucide-react';
+import { Check, MessageCircle, AlertTriangle, ArrowRight, Copy, X, Users } from 'lucide-react';
 import { ToothIcon } from '@/components/ToothLogo';
 
 const BKASH = '01992147963';
@@ -439,6 +439,18 @@ function WhatsAppFab() {
           <span className="absolute inset-0.5 rounded-full bg-emerald-400" />
         </span>
         {WA_ICON}
+      </a>
+
+      {/* Join our WhatsApp community — below the message button */}
+      <a
+        href={COMMUNITY_URL}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => fbTrackReliable('Contact', { method: 'community' })}
+        aria-label="WhatsApp কমিউনিটিতে যোগ দিন"
+        className="flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-xs font-semibold text-emerald-700 shadow-lg ring-1 ring-emerald-100 transition-colors hover:bg-emerald-50"
+      >
+        <Users className="h-4 w-4" /> কমিউনিটিতে যোগ দিন
       </a>
     </div>
   );
