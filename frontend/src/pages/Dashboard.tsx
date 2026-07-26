@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useDashboard, taka } from '@/lib/clinical';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Users, CalendarDays, CalendarRange, Stethoscope, Wallet, AlertCircle, ChevronRight, PlayCircle, X } from 'lucide-react';
+import { Users, CalendarDays, CalendarRange, Stethoscope, Wallet, AlertCircle, ChevronRight, PlayCircle, X, MessageCircle } from 'lucide-react';
 import { OVERVIEW_VIDEO_ID, ytThumb } from '@/lib/tutorials';
+import { COMMUNITY_URL } from '@/lib/links';
 
 const fmtTime = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const STATUS_TONE: Record<string, string> = {
@@ -116,6 +117,25 @@ export function Dashboard() {
       </p>
 
       <TutorialBanner />
+
+      {/* WhatsApp community — support, short tutorials & all instructions */}
+      <a
+        href={COMMUNITY_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="group mb-6 flex items-center gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 transition-all hover:border-emerald-300 hover:shadow-md"
+      >
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-sm">
+          <MessageCircle className="h-6 w-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-bold text-emerald-900">আমাদের WhatsApp কমিউনিটিতে যোগ দিন</div>
+          <div className="truncate text-sm text-emerald-700">সাপোর্ট, শর্ট টিউটোরিয়াল ও সব নির্দেশনা — এক জায়গায়</div>
+        </div>
+        <span className="hidden shrink-0 items-center gap-1 rounded-lg bg-[#25D366] px-3 py-1.5 text-sm font-semibold text-white transition-opacity group-hover:opacity-90 sm:inline-flex">
+          যোগ দিন <ChevronRight className="h-4 w-4" />
+        </span>
+      </a>
 
       {/* KPI grid */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

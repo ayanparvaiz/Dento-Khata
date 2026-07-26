@@ -6,6 +6,7 @@ import { Input, Label, PasswordInput } from '@/components/ui/input';
 import { fbTrack, fbTrackReliable } from '@/lib/meta';
 import { startVisitTracking, markVisitSignup } from '@/lib/visitTracker';
 import { PLANS, bn, perMonth, savings } from '@/lib/pricing';
+import { COMMUNITY_URL } from '@/lib/links';
 import { Check, MessageCircle, AlertTriangle, ArrowRight, Copy, X } from 'lucide-react';
 import { ToothIcon } from '@/components/ToothLogo';
 
@@ -238,6 +239,11 @@ export function Signup() {
               <a href={`https://wa.me/88${WHATSAPP}`} target="_blank" rel="noreferrer"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 font-semibold text-white hover:bg-emerald-600">
                 <MessageCircle className="h-5 w-5" /> WhatsApp-এ মেসেজ দিন
+              </a>
+              <a href={COMMUNITY_URL} target="_blank" rel="noreferrer"
+                onClick={() => fbTrackReliable('Contact', { method: 'community' })}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white/15 px-4 py-2.5 font-semibold text-white ring-1 ring-white/30 hover:bg-white/25">
+                <MessageCircle className="h-5 w-5" /> WhatsApp কমিউনিটিতে যোগ দিন
               </a>
               <CopyNumber number={WHATSAPP} dark />
             </div>

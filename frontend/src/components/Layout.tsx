@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   ShieldCheck,
   PlayCircle,
+  MessageCircle,
   LogOut,
   Menu,
   X,
@@ -17,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import { bn } from '@/lib/pricing';
+import { COMMUNITY_URL } from '@/lib/links';
 import { ToothIcon } from '@/components/ToothLogo';
 import { TrialWelcome, TrialBanner } from '@/components/TrialBits';
 
@@ -79,6 +81,16 @@ export function Layout() {
           ))}
         </nav>
         <div className="border-t border-border p-3">
+          {/* WhatsApp community — support, tutorials & instructions */}
+          <a
+            href={COMMUNITY_URL}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setOpen(false)}
+            className="mb-2 flex items-center gap-2 rounded-[var(--radius)] bg-[#25D366] px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            <MessageCircle className="h-4 w-4" /> কমিউনিটিতে যোগ দিন
+          </a>
           {/* Subscription status + quick renew */}
           {sub && (
             <NavLink
