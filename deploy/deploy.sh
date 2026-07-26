@@ -124,22 +124,24 @@ export DATABASE_URL="postgresql://$PG_USER:$PG_PASS@127.0.0.1:5432/$PG_DB"
 
 cd "$APP_DIR"
 
-# --- install + build ---
-# Use npm on the server: pnpm 10 hard-aborts on "ignored build scripts" and won't run
-# Prisma's engine build non-interactively. npm runs lifecycle scripts by default.
-# Wipe prior build outputs too: rsync preserves source mtimes, so nest's incremental
-# tsc can wrongly judge a stale compiled file "up to date" and skip recompiling it
-# (this is how old backup routes kept running after the source changed).
-rm -rf backend/node_modules frontend/node_modules backend/dist frontend/dist backend/tsconfig.build.tsbuildinfo backend/tsconfig.tsbuildinfo
+# --- install + build (the OLD build keeps serving the whole time) ---
+# NEVER delete the LIVE frontend/dist here — the running process serves it on every
+# request, so deleting it 404s the site for the entire (slow) install+build window.
+# Instead we build the new frontend into dist-new and swap it in atomically at the very
+# end. Backend dist is safe to rebuild in place (the running process already has main.js
+# loaded in memory). We still wipe node_modules + tsbuildinfo so nothing goes stale.
+rm -rf backend/node_modules frontend/node_modules backend/dist frontend/dist-new \
+       backend/tsconfig.build.tsbuildinfo backend/tsconfig.tsbuildinfo frontend/tsconfig.tsbuildinfo
 npm --prefix backend  install --legacy-peer-deps --no-audit --no-fund
 npm --prefix frontend install --legacy-peer-deps --no-audit --no-fund
 
 ( cd backend  && DATABASE_URL="$DATABASE_URL" ./node_modules/.bin/prisma generate )
-( cd frontend && ./node_modules/.bin/tsc -b && VITE_API_URL=/api ./node_modules/.bin/vite build )
+( cd frontend && ./node_modules/.bin/tsc -b && VITE_API_URL=/api ./node_modules/.bin/vite build --outDir dist-new --emptyOutDir )
 ( cd backend  && ./node_modules/.bin/nest build )
 
-# --- database migrate + global drug seed ---
-pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true
+# --- migrate + seed while the OLD build is still live ---
+# Migrations MUST stay backward-compatible (additive only) so the running old build keeps
+# working during migration. We only ever add tables/columns — never drop/rename.
 ( cd backend && DATABASE_URL="$DATABASE_URL" ./node_modules/.bin/prisma migrate deploy )
 if [ "$SEED" = "force" ] || [ "$SEED" = "auto" ]; then
   echo "   seeding global drug catalog…"
@@ -147,20 +149,87 @@ if [ "$SEED" = "force" ] || [ "$SEED" = "auto" ]; then
     || echo "   (seed skipped/failed — continuing)"
 fi
 
-# --- run via pm2 (cwd=backend so it can serve ../frontend/dist) ---
+# --- zero-downtime release (blue-green on two ports) -----------------------------------
+# The new build starts on the SPARE port; only after it passes a health check do we point
+# nginx at it and retire the old one. If the new build is broken, the old one keeps
+# serving and the deploy aborts — the site is never down.
 cd "$APP_DIR/backend"
-pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true
-HOST=127.0.0.1 PORT="$PORT" DATA_DIR="$DATA_DIR" NODE_ENV=production \
-  DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT_SECRET" \
-  SUPERADMIN_USERNAME="$SUPERADMIN_USERNAME" SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
-  BKASH_RECEIVE_NUMBER="$BKASH_NUM" SUPPORT_WHATSAPP="$SUPPORT_WA" \
-  SUBSCRIPTION_PRICE="${SUBSCRIPTION_PRICE:-990}" SUBSCRIPTION_GRACE_DAYS="${SUBSCRIPTION_GRACE_DAYS:-3}" \
-  META_PIXEL_ID="$META_PID" META_CAPI_TOKEN="$META_TOK" PUBLIC_URL="https://$DOMAIN" \
-  TELEGRAM_BOT_TOKEN="$TG_TOKEN" TELEGRAM_CHAT_ID="$TG_CHAT" \
-  pm2 start dist/main.js --name "$PM2_NAME" --update-env --time
+ALT_PORT=$((PORT + 1))
+UPSTREAM="up_$(echo "$PM2_NAME" | tr -c 'a-zA-Z0-9' '_')"
+UPSTREAM_CONF="/etc/nginx/conf.d/${PM2_NAME}-upstream.conf"
+VHOST="/etc/nginx/sites-available/$DOMAIN"
+
+start_app() { # $1 = port, $2 = pm2 name
+  HOST=127.0.0.1 PORT="$1" DATA_DIR="$DATA_DIR" NODE_ENV=production \
+    DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT_SECRET" \
+    SUPERADMIN_USERNAME="$SUPERADMIN_USERNAME" SUPERADMIN_PASSWORD="$SUPERADMIN_PASSWORD" \
+    BKASH_RECEIVE_NUMBER="$BKASH_NUM" SUPPORT_WHATSAPP="$SUPPORT_WA" \
+    SUBSCRIPTION_PRICE="${SUBSCRIPTION_PRICE:-990}" SUBSCRIPTION_GRACE_DAYS="${SUBSCRIPTION_GRACE_DAYS:-3}" \
+    META_PIXEL_ID="$META_PID" META_CAPI_TOKEN="$META_TOK" PUBLIC_URL="https://$DOMAIN" \
+    TELEGRAM_BOT_TOKEN="$TG_TOKEN" TELEGRAM_CHAT_ID="$TG_CHAT" \
+    pm2 start dist/main.js --name "$2" --update-env --time
+}
+health_ok() { # $1 = port — wait up to ~40s for HTTP 200 on /
+  for _ in $(seq 1 40); do
+    [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$1/" 2>/dev/null || true)" = "200" ] && return 0
+    sleep 1
+  done
+  return 1
+}
+swap_frontend() { # atomically publish the freshly built frontend (both builds serve ../frontend/dist)
+  if [ -d "$APP_DIR/frontend/dist-new" ]; then
+    rm -rf "$APP_DIR/frontend/dist-old"
+    [ -d "$APP_DIR/frontend/dist" ] && mv "$APP_DIR/frontend/dist" "$APP_DIR/frontend/dist-old"
+    mv "$APP_DIR/frontend/dist-new" "$APP_DIR/frontend/dist"
+  fi
+}
+
+if [ -f "$VHOST" ] && [[ "$DATABASE_URL" == postgres* ]]; then
+  # Redeploy with nginx already set up → do the blue-green swap.
+  ACTIVE_PORT="$PORT"
+  if [ -f "$UPSTREAM_CONF" ]; then
+    ap="$(grep -oE '127\.0\.0\.1:[0-9]+' "$UPSTREAM_CONF" | head -1 | cut -d: -f2)"; [ -n "$ap" ] && ACTIVE_PORT="$ap"
+  fi
+  if [ "$ACTIVE_PORT" = "$PORT" ]; then NEW_PORT="$ALT_PORT"; else NEW_PORT="$PORT"; fi
+  NEW_NAME="${PM2_NAME}-${NEW_PORT}"; OLD_NAME="${PM2_NAME}-${ACTIVE_PORT}"
+  echo "   blue-green: active :$ACTIVE_PORT  ->  new :$NEW_PORT"
+
+  pm2 delete "$NEW_NAME" >/dev/null 2>&1 || true
+  start_app "$NEW_PORT" "$NEW_NAME"
+  if ! health_ok "$NEW_PORT"; then
+    echo "!! new build failed its health check on :$NEW_PORT — OLD build left serving (no downtime). Aborting."
+    pm2 delete "$NEW_NAME" >/dev/null 2>&1 || true
+    exit 1
+  fi
+
+  # Point nginx at the new port (define upstream, make the vhost use it), then reload gracefully.
+  echo "upstream ${UPSTREAM} { server 127.0.0.1:${NEW_PORT}; }" | sudo tee "$UPSTREAM_CONF" >/dev/null
+  grep -q "$UPSTREAM" "$VHOST" || sudo sed -i -E "s|proxy_pass http://127\.0\.0\.1:[0-9]+;|proxy_pass http://${UPSTREAM};|g" "$VHOST"
+  if sudo nginx -t 2>/dev/null; then
+    sudo systemctl reload nginx
+  else
+    echo "!! nginx config test failed — keeping old live, aborting."
+    echo "upstream ${UPSTREAM} { server 127.0.0.1:${ACTIVE_PORT}; }" | sudo tee "$UPSTREAM_CONF" >/dev/null
+    pm2 delete "$NEW_NAME" >/dev/null 2>&1 || true
+    exit 1
+  fi
+
+  # Traffic is now on the new build → publish the new frontend, then retire the old build.
+  swap_frontend
+  pm2 delete "$OLD_NAME" >/dev/null 2>&1 || true
+  pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true   # retire any legacy non-suffixed process
+  RUNPORT="$NEW_PORT"
+else
+  # First-ever deploy (no vhost yet): simple start on PORT; step 3 sets up nginx -> PORT.
+  swap_frontend
+  pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true
+  start_app "$PORT" "$PM2_NAME"
+  RUNPORT="$PORT"
+fi
+
 pm2 save
 sudo env PATH="$PATH" pm2 startup systemd -u "$USER" --hp "$HOME" >/dev/null 2>&1 || true
-echo "   pm2 process '$PM2_NAME' running on 127.0.0.1:$PORT"
+echo "   pm2 running on 127.0.0.1:$RUNPORT  (zero-downtime blue-green)"
 echo "   Postgres DB '$PG_DB' ready. Super-admin: $SUPERADMIN_USERNAME (password in $ENVFILE)"
 REMOTE
 
