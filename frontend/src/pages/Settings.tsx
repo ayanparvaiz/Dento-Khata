@@ -88,6 +88,7 @@ export function Settings() {
 }
 
 function LetterheadCard({ form, setForm, isAdmin, onSave, saving, saved, qc }: any) {
+  const { isPaid } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const upd = (k: string, v: string) => setForm({ ...form, [k]: v });
@@ -101,6 +102,14 @@ function LetterheadCard({ form, setForm, isAdmin, onSave, saving, saved, qc }: a
       setForm({ ...form, logoPath: r.data.logoPath });
       qc.invalidateQueries({ queryKey: ['settings'] });
     } finally { setUploading(false); }
+  };
+
+  // Remove must PERSIST immediately (upload does) — otherwise the logo reappears on reload.
+  const removeLogo = async () => {
+    const next = { ...form, logoPath: '' };
+    setForm(next);
+    await api.put('/settings', next);
+    qc.invalidateQueries({ queryKey: ['settings'] });
   };
 
   // preview only: keep footer in-flow (print keeps it pinned to the page bottom)
@@ -117,14 +126,17 @@ function LetterheadCard({ form, setForm, isAdmin, onSave, saving, saved, qc }: a
             {form.logoPath
               ? <img src={(api.defaults.baseURL || '').replace(/\/api$/, '') + form.logoPath} alt="logo" className="h-14 w-14 rounded border border-border object-contain" />
               : <div className="flex h-14 w-14 items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">none</div>}
-            {isAdmin && (
+            {isAdmin && isPaid && (
               <>
                 <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(f); }} />
                 <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? 'Uploading…' : 'Upload logo'}</Button>
-                {form.logoPath && <Button type="button" size="sm" variant="ghost" onClick={() => upd('logoPath', '')}>Remove</Button>}
+                {form.logoPath && <Button type="button" size="sm" variant="ghost" onClick={removeLogo}>Remove</Button>}
               </>
             )}
           </div>
+          {isAdmin && !isPaid && (
+            <div className="mt-2"><UpgradeInline text="নিজের লোগো যোগ করতে প্রো দরকার — হেডার, ফুটার সব ফ্রি-তেই আছে" /></div>
+          )}
         </div>
 
         <div><Label>Header title (doctor / clinic name)</Label><Input value={form.headerTitle || ''} disabled={!isAdmin} placeholder="ডাঃ মোঃ তৌফিক হাসান" onChange={(e) => upd('headerTitle', e.target.value)} /></div>

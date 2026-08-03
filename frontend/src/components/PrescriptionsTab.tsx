@@ -60,9 +60,12 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
   const s = (await api.get('/settings')).data;
   const c = themeOf(s);
   const age = patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '';
-  // FREE tier: no custom letterhead, no chart-on-print, and a small "Dento Khata" footer.
-  const useHeader = withHeader && isPaid;
+  // FREE tier: full header/footer (title, subtitle, footer lines) is allowed — only the
+  // uploaded LOGO is Pro-only, plus chart-on-print, plus a small "Dento Khata" footer.
+  const useHeader = withHeader;
   const useChart = withChart && isPaid;
+  // Strip the logo for free clinics (Pro-only touch) while keeping the rest of the letterhead.
+  const hs = isPaid ? s : { ...s, logoPath: '' };
   // Optionally include the dental chart (fetched fresh so it matches the on-screen chart).
   let chartHtml = '';
   if (useChart) {
@@ -76,8 +79,8 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
   const gridRows = (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL)
     ? `<table class="grid"><tr><td>${d.grid.UR || ''}</td><td>${d.grid.UL || ''}</td></tr><tr><td>${d.grid.LR || ''}</td><td>${d.grid.LL || ''}</td></tr></table>` : '';
   const followUp = d.followNum ? `<p><b>${bn(d.followNum)} ${d.followUnit}</b> পর আসবেন।</p>` : '';
-  const header = useHeader ? letterheadHead(s) : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka
-  const footer = useHeader ? letterheadFoot(s) : '';
+  const header = useHeader ? letterheadHead(hs) : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka
+  const footer = useHeader ? letterheadFoot(hs) : '';
   // Free-tier viral watermark (removed on Pro).
   const watermark = isPaid ? '' : `<div class="wm">Dento Khata দিয়ে তৈরি · dentokhata.com</div>`;
   const html = `<html><head><meta charset="utf-8"/><title>প্রেসক্রিপশন — ${patient.fullName}</title><style>

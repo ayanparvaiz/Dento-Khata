@@ -8,6 +8,7 @@ import { SettingsService } from './settings.service';
 import { UpdateSettingsDto } from './dto';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { PaidOnly } from '../subscription/paid-only.decorator';
 import { dataPaths } from '../data';
 import { currentTenantId } from '../tenant/tenant-context';
 
@@ -32,9 +33,11 @@ export class SettingsController {
     return this.settings.update(dto);
   }
 
-  // Upload the clinic/doctor logo for the letterhead (admin/owner only).
+  // Upload the clinic/doctor logo for the letterhead (admin/owner only, Pro-only feature —
+  // header/footer text is free, only the logo needs Pro).
   @UseGuards(RolesGuard)
   @Roles('ADMIN')
+  @PaidOnly()
   @Post('logo')
   @UseInterceptors(
     FileInterceptor('file', {
