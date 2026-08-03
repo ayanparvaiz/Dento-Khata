@@ -173,7 +173,7 @@ export function Signup() {
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-teal-50/90 md:text-lg">
             রোগীর তথ্য, অ্যাপয়েন্টমেন্ট, প্রেসক্রিপশন, বিলিং — সব এক জায়গায়।
-            <span className="font-semibold text-white"> ফ্রি-তে শুরু করুন,</span> ব্যবসা বাড়লে আপগ্রেড করুন।
+            কাগজের ঝামেলা শেষ, <span className="font-semibold text-white">একদম ফ্রি-তে শুরু করুন।</span>
           </p>
           <div className="mx-auto mt-8 flex max-w-md flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center">
             <Button onClick={scrollToForm} className="h-12 bg-white px-6 text-base font-semibold text-primary shadow-lg shadow-teal-900/20 hover:bg-teal-50">
@@ -205,7 +205,7 @@ export function Signup() {
         <div className="relative mx-auto max-w-md">
           <div className="mb-5 text-center text-white">
             <h2 className="text-2xl font-bold md:text-3xl">ফ্রি-তে অ্যাকাউন্ট তৈরি করুন</h2>
-            <p className="mt-2 text-sm text-teal-50/90">১ মিনিটেই শুরু — কার্ড লাগে না, কোনো সেটআপ ফি নেই। ব্যবসা বাড়লে আপগ্রেড করবেন।</p>
+            <p className="mt-2 text-sm text-teal-50/90">১ মিনিটেই শুরু — একদম ফ্রি, কার্ড লাগে না, কোনো সেটআপ ফি নেই।</p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-xl">
             <form onSubmit={submit} className="space-y-3">
@@ -327,8 +327,8 @@ export function Signup() {
       {/* Pricing — freemium: Free plan + Pro packages */}
       <section id="pricing" className="scroll-mt-20 bg-slate-50 px-4 py-14 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-2xl font-bold md:text-3xl">ফ্রি-তে শুরু করুন, প্রয়োজনে আপগ্রেড</h2>
-          <p className="mt-2 text-center text-slate-500">ছোট চেম্বারের জন্য ফ্রি-ই যথেষ্ট। ব্যবসা বাড়লে প্রো নিন।</p>
+          <h2 className="text-center text-2xl font-bold md:text-3xl">চিরকাল ফ্রি ব্যবহার করুন</h2>
+          <p className="mt-2 text-center text-slate-500">ছোট চেম্বারের জন্য ফ্রি-ই যথেষ্ট। বাড়তি ফিচার লাগলে প্রো আছে — ইচ্ছে হলে।</p>
 
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             {/* FREE plan */}
