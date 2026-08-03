@@ -67,8 +67,8 @@ export function Subscribe() {
           <CardContent className="space-y-2 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">স্ট্যাটাস</span>
-              <span className={`rounded px-2 py-0.5 text-xs font-medium ${sub?.active ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                {sub?.isTrial ? 'ফ্রি ট্রায়াল' : sub?.status || '—'}
+              <span className={`rounded px-2 py-0.5 text-xs font-medium ${sub?.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                {sub?.isPaid ? 'প্রো (সক্রিয়)' : 'ফ্রি প্ল্যান'}
               </span>
             </div>
             {daysLeft != null && (

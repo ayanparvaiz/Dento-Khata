@@ -1,55 +1,62 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { Gift, PartyPopper } from 'lucide-react';
+import { PartyPopper, Check, Sparkles } from 'lucide-react';
 
-// One-time "your free trial started" dialog, shown right after signup.
+// Advanced features that need Pro (shown in the welcome dialog).
+const PRO_FEATURES = [
+  'আনলিমিটেড রোগী (ফ্রি-তে ১০০ পর্যন্ত)',
+  'একাধিক ইউজার — রিসেপশনিস্ট/অ্যাসিস্ট্যান্ট',
+  'আয়ের রিপোর্ট ও অ্যানালিটিক্স',
+  'ইনভয়েস ও স্টেটমেন্ট প্রিন্ট',
+  'X-ray / ছবি সংরক্ষণ',
+  'নিজের লোগো ও লেটারহেড',
+  'প্রতিদিন ব্যাকআপ',
+];
+
+// One-time welcome dialog, shown right after signup. Tells the doctor the software is
+// FREE to use, and lists the advanced features that Pro unlocks.
 export function TrialWelcome() {
-  const { sub } = useAuth();
+  const navigate = useNavigate();
   const [show, setShow] = useState(() => localStorage.getItem('dk_trial_welcome') === '1');
   if (!show) return null;
   const close = () => { localStorage.removeItem('dk_trial_welcome'); setShow(false); };
-  const days = sub?.daysLeft ?? 3;
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4" onClick={close}>
       <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-teal-100 text-teal-700">
           <PartyPopper className="h-7 w-7" />
         </div>
-        <h2 className="text-xl font-bold">আপনার ফ্রি ট্রায়াল শুরু হয়েছে! 🎉</h2>
+        <h2 className="text-xl font-bold">স্বাগতম! সফটওয়্যারটি একদম ফ্রি 🎉</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          আগামী <b className="text-teal-700">{days} দিন</b> সম্পূর্ণ ফ্রি — পুরো সফটওয়্যার ব্যবহার করে দেখুন।
-          রোগী যোগ করুন, অ্যাপয়েন্টমেন্ট নিন, প্রেসক্রিপশন প্রিন্ট করুন — সব ফিচার খোলা।
+          রোগী, অ্যাপয়েন্টমেন্ট, বাংলা প্রেসক্রিপশন, ডেন্টাল চার্ট, বেসিক বিলিং — সব
+          <b className="text-teal-700"> ফ্রি-তে</b> ব্যবহার করুন। কোনো সময়সীমা নেই।
         </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          ট্রায়াল শেষে সাবস্ক্রিপশন নিলেই আপনার সব তথ্য অক্ষত থাকবে।
-        </p>
-        <Button className="mt-5 w-full" onClick={close}>শুরু করি</Button>
+
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-left">
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-800">
+            <Sparkles className="h-4 w-4" /> চেম্বার বড় হলে প্রো-তে যা পাবেন
+          </p>
+          <ul className="space-y-1.5">
+            {PRO_FEATURES.map((f) => (
+              <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
+                <Check className="mt-0.5 h-4 w-4 flex-none text-amber-600" /> <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-amber-700">এই অ্যাডভান্স ফিচারগুলো ব্যবহার করতে প্রো লাগবে।</p>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => { close(); navigate('/subscribe'); }}>প্রো দেখুন</Button>
+          <Button className="flex-1" onClick={close}>ফ্রি-তে শুরু করি</Button>
+        </div>
       </div>
     </div>
   );
 }
 
-// Thin banner shown across the app while the clinic is on the free trial.
+// No trial in the freemium model — the banner is intentionally inert.
 export function TrialBanner() {
-  const { sub } = useAuth();
-  const navigate = useNavigate();
-  if (!sub?.isTrial || !sub.active) return null;
-  const days = sub.daysLeft ?? 0;
-  const urgent = days <= 1;
-  return (
-    <div className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-sm ${urgent ? 'bg-amber-100 text-amber-900' : 'bg-teal-50 text-teal-800'}`}>
-      <span className="inline-flex items-center gap-1.5 font-medium">
-        <Gift className="h-4 w-4" />
-        ফ্রি ট্রায়াল — আর <b>{days <= 0 ? 'আজই শেষ' : `${days} দিন বাকি`}</b>
-      </span>
-      <button
-        onClick={() => navigate('/subscribe')}
-        className="rounded-full bg-teal-600 px-3 py-0.5 text-xs font-semibold text-white hover:bg-teal-700"
-      >
-        এখনই সাবস্ক্রাইব করুন
-      </button>
-    </div>
-  );
+  return null;
 }
