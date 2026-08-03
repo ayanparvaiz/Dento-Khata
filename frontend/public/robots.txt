@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://dento.devcenter.dev/sitemap.xml

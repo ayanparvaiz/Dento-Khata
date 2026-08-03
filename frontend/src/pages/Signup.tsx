@@ -175,6 +175,7 @@ export function Signup() {
             🇧🇩 বাংলাদেশের ডেন্টিস্টদের জন্য তৈরি
           </span>
           <h1 className="mt-5 text-[28px] font-extrabold leading-[1.15] tracking-tight sm:text-4xl md:text-5xl">
+            <span className="block text-white/90">Dento Khata</span>
             আপনার ডেন্টাল চেম্বারের<br className="hidden sm:block" /> সম্পূর্ণ ডিজিটাল সমাধান
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-teal-50/90 md:text-lg">
@@ -436,6 +437,25 @@ export function Signup() {
             </a>
             <p className="mt-3 text-xs text-slate-400">WhatsApp: {WHATSAPP}</p>
           </div>
+        </div>
+      </section>
+
+      {/* SEO content — crawlable brand + keyword text (helps rank for "dentokhata" and
+          "dental software in Bangladesh"). Natural, describes the product. */}
+      <section className="border-t border-slate-100 bg-slate-50 px-4 py-10 md:px-8">
+        <div className="mx-auto max-w-3xl text-sm leading-relaxed text-slate-600">
+          <h2 className="mb-3 text-lg font-bold text-slate-800">Dento Khata — Dental Software in Bangladesh</h2>
+          <p>
+            <strong>Dento Khata</strong> (dentokhata) বাংলাদেশের ডেন্টিস্টদের জন্য তৈরি একটি ডেন্টাল চেম্বার
+            ম্যানেজমেন্ট সফটওয়্যার। রোগীর তথ্য, অ্যাপয়েন্টমেন্ট, বাংলা প্রেসক্রিপশন, ডেন্টাল চার্ট, বিলিং ও
+            রিপোর্ট — সব এক জায়গায় ব্যবস্থাপনা করা যায়। কাগজ-কলমের ঝামেলা ছাড়াই আপনার ডেন্টাল ক্লিনিক
+            ডিজিটালভাবে চালান, একদম <strong>ফ্রি-তে শুরু করুন</strong>।
+          </p>
+          <p className="mt-3">
+            Looking for the best <strong>dental software in Bangladesh</strong>? Dento Khata is an easy, Bangla-first
+            dental clinic management software for dentists — manage patients, appointments, prescriptions and billing
+            online, with a free plan to get started. Works on mobile, computer and browser.
+          </p>
         </div>
       </section>
 
