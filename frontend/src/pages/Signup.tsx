@@ -324,11 +324,14 @@ export function Signup() {
         </div>
       </section>
 
-      {/* Pricing — freemium: Free plan + Pro packages */}
+      {/* Pricing — freemium: Free plan + Pro packages (ONLINE / cloud version) */}
       <section id="pricing" className="scroll-mt-20 bg-slate-50 px-4 py-14 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-2xl font-bold md:text-3xl">চিরকাল ফ্রি ব্যবহার করুন</h2>
-          <p className="mt-2 text-center text-slate-500">ছোট চেম্বারের জন্য ফ্রি-ই যথেষ্ট। বাড়তি ফিচার লাগলে প্রো আছে — ইচ্ছে হলে।</p>
+          <div className="flex justify-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-800">🌐 অনলাইন (ক্লাউড) সংস্করণ</span>
+          </div>
+          <h2 className="mt-3 text-center text-2xl font-bold md:text-3xl">চিরকাল ফ্রি ব্যবহার করুন</h2>
+          <p className="mt-2 text-center text-slate-500">ইন্টারনেট দিয়ে যেকোনো জায়গা ও ডিভাইস থেকে · স্বয়ংক্রিয় ব্যাকআপ · সবসময় আপডেট। ছোট চেম্বারের জন্য ফ্রি-ই যথেষ্ট।</p>
 
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             {/* FREE plan */}
@@ -401,8 +404,9 @@ export function Signup() {
       <section className="bg-slate-900 px-4 py-14 text-white md:px-8">
         <div className="mx-auto grid max-w-4xl items-center gap-8 md:grid-cols-2">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium ring-1 ring-white/20">🔒 প্রিমিয়াম · অফলাইন</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold ring-1 ring-white/20">🖥️ অফলাইন সংস্করণ · প্রিমিয়াম</span>
             <h2 className="mt-4 text-2xl font-bold md:text-3xl">ইন্টারনেট ছাড়াই — আপনার নিজের কম্পিউটারে</h2>
+            <p className="mt-2 text-sm font-medium text-emerald-300">উপরের অনলাইন সংস্করণ ইন্টারনেটে চলে। এটি আলাদা — সম্পূর্ণ অফলাইন, আপনার নিজের কম্পিউটারে।</p>
             <p className="mt-3 text-slate-300">
               ইন্টারনেট চান না? চান আপনার সব ডেটা <span className="font-semibold text-white">১০০% আপনার নিজের কম্পিউটারে</span> থাকুক?
               আমরা আপনার চেম্বারে Dento Khata অফলাইন সেটআপ করে দেব — LAN-এ মোবাইল/একাধিক কম্পিউটার থেকে চলবে, ইন্টারনেট লাগবে না।
