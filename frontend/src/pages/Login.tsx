@@ -57,11 +57,11 @@ export function Login() {
           <form onSubmit={submit} className="space-y-4">
             <div>
               <Label>ফোন নম্বর</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" inputMode="tel" autoFocus />
+              <Input name="username" autoComplete="username" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" inputMode="tel" autoFocus />
             </div>
             <div>
               <Label>পাসওয়ার্ড</Label>
-              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput name="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             {error && <p className="text-sm text-danger">{error}</p>}
             <Button type="submit" className="w-full" disabled={busy}>

@@ -211,8 +211,8 @@ export function Signup() {
             <form onSubmit={submit} className="space-y-3">
               <div><Label>ক্লিনিকের নাম</Label><Input value={f.clinicName} onChange={set('clinicName')} placeholder="স্মাইল ডেন্টাল কেয়ার" /></div>
               <div><Label>মালিক / ডাক্তারের নাম</Label><Input value={f.ownerName} onChange={set('ownerName')} placeholder="ডাঃ ..." /></div>
-              <div><Label>ফোন নম্বর (এটি দিয়েই লগইন হবে)</Label><Input value={f.phone} onChange={set('phone')} placeholder="01XXXXXXXXX" inputMode="tel" /></div>
-              <div><Label>পাসওয়ার্ড</Label><PasswordInput value={f.password} onChange={set('password')} placeholder="কমপক্ষে ৬ অক্ষর" /></div>
+              <div><Label>ফোন নম্বর (এটি দিয়েই লগইন হবে)</Label><Input name="username" autoComplete="username" value={f.phone} onChange={set('phone')} placeholder="01XXXXXXXXX" inputMode="tel" /></div>
+              <div><Label>পাসওয়ার্ড</Label><PasswordInput name="password" autoComplete="new-password" value={f.password} onChange={set('password')} placeholder="কমপক্ষে ৬ অক্ষর" /></div>
               {error && <p className="text-sm text-danger">{error}</p>}
               <Button type="submit" className="h-11 w-full text-base" disabled={busy}>
                 {busy ? 'তৈরি হচ্ছে…' : 'অ্যাকাউন্ট তৈরি করুন'}
