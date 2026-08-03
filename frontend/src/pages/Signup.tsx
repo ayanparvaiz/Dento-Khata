@@ -173,11 +173,11 @@ export function Signup() {
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-teal-50/90 md:text-lg">
             রোগীর তথ্য, অ্যাপয়েন্টমেন্ট, প্রেসক্রিপশন, বিলিং — সব এক জায়গায়।
-            কাগজের ঝামেলা শেষ, <span className="font-semibold text-white">কিছুই হারাবে না।</span>
+            <span className="font-semibold text-white"> ফ্রি-তে শুরু করুন,</span> ব্যবসা বাড়লে আপগ্রেড করুন।
           </p>
           <div className="mx-auto mt-8 flex max-w-md flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center">
             <Button onClick={scrollToForm} className="h-12 bg-white px-6 text-base font-semibold text-primary shadow-lg shadow-teal-900/20 hover:bg-teal-50">
-              অ্যাকাউন্ট তৈরি করুন <ArrowRight className="ml-1.5 h-4 w-4" />
+              ফ্রি-তে শুরু করুন <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
             <a href={`https://wa.me/88${WHATSAPP}`} target="_blank" rel="noreferrer"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-white/40 px-6 text-base font-medium hover:bg-white/10">
@@ -204,8 +204,8 @@ export function Signup() {
         <div className="absolute inset-0 -z-10 bg-gradient-to-br from-teal-800/55 to-emerald-700/45" />
         <div className="relative mx-auto max-w-md">
           <div className="mb-5 text-center text-white">
-            <h2 className="text-2xl font-bold md:text-3xl">আজই আপনার ক্লিনিক ডিজিটাল করুন</h2>
-            <p className="mt-2 text-sm text-teal-50/90">১ মিনিটেই অ্যাকাউন্ট তৈরি করুন — কোনো সেটআপ ফি নেই।</p>
+            <h2 className="text-2xl font-bold md:text-3xl">ফ্রি-তে অ্যাকাউন্ট তৈরি করুন</h2>
+            <p className="mt-2 text-sm text-teal-50/90">১ মিনিটেই শুরু — কার্ড লাগে না, কোনো সেটআপ ফি নেই। ব্যবসা বাড়লে আপগ্রেড করবেন।</p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-xl">
             <form onSubmit={submit} className="space-y-3">
@@ -324,50 +324,107 @@ export function Signup() {
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* Pricing — freemium: Free plan + Pro packages */}
       <section id="pricing" className="scroll-mt-20 bg-slate-50 px-4 py-14 md:px-8">
-        <div className="mx-auto max-w-2xl">
-          <h2 className="text-center text-2xl font-bold md:text-3xl">সহজ, সাশ্রয়ী মূল্য</h2>
-          <p className="mt-2 text-center text-slate-500">এক ক্লিনিকের সব ইউজার · আনলিমিটেড রোগী · কোনো সেটআপ ফি নেই</p>
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-center text-2xl font-bold md:text-3xl">ফ্রি-তে শুরু করুন, প্রয়োজনে আপগ্রেড</h2>
+          <p className="mt-2 text-center text-slate-500">ছোট চেম্বারের জন্য ফ্রি-ই যথেষ্ট। ব্যবসা বাড়লে প্রো নিন।</p>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            {PLANS.map((pl) => (
-              <div key={pl.key} className={`relative rounded-2xl bg-white p-5 text-center shadow-sm ${pl.best ? 'border-2 border-primary shadow-md' : 'border border-slate-100'}`}>
-                {pl.best && <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">সেরা মূল্য · ২ মাস সাশ্রয়</span>}
-                <p className="text-sm font-medium text-teal-700">{pl.label}</p>
-                <p className="mt-1 text-sm font-medium text-slate-400 line-through">৳{bn(pl.oldPrice)}</p>
-                <p className="text-3xl font-extrabold text-slate-900">৳{bn(pl.price)}</p>
-                <p className="mt-0.5 text-xs text-slate-500">৳{bn(perMonth(pl))} / মাস</p>
-                {savings(pl) > 0 && <p className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">৳{bn(savings(pl))} সাশ্রয়</p>}
-              </div>
-            ))}
+          <div className="mt-8 grid gap-5 md:grid-cols-2">
+            {/* FREE plan */}
+            <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm font-semibold text-slate-500">শুরু (ফ্রি)</p>
+              <p className="mt-1"><span className="text-4xl font-extrabold text-slate-900">৳০</span> <span className="text-sm text-slate-500">/ চিরকাল</span></p>
+              <p className="mt-1 text-sm text-slate-500">একা ডাক্তারের জন্য — কার্ড লাগে না</p>
+              <ul className="mt-4 space-y-2 text-sm">
+                {['১০০ রোগী পর্যন্ত', '১ জন ইউজার', 'বাংলা প্রেসক্রিপশন ও প্রিন্ট', 'ডেন্টাল চার্ট', 'অ্যাপয়েন্টমেন্ট ক্যালেন্ডার', 'বেসিক বিলিং — কে কত বাকি'].map((t) => (
+                  <li key={t} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-600" /> <span>{t}</span></li>
+                ))}
+              </ul>
+              <Button onClick={scrollToForm} variant="outline" className="mt-6 h-11 w-full text-base">ফ্রি-তে শুরু করুন</Button>
+            </div>
+
+            {/* PRO plan */}
+            <div className="relative flex flex-col rounded-2xl border-2 border-primary bg-white p-6 shadow-md">
+              <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">সবচেয়ে জনপ্রিয়</span>
+              <p className="text-sm font-semibold text-teal-700">প্রো (চেম্বার)</p>
+              <p className="mt-1">
+                <span className="text-sm font-medium text-slate-400 line-through">৳{bn(PLANS[0].oldPrice)}</span>{' '}
+                <span className="text-4xl font-extrabold text-slate-900">৳{bn(PLANS[0].price)}</span>
+                <span className="text-sm text-slate-500"> / মাস</span>
+              </p>
+              <p className="mt-1 text-sm text-slate-500">৬/১২ মাসে আরও সাশ্রয় (নিচে)</p>
+              <ul className="mt-4 space-y-2 text-sm">
+                {['ফ্রি-র সব কিছু, সাথে —', 'আনলিমিটেড রোগী', 'একাধিক ইউজার (রিসেপশনিস্ট/অ্যাসিস্ট্যান্ট)', 'আয়ের রিপোর্ট ও অ্যানালিটিক্স', 'ইনভয়েস ও স্টেটমেন্ট প্রিন্ট', 'X-ray / ছবি সংরক্ষণ', 'নিজের লোগো ও লেটারহেড', 'প্রতিদিন ব্যাকআপ + প্রায়োরিটি সাপোর্ট'].map((t, i) => (
+                  <li key={t} className={`flex items-start gap-2 ${i === 0 ? 'font-semibold text-teal-700' : ''}`}>{i === 0 ? <ArrowRight className="mt-0.5 h-4 w-4 flex-none text-teal-600" /> : <Check className="mt-0.5 h-4 w-4 flex-none text-teal-600" />} <span>{t}</span></li>
+                ))}
+              </ul>
+              <Button onClick={scrollToForm} className="mt-6 h-11 w-full text-base">শুরু করুন → পরে আপগ্রেড</Button>
+            </div>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {['রোগী, অ্যাপয়েন্টমেন্ট ও রেকর্ড', 'বাংলা প্রেসক্রিপশন + ডেন্টাল চার্ট', 'বিলিং, ইনভয়েস ও রিপোর্ট', 'একাধিক ইউজার', 'প্রতিদিন ব্যাকআপ', 'WhatsApp সাপোর্ট'].map((t) => (
-                <li key={t} className="flex items-start gap-2 text-sm"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-600" /> <span>{t}</span></li>
+          {/* Pro packages + payment */}
+          <div className="mt-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <p className="mb-3 text-center text-sm font-semibold text-slate-700">প্রো প্যাকেজ</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {PLANS.map((pl) => (
+                <div key={pl.key} className={`relative rounded-xl p-4 text-center ${pl.best ? 'border-2 border-primary' : 'border border-slate-200'}`}>
+                  {pl.best && <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-semibold text-white">সেরা মূল্য</span>}
+                  <p className="text-xs font-medium text-teal-700">{pl.label}</p>
+                  <p className="text-xs font-medium text-slate-400 line-through">৳{bn(pl.oldPrice)}</p>
+                  <p className="text-2xl font-extrabold text-slate-900">৳{bn(pl.price)}</p>
+                  <p className="text-[11px] text-slate-500">৳{bn(perMonth(pl))} / মাস</p>
+                  {savings(pl) > 0 && <p className="mt-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">৳{bn(savings(pl))} সাশ্রয়</p>}
+                </div>
               ))}
-            </ul>
+            </div>
             <div className="mt-5 rounded-xl bg-slate-900 p-4 text-sm text-slate-100">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="font-semibold">Send Money করুন</span>
+                <span className="font-semibold">আপগ্রেড: Send Money করুন</span>
                 <PayLogo name="bKash" bg="#e2136e" />
                 <PayLogo name="Rocket" bg="#8c3494" />
               </div>
               <p className="mb-1 text-xs font-medium text-slate-400">আমাদের বিকাশ / রকেট নম্বর</p>
               <CopyNumber number={BKASH} dark />
               <p className="mt-3 text-slate-300">
-                অ্যাকাউন্ট তৈরি করুন → উপরের নম্বরে Send Money → Transaction ID জমা দিন → অ্যাকাউন্ট চালু।
+                ফ্রি অ্যাকাউন্ট থেকেই → Send Money → Transaction ID জমা দিন → প্রো চালু।
               </p>
               <a href={`https://wa.me/88${WHATSAPP}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-emerald-400 hover:underline">
                 <MessageCircle className="h-4 w-4" /> সাপোর্ট: {WHATSAPP}
               </a>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="mt-6 text-center">
-            <Button onClick={scrollToForm} className="h-11 px-8 text-base">আজই শুরু করুন <ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+      {/* Offline setup — premium, contact-us (data stays on the clinic's own PC) */}
+      <section className="bg-slate-900 px-4 py-14 text-white md:px-8">
+        <div className="mx-auto grid max-w-4xl items-center gap-8 md:grid-cols-2">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium ring-1 ring-white/20">🔒 প্রিমিয়াম · অফলাইন</span>
+            <h2 className="mt-4 text-2xl font-bold md:text-3xl">ইন্টারনেট ছাড়াই — আপনার নিজের কম্পিউটারে</h2>
+            <p className="mt-3 text-slate-300">
+              ইন্টারনেট চান না? চান আপনার সব ডেটা <span className="font-semibold text-white">১০০% আপনার নিজের কম্পিউটারে</span> থাকুক?
+              আমরা আপনার চেম্বারে Dento Khata অফলাইন সেটআপ করে দেব — LAN-এ মোবাইল/একাধিক কম্পিউটার থেকে চলবে, ইন্টারনেট লাগবে না।
+            </p>
+            <ul className="mt-4 space-y-2 text-sm text-slate-200">
+              {['ডেটা সম্পূর্ণ আপনার নিয়ন্ত্রণে — ক্লাউডে যায় না', 'ইন্টারনেট ছাড়াই সব ফিচার চলে', 'আমরা এসে/রিমোটে সেটআপ করে দেই', 'একবার সেটআপ, নিজের সার্ভারে চিরকাল'].map((t) => (
+                <li key={t} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-emerald-400" /> <span>{t}</span></li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-2xl bg-white/5 p-6 text-center ring-1 ring-white/15">
+            <p className="font-semibold">অফলাইন সেটআপ চান?</p>
+            <p className="mt-1 text-sm text-slate-300">দাম ও সেটআপ নিয়ে কথা বলতে সরাসরি যোগাযোগ করুন — আমরা আপনার প্রয়োজন বুঝে ব্যবস্থা করে দেব।</p>
+            <a
+              href={`https://wa.me/88${WHATSAPP}?text=${encodeURIComponent('আসসালামু আলাইকুম, আমি Dento Khata অফলাইন সেটআপ নিতে চাই।')}`}
+              target="_blank" rel="noreferrer"
+              onClick={() => fbTrackReliable('Contact', { method: 'offline' })}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-5 py-3 font-semibold text-white hover:bg-emerald-600"
+            >
+              <MessageCircle className="h-5 w-5" /> অফলাইনের জন্য যোগাযোগ করুন
+            </a>
+            <p className="mt-3 text-xs text-slate-400">WhatsApp: {WHATSAPP}</p>
           </div>
         </div>
       </section>
