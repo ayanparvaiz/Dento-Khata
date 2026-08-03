@@ -40,6 +40,7 @@ export class SignupDto {
   @IsOptional() @IsString() fbp?: string;
   @IsOptional() @IsString() fbc?: string;
   @IsOptional() @IsString() eventId?: string; // shared with the browser CompleteRegistration
+  @IsOptional() @IsString() signupEventId?: string; // shared with the browser custom "ClinicSignup"
 }
 
 export class ChangePasswordDto {

@@ -118,9 +118,20 @@ export class AuthService {
     });
 
     // Server-side signup conversion (same eventId as the browser pixel → deduplicated).
+    // We send TWO events for every signup:
+    //  - CompleteRegistration: the standard event (may be restricted/blocked by Meta because
+    //    the pixel is classified "health" — Meta receives it but won't surface/optimize it).
+    //  - ClinicSignup: a neutral CUSTOM event that dodges that health restriction, so it shows
+    //    in Events Manager and can back a Custom Conversion the ad optimizes for.
     if (dto.eventId) {
       void this.meta.send({
         eventName: 'CompleteRegistration', eventId: dto.eventId,
+        phone, externalId: tenant.id, fbp: dto.fbp, fbc: dto.fbc, ip, ua,
+      });
+    }
+    if (dto.signupEventId) {
+      void this.meta.send({
+        eventName: 'ClinicSignup', eventId: dto.signupEventId,
         phone, externalId: tenant.id, fbp: dto.fbp, fbc: dto.fbc, ip, ua,
       });
     }

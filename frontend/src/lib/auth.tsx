@@ -141,12 +141,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Same eventId browser+server → Meta counts it once; fbp/fbc let Meta tie the
     // later offline purchase back to the ad click.
     const eventId = newEventId('reg');
+    const signupEventId = newEventId('signup');
     const { fbp, fbc } = fbCookies();
-    const { data } = await api.post('/auth/signup', { ...payload, fbp, fbc, eventId });
+    const { data } = await api.post('/auth/signup', { ...payload, fbp, fbc, eventId, signupEventId });
     localStorage.setItem('token', data.access_token);
     localStorage.setItem('dk_trial_welcome', '1'); // show the "trial started" dialog once
     setUser({ ...data.user, tenant: data.tenant });
+    // Standard event (may be health-restricted by Meta) + a neutral custom event that isn't.
     fbTrack('CompleteRegistration', { content_name: 'clinic_signup' }, eventId);
+    fbTrackCustom('ClinicSignup', { content_name: 'clinic_signup' }, signupEventId);
     await refreshSub();
   };
 
