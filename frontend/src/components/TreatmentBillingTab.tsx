@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Plus, Printer, Trash2, Pencil, Check, X, Receipt, CalendarPlus } from 'lucide-react';
 import { letterheadHead, letterheadFoot, LETTERHEAD_CSS, themeOf } from '@/lib/letterhead';
 import type { Patient } from '@/lib/patients';
+import { UpgradeInline } from '@/components/UpgradePrompt';
 
 const METHODS = ['CASH', 'BKASH', 'NAGAD', 'CARD', 'OTHER'];
 const num = (n: number) => (n || 0).toLocaleString('en-IN');
@@ -160,14 +161,18 @@ export function TreatmentBillingTab({ patient }: { patient: Patient }) {
         </div>
       </div>
 
-      {/* Create plan (treatment access) */}
+      {/* Create plan (treatment access). FREE: one plan per patient — a second needs Pro. */}
       {canTx && (
-        <div className="flex items-end gap-2">
-          <Input className="flex-1" placeholder="New treatment plan title (e.g. Root canal — tooth 46)" value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && newTitle.trim()) { m.createPlan.mutate(newTitle); setNewTitle(''); } }} />
-          <Button disabled={!newTitle.trim()} onClick={() => { m.createPlan.mutate(newTitle); setNewTitle(''); }}><Plus className="h-4 w-4" /> Create plan</Button>
-        </div>
+        isPaid || plans.length < 1 ? (
+          <div className="flex items-end gap-2">
+            <Input className="flex-1" placeholder="New treatment plan title (e.g. Root canal — tooth 46)" value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && newTitle.trim()) { m.createPlan.mutate(newTitle); setNewTitle(''); } }} />
+            <Button disabled={!newTitle.trim()} onClick={() => { m.createPlan.mutate(newTitle); setNewTitle(''); }}><Plus className="h-4 w-4" /> Create plan</Button>
+          </div>
+        ) : (
+          <UpgradeInline text="এই রোগীর জন্য একাধিক ট্রিটমেন্ট প্ল্যান তৈরি করতে প্রো দরকার (ফ্রি-তে প্রতি রোগীর ১টি প্ল্যান)" />
+        )
       )}
 
       {plans.length === 0 && <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No treatment plans yet.</CardContent></Card>}

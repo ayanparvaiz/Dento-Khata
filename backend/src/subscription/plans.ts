@@ -24,7 +24,9 @@ export const FREE_PLAN = 'FREE';
 export const PAID_PLAN = 'STANDARD';
 
 // What the FREE tier is limited to (everything else is a Pro-only feature).
-export const FREE_LIMITS = { patients: 100, users: 1 };
+// plansPerPatient: a free clinic can keep ONE treatment plan per patient; multiple
+// plans for the same patient is a Pro feature.
+export const FREE_LIMITS = { patients: 100, users: 1, plansPerPatient: 1 };
 
 // A subscription is "paid" (Pro) if it's on the paid plan and still within its period
 // (+grace). Otherwise the clinic is on FREE — never blocked, just feature-limited.

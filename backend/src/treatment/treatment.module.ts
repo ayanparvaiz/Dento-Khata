@@ -1,10 +1,11 @@
 import {
-  Body, Controller, Delete, Get, Injectable, Module, NotFoundException, Param, Patch, Post,
+  Body, Controller, Delete, ForbiddenException, Get, Injectable, Module, NotFoundException, Param, Patch, Post,
 } from '@nestjs/common';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { Requires } from '../auth/permissions.guard';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
+import { isPaidSub, FREE_LIMITS } from '../subscription/plans';
 
 class CreatePlanDto {
   @IsOptional() @IsString() title?: string;
@@ -47,11 +48,26 @@ class TreatmentService {
     });
   }
 
-  createPlan(patientId: string, dto: CreatePlanDto) {
+  async createPlan(patientId: string, dto: CreatePlanDto) {
+    await this.assertPlanQuota(patientId);
     return this.prisma.treatmentPlan.create({
       data: { patientId, title: dto.title ?? 'Treatment plan' },
       include: { items: { include: { procedure: true } } },
     });
+  }
+
+  // FREE tier: one treatment plan per patient. A second plan for the same patient needs Pro.
+  private async assertPlanQuota(patientId: string) {
+    const sub = await this.prisma.subscription.findFirst();
+    if (isPaidSub(sub)) return;
+    const count = await this.prisma.treatmentPlan.count({ where: { patientId } });
+    if (count >= FREE_LIMITS.plansPerPatient) {
+      throw new ForbiddenException({
+        code: 'FREE_LIMIT_PLANS',
+        limit: FREE_LIMITS.plansPerPatient,
+        message: `ফ্রি প্ল্যানে প্রতি রোগীর জন্য ${FREE_LIMITS.plansPerPatient}টি ট্রিটমেন্ট প্ল্যান। একাধিক প্ল্যান তৈরি করতে প্রো-তে আপগ্রেড করুন।`,
+      });
+    }
   }
 
   deletePlan(planId: string) {
