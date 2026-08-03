@@ -103,9 +103,15 @@ export function Signup() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const phone = f.phone.trim();
+    // BD mobile: 11 digits starting 01. Blocks emails/junk in the phone field.
+    if (!/^01\d{9}$/.test(phone)) {
+      setError('সঠিক মোবাইল নম্বর দিন — ০১ দিয়ে শুরু, ঠিক ১১ সংখ্যা (যেমন 01712345678)');
+      return;
+    }
     setBusy(true);
     try {
-      await signup({ ...f, phone: f.phone.trim() });
+      await signup({ ...f, phone });
       markVisitSignup(); // this visit converted
       navigate('/'); // lands on the paywall
     } catch (err: any) {
@@ -211,7 +217,7 @@ export function Signup() {
             <form onSubmit={submit} className="space-y-3">
               <div><Label>ক্লিনিকের নাম</Label><Input value={f.clinicName} onChange={set('clinicName')} placeholder="স্মাইল ডেন্টাল কেয়ার" /></div>
               <div><Label>মালিক / ডাক্তারের নাম</Label><Input value={f.ownerName} onChange={set('ownerName')} placeholder="ডাঃ ..." /></div>
-              <div><Label>ফোন নম্বর (এটি দিয়েই লগইন হবে)</Label><Input name="username" autoComplete="username" value={f.phone} onChange={set('phone')} placeholder="01XXXXXXXXX" inputMode="tel" /></div>
+              <div><Label>ফোন নম্বর (এটি দিয়েই লগইন হবে)</Label><Input name="username" autoComplete="username" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 11) })} placeholder="01XXXXXXXXX" inputMode="numeric" maxLength={11} /></div>
               <div><Label>পাসওয়ার্ড</Label><PasswordInput name="password" autoComplete="new-password" value={f.password} onChange={set('password')} placeholder="কমপক্ষে ৬ অক্ষর" /></div>
               {error && <p className="text-sm text-danger">{error}</p>}
               <Button type="submit" className="h-11 w-full text-base" disabled={busy}>

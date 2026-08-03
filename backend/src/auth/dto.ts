@@ -1,4 +1,8 @@
-import { IsString, MinLength, IsOptional } from 'class-validator';
+import { IsString, MinLength, IsOptional, Matches } from 'class-validator';
+
+// Valid Bangladeshi mobile: 11 digits starting 01 (e.g. 01712345678).
+export const BD_PHONE = /^01\d{9}$/;
+export const BD_PHONE_MSG = 'ফোন নম্বর ০১ দিয়ে শুরু হয়ে ১১ সংখ্যার হতে হবে (যেমন 01712345678)';
 
 export class LoginDto {
   // Login is by phone number (globally unique) + password. No clinic code needed.
@@ -21,7 +25,7 @@ export class SignupDto {
 
   // Owner's phone — becomes the login id for the clinic account.
   @IsString()
-  @MinLength(6)
+  @Matches(BD_PHONE, { message: BD_PHONE_MSG })
   phone: string;
 
   @IsOptional()
