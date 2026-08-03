@@ -4,6 +4,7 @@ import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { execSync } from 'child_process';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { dataPaths } from './data';
 
@@ -26,8 +27,12 @@ async function bootstrap() {
     console.warn('migrate deploy skipped/failed — continuing on existing schema.');
   }
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
   app.enableShutdownHooks();
+
+  // Large JSON bodies allowed — clinic backup restore can be several MB.
+  app.use(json({ limit: '60mb' }));
+  app.use(urlencoded({ extended: true, limit: '60mb' }));
 
   app.enableCors({ origin: true, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

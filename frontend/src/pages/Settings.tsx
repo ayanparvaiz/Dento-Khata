@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UpgradeInline } from '@/components/UpgradePrompt';
+import { bn } from '@/lib/pricing';
 
 interface ClinicSettings {
   name: string;
@@ -176,8 +177,12 @@ function LetterheadCard({ form, setForm, isAdmin, onSave, saving, saved, qc }: a
 
 function BackupCard() {
   const { isPaid } = useAuth();
+  const qc = useQueryClient();
+  const restoreRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [restoring, setRestoring] = useState(false);
+  const [restoreMsg, setRestoreMsg] = useState('');
 
   // Downloads THIS clinic's data (patients, appointments, treatments, prescriptions,
   // billing, notes) as one JSON file the owner can keep safe.
@@ -201,21 +206,57 @@ function BackupCard() {
     }
   };
 
+  // Restore a JSON backup INTO this clinic. Duplicate-proof on the server: records already
+  // present are skipped, so restoring the same file twice never doubles anything.
+  const restore = async (file: File) => {
+    setRestoring(true); setErr(''); setRestoreMsg('');
+    try {
+      const text = await file.text();
+      let payload: any;
+      try { payload = JSON.parse(text); } catch { throw new Error('ফাইলটি সঠিক JSON ব্যাকআপ নয়।'); }
+      const res = await api.post('/backup/import', payload);
+      const added = res.data?.totals?.added ?? 0;
+      const skipped = res.data?.totals?.skipped ?? 0;
+      setRestoreMsg(`রিস্টোর সম্পন্ন ✓ — নতুন যোগ হয়েছে ${bn(added)}টি, আগে থেকেই ছিল (স্কিপ) ${bn(skipped)}টি। কোনো ডুপ্লিকেট হয়নি।`);
+      qc.invalidateQueries(); // refresh patient lists etc.
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || e?.message || 'রিস্টোর করা যায়নি।');
+    } finally {
+      setRestoring(false);
+      if (restoreRef.current) restoreRef.current.value = '';
+    }
+  };
+
   return (
     <Card className="mb-6 max-w-2xl">
-      <CardHeader><CardTitle>ডেটা ব্যাকআপ</CardTitle></CardHeader>
+      <CardHeader><CardTitle>ডেটা ব্যাকআপ ও রিস্টোর</CardTitle></CardHeader>
       <CardContent>
         {isPaid ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm text-muted-foreground">
-              আপনার ক্লিনিকের সব তথ্য — রোগী, অ্যাপয়েন্টমেন্ট, চিকিৎসা, প্রেসক্রিপশন, বিলিং — একটি ফাইলে ডাউনলোড করুন।
-              <br />নিয়মিত ডাউনলোড করে নিরাপদ জায়গায় (পেনড্রাইভ/গুগল ড্রাইভ) রাখুন।
-              {err && <span className="mt-1 block text-danger">{err}</span>}
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-muted-foreground">
+                আপনার ক্লিনিকের সব তথ্য — রোগী, অ্যাপয়েন্টমেন্ট, চিকিৎসা, প্রেসক্রিপশন, বিলিং — একটি ফাইলে ডাউনলোড করুন।
+                <br />নিয়মিত ডাউনলোড করে নিরাপদ জায়গায় (পেনড্রাইভ/গুগল ড্রাইভ) রাখুন।
+                {err && <span className="mt-1 block text-danger">{err}</span>}
+              </div>
+              <Button onClick={download} disabled={busy}>{busy ? 'ডাউনলোড হচ্ছে…' : 'ব্যাকআপ ডাউনলোড করুন'}</Button>
             </div>
-            <Button onClick={download} disabled={busy}>{busy ? 'ডাউনলোড হচ্ছে…' : 'ব্যাকআপ ডাউনলোড করুন'}</Button>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+              <div className="text-sm text-muted-foreground">
+                আগের ব্যাকআপ ফাইল (.json) থেকে তথ্য ফিরিয়ে আনুন।
+                <br />একই তথ্য দুবার যোগ হবে না — নিরাপদে বারবার রিস্টোর করা যায়।
+                {restoreMsg && <span className="mt-1 block font-medium text-emerald-600">{restoreMsg}</span>}
+              </div>
+              <input ref={restoreRef} type="file" accept="application/json,.json" hidden
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) restore(f); }} />
+              <Button variant="outline" onClick={() => restoreRef.current?.click()} disabled={restoring}>
+                {restoring ? 'রিস্টোর হচ্ছে…' : 'ব্যাকআপ থেকে রিস্টোর'}
+              </Button>
+            </div>
           </div>
         ) : (
-          <UpgradeInline text="ডেটা ব্যাকআপ ডাউনলোড করতে প্রো দরকার" />
+          <UpgradeInline text="ডেটা ব্যাকআপ ও রিস্টোর করতে প্রো দরকার" />
         )}
       </CardContent>
     </Card>

@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Get, Injectable, Module, OnModuleInit, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Injectable, Module, OnModuleInit, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { Cron } from '@nestjs/schedule';
 import { execFile } from 'child_process';
@@ -12,6 +12,7 @@ import { PaidOnly } from '../subscription/paid-only.decorator';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { SuperAdminGuard } from '../superadmin/superadmin.guard';
+import { RestoreService } from './restore.service';
 
 const execFileAsync = promisify(execFile);
 const KEEP = 30; // keep last 30 daily dumps
@@ -101,7 +102,7 @@ export class BackupService implements OnModuleInit {
 
 @Controller('backup')
 class BackupController {
-  constructor(private svc: BackupService) {}
+  constructor(private svc: BackupService, private restoreSvc: RestoreService) {}
 
   // --- Platform (super-admin) — full multi-tenant pg_dump ---
   @Public() @UseGuards(SuperAdminGuard)
@@ -129,7 +130,19 @@ class BackupController {
     res.setHeader('Content-Disposition', `attachment; filename="dentokhata-backup-${date}.json"`);
     res.send(JSON.stringify(payload, null, 2));
   }
+
+  // Restore a previously-downloaded JSON backup INTO this clinic. Duplicate-proof:
+  // records already present (by id) are skipped; clashing patient codes / invoice numbers
+  // are renumbered; procedures are merged by code. See RestoreService.
+  @PaidOnly()
+  @NoSubscription()
+  @Post('import')
+  async import(@CurrentUser() user: AuthUser, @Body() payload: any) {
+    if (user.role !== 'OWNER' && user.role !== 'ADMIN')
+      throw new ForbiddenException('শুধু ক্লিনিকের মালিক/অ্যাডমিন ব্যাকআপ রিস্টোর করতে পারবেন');
+    return this.restoreSvc.restore(payload);
+  }
 }
 
-@Module({ providers: [BackupService], controllers: [BackupController] })
+@Module({ providers: [BackupService, RestoreService], controllers: [BackupController] })
 export class BackupModule {}
