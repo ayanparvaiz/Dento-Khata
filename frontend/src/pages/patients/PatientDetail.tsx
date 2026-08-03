@@ -55,11 +55,21 @@ export function PatientDetail() {
   const navigate = useNavigate();
   const { data: p, isLoading } = usePatient(id);
   const { can } = useAuth();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const visibleTabs = TABS.filter((t) => TAB_CAP[t] === null || TAB_CAP[t]!.some((c) => can(c)));
   const wanted = (TABS.find((t) => t === params.get('tab')) ?? 'Overview') as Tab;
   const initialTab = visibleTabs.includes(wanted) ? wanted : 'Overview';
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTabState] = useState<Tab>(initialTab);
+  // Persist the active tab in the URL (?tab=) so a page reload keeps you on it
+  // instead of snapping back to Overview.
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (t === 'Overview') next.delete('tab'); else next.set('tab', t);
+      return next;
+    }, { replace: true });
+  };
 
   if (isLoading || !p) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
