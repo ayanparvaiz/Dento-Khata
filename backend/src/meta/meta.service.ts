@@ -77,8 +77,8 @@ export class MetaService {
         body: JSON.stringify(payload),
       });
       const body = await res.text();
-      if (!res.ok) this.log.warn(`${e.eventName} failed (${res.status}): ${body.slice(0, 300)}`);
-      else this.log.log(`${e.eventName} sent (${e.eventId})`);
+      if (!res.ok) this.log.warn(`${e.eventName} failed (${res.status}): ${body.slice(0, 500)}`);
+      else this.log.log(`${e.eventName} sent (${e.eventId}) -> ${body.slice(0, 500)}`);
     } catch (err) {
       // Never let tracking break the app.
       this.log.warn(`${e.eventName} error: ${(err as Error).message}`);
