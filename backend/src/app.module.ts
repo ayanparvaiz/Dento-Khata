@@ -23,6 +23,7 @@ import { BackupModule } from './backup/backup.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
 import { SubscriptionGuard } from './subscription/subscription.guard';
+import { PaidOnlyGuard } from './subscription/paid-only.guard';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { TenantContextMiddleware } from './tenant/tenant-context.middleware';
 import { SubscriptionModule } from './subscription/subscription.module';
@@ -66,8 +67,10 @@ import { ErrorLogModule } from './errorlog/errorlog.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // Global: enforce per-assistant capability on routes marked @Requires(...).
     { provide: APP_GUARD, useClass: PermissionsGuard },
-    // Global: block tenant routes when the subscription is inactive/expired.
+    // Global: block tenant routes only when SUSPENDED (freemium: FREE is never blocked).
     { provide: APP_GUARD, useClass: SubscriptionGuard },
+    // Global: enforce @PaidOnly (Pro-only features) — FREE clinics get 403 PAID_ONLY.
+    { provide: APP_GUARD, useClass: PaidOnlyGuard },
     // Global: record mutating requests for audit.
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],

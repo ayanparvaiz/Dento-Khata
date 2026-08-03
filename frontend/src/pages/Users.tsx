@@ -4,12 +4,15 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/lib/auth';
+import { UpgradeInline } from '@/components/UpgradePrompt';
 import { Trash2, ShieldCheck } from 'lucide-react';
 
 interface User { id: string; phone: string; username?: string; fullName: string; role: string; isActive: boolean; permissions?: string[]; }
 interface Cap { key: string; label: string; }
 
 export function Users() {
+  const { isPaid } = useAuth();
   const qc = useQueryClient();
   const { data: users = [] } = useQuery<User[]>({ queryKey: ['users'], queryFn: async () => (await api.get('/users')).data });
   const { data: caps = [] } = useQuery<Cap[]>({ queryKey: ['capabilities'], queryFn: async () => (await api.get('/users/capabilities')).data });
@@ -38,9 +41,14 @@ export function Users() {
       <p className="mb-6 text-sm text-muted-foreground">Admin can do everything. An assistant can only do what you tick below.</p>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Add user */}
+        {/* Add user — Pro only (FREE tier is single-user) */}
         <Card className="xl:col-span-1 self-start">
           <CardHeader><CardTitle>Add user</CardTitle></CardHeader>
+          {!isPaid ? (
+            <CardContent>
+              <UpgradeInline text="একাধিক ইউজার (রিসেপশনিস্ট/ডাক্তার) যোগ করতে প্রো দরকার" />
+            </CardContent>
+          ) : (
           <CardContent className="space-y-3">
             <div><Label>Full name</Label><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></div>
             <div><Label>Phone (login)</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="01XXXXXXXXX" inputMode="tel" /></div>
@@ -67,6 +75,7 @@ export function Users() {
             {error && <p className="text-sm text-danger">{error}</p>}
             <Button className="w-full" disabled={create.isPending} onClick={() => create.mutate()}>Add user</Button>
           </CardContent>
+          )}
         </Card>
 
         {/* Existing users */}

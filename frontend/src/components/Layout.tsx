@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import { bn } from '@/lib/pricing';
 import { COMMUNITY_URL } from '@/lib/links';
+import { ProBadge } from '@/components/UpgradePrompt';
 import { ToothIcon } from '@/components/ToothLogo';
 import { TrialWelcome, TrialBanner } from '@/components/TrialBits';
 
@@ -35,7 +36,7 @@ const nav: { to: string; label: string; icon: any; end?: boolean; adminOnly?: bo
 ];
 
 export function Layout() {
-  const { user, logout, can, sub } = useAuth();
+  const { user, logout, can, sub, isPaid } = useAuth();
   const [open, setOpen] = useState(false); // mobile drawer
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER';
   const items = nav.filter((n) => (n.adminOnly ? isAdmin : n.cap ? can(n.cap) : true));
@@ -76,6 +77,7 @@ export function Layout() {
               >
                 <Icon className="h-4 w-4" />
                 {label}
+                {to === '/reports' && !isPaid && <ProBadge className="ml-auto" />}
               </NavLink>
             </div>
           ))}
@@ -91,18 +93,25 @@ export function Layout() {
           >
             <MessageCircle className="h-4 w-4" /> কমিউনিটিতে যোগ দিন
           </a>
-          {/* Subscription status + quick renew */}
+          {/* Plan status + upgrade/renew */}
           {sub && (
             <NavLink
               to="/subscribe"
               onClick={() => setOpen(false)}
-              className="mb-2 block rounded-[var(--radius)] border border-border p-2.5 transition-colors hover:bg-muted"
+              className={cn(
+                'mb-2 block rounded-[var(--radius)] border p-2.5 transition-colors',
+                isPaid ? 'border-border hover:bg-muted' : 'border-amber-200 bg-amber-50 hover:bg-amber-100',
+              )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">{sub.isTrial ? 'ফ্রি ট্রায়াল' : 'সাবস্ক্রিপশন'}</span>
-                <span className="text-xs font-semibold text-primary">নবায়ন →</span>
+                <span className={cn('text-xs font-medium', isPaid ? 'text-muted-foreground' : 'text-amber-800')}>
+                  {isPaid ? 'প্রো সাবস্ক্রিপশন' : 'ফ্রি প্ল্যান'}
+                </span>
+                <span className={cn('text-xs font-semibold', isPaid ? 'text-primary' : 'text-amber-700')}>
+                  {isPaid ? 'নবায়ন →' : 'আপগ্রেড →'}
+                </span>
               </div>
-              {sub.daysLeft != null && (
+              {isPaid && sub.daysLeft != null && (
                 <div className={cn('mt-0.5 text-sm font-bold', sub.daysLeft <= 3 ? 'text-danger' : 'text-foreground')}>
                   {bn(Math.max(0, sub.daysLeft))} দিন বাকি
                 </div>

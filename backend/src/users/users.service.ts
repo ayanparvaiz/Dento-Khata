@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
+import { isPaidSub, FREE_LIMITS } from '../subscription/plans';
 
 const SAFE_SELECT = {
   id: true,
@@ -28,6 +29,17 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
+    // FREE tier = single user (the owner). Multi-user is a Pro feature.
+    const sub = await this.prisma.subscription.findFirst();
+    if (!isPaidSub(sub)) {
+      const count = await this.prisma.user.count();
+      if (count >= FREE_LIMITS.users) {
+        throw new ForbiddenException({
+          code: 'FREE_LIMIT_USERS',
+          message: 'ফ্রি প্ল্যানে শুধু ১ জন ইউজার। রিসেপশনিস্ট/অ্যাসিস্ট্যান্ট বা একাধিক ডাক্তার যোগ করতে প্রো-তে আপগ্রেড করুন।',
+        });
+      }
+    }
     // Phone is the login id — globally unique across all clinics.
     const exists = await this.prisma.user.findUnique({ where: { phone: dto.phone.trim() } });
     if (exists) throw new BadRequestException('That phone number is already registered');

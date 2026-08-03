@@ -6,6 +6,7 @@ import { letterheadHead, letterheadFoot, LETTERHEAD_CSS } from '@/lib/letterhead
 import { Button } from '@/components/ui/button';
 import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UpgradeInline } from '@/components/UpgradePrompt';
 
 interface ClinicSettings {
   name: string;
@@ -162,6 +163,7 @@ function LetterheadCard({ form, setForm, isAdmin, onSave, saving, saved, qc }: a
 }
 
 function BackupCard() {
+  const { isPaid } = useAuth();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -190,13 +192,19 @@ function BackupCard() {
   return (
     <Card className="mb-6 max-w-2xl">
       <CardHeader><CardTitle>ডেটা ব্যাকআপ</CardTitle></CardHeader>
-      <CardContent className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-muted-foreground">
-          আপনার ক্লিনিকের সব তথ্য — রোগী, অ্যাপয়েন্টমেন্ট, চিকিৎসা, প্রেসক্রিপশন, বিলিং — একটি ফাইলে ডাউনলোড করুন।
-          <br />নিয়মিত ডাউনলোড করে নিরাপদ জায়গায় (পেনড্রাইভ/গুগল ড্রাইভ) রাখুন।
-          {err && <span className="mt-1 block text-danger">{err}</span>}
-        </div>
-        <Button onClick={download} disabled={busy}>{busy ? 'ডাউনলোড হচ্ছে…' : 'ব্যাকআপ ডাউনলোড করুন'}</Button>
+      <CardContent>
+        {isPaid ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-muted-foreground">
+              আপনার ক্লিনিকের সব তথ্য — রোগী, অ্যাপয়েন্টমেন্ট, চিকিৎসা, প্রেসক্রিপশন, বিলিং — একটি ফাইলে ডাউনলোড করুন।
+              <br />নিয়মিত ডাউনলোড করে নিরাপদ জায়গায় (পেনড্রাইভ/গুগল ড্রাইভ) রাখুন।
+              {err && <span className="mt-1 block text-danger">{err}</span>}
+            </div>
+            <Button onClick={download} disabled={busy}>{busy ? 'ডাউনলোড হচ্ছে…' : 'ব্যাকআপ ডাউনলোড করুন'}</Button>
+          </div>
+        ) : (
+          <UpgradeInline text="ডেটা ব্যাকআপ ডাউনলোড করতে প্রো দরকার" />
+        )}
       </CardContent>
     </Card>
   );

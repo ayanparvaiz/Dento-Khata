@@ -119,8 +119,10 @@ async function printInvoice(patient: Patient, plan: TreatmentPlan, record: Treat
 }
 
 export function TreatmentBillingTab({ patient }: { patient: Patient }) {
-  const { can } = useAuth();
+  const { can, isPaid } = useAuth();
   const navigate = useNavigate();
+  // Printing invoices/statements is a Pro feature; FREE clinics still see dues on-screen.
+  const gatedPrint = (fn: () => void) => () => (isPaid ? fn() : navigate('/subscribe'));
   const canTx = can('treatment.manage');
   const canBill = can('billing.manage');
   const canAppt = can('appointments.manage');
@@ -151,7 +153,7 @@ export function TreatmentBillingTab({ patient }: { patient: Patient }) {
             </Button>
           )}
           {canBill && (
-            <Button size="sm" variant="outline" onClick={() => printStatement(patient, plans, records, payments, ledger)}>
+            <Button size="sm" variant="outline" onClick={gatedPrint(() => printStatement(patient, plans, records, payments, ledger))}>
               <Printer className="mr-1.5 h-4 w-4" /> Full statement
             </Button>
           )}
@@ -183,6 +185,9 @@ export function TreatmentBillingTab({ patient }: { patient: Patient }) {
 }
 
 function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill, m, rm, bm }: any) {
+  const { isPaid } = useAuth();
+  const navigate = useNavigate();
+  const gatedPrint = (fn: () => void) => () => (isPaid ? fn() : navigate('/subscribe'));
   const recs: TreatmentRecord[] = records.filter((r: TreatmentRecord) => r.planId === plan.id)
     .sort((a: TreatmentRecord, b: TreatmentRecord) => +new Date(a.visitDate) - +new Date(b.visitDate));
   const recIds = new Set(recs.map((r) => r.id));
@@ -201,7 +206,7 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {canBill && <Button size="sm" className="h-8 bg-white px-2.5 text-primary hover:bg-white/90" onClick={() => printStatement(patient, [plan], records, payments, null, plan)}><Printer className="mr-1.5 h-4 w-4" /> Statement</Button>}
+          {canBill && <Button size="sm" className="h-8 bg-white px-2.5 text-primary hover:bg-white/90" onClick={gatedPrint(() => printStatement(patient, [plan], records, payments, null, plan))}><Printer className="mr-1.5 h-4 w-4" /> Statement</Button>}
           {canTx && <button className="rounded p-1.5 text-primary-foreground/80 hover:bg-white/15 hover:text-white" onClick={() => { if (confirm(`Delete plan "${plan.title}"?`)) m.deletePlan.mutate(plan.id); }}><Trash2 className="h-4 w-4" /></button>}
         </div>
       </div>
@@ -260,6 +265,9 @@ function PlanCard({ patient, plan, records, payments, procedures, canTx, canBill
 }
 
 function VisitRow({ patient, plan, record, recPays, paid, account, canTx, canBill, rm, bm }: any) {
+  const { isPaid } = useAuth();
+  const navigate = useNavigate();
+  const gatedPrint = (fn: () => void) => () => (isPaid ? fn() : navigate('/subscribe'));
   const [edit, setEdit] = useState(false);
   const [text, setText] = useState(record.content);
   const [charge, setCharge] = useState(String(record.amount ?? 0));
@@ -319,7 +327,7 @@ function VisitRow({ patient, plan, record, recPays, paid, account, canTx, canBil
           </Button>
         )}
         {canBill && (
-          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => printInvoice(patient, plan, record, recPays, account)}>
+          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={gatedPrint(() => printInvoice(patient, plan, record, recPays, account))}>
             <Receipt className="mr-1 h-3.5 w-3.5" /> Invoice
           </Button>
         )}

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRevenue, useOutstanding, taka, type Revenue } from '@/lib/clinical';
+import { useAuth } from '@/lib/auth';
+import { UpgradeCard } from '@/components/UpgradePrompt';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Printer, Download, TrendingUp, Wallet, Receipt, AlertCircle } from 'lucide-react';
@@ -121,8 +123,23 @@ function Kpi({ icon: Icon, label, value, sub, tone = 'primary' }: any) {
 export function Reports() {
   const [days, setDays] = useState<number>(30);
   const navigate = useNavigate();
-  const { data: rev } = useRevenue(days);
-  const { data: outstanding } = useOutstanding();
+  const { isPaid } = useAuth();
+  const { data: rev } = useRevenue(days, isPaid); // don't fetch on FREE (endpoint is Pro-only)
+  const { data: outstanding } = useOutstanding(isPaid);
+
+  // Full analytics is Pro-only. FREE clinics see dues on the patient's Treatment tab.
+  if (!isPaid) {
+    return (
+      <div className="p-6">
+        <h1 className="mb-1 text-2xl font-bold">অ্যানালিটিক্স ও রিপোর্ট</h1>
+        <p className="mb-6 text-sm text-muted-foreground">আয়ের ট্রেন্ড, মাসিক হিসাব ও রিপোর্ট</p>
+        <UpgradeCard
+          title="রিপোর্ট ও অ্যানালিটিক্স"
+          desc="দৈনিক/মাসিক আয়, রেভিনিউ ট্রেন্ড, পেমেন্ট মেথড ও বাকির পূর্ণ রিপোর্ট — প্রো-তে পাবেন। (কে কত বাকি তা রোগীর পেজেই দেখতে পারবেন।)"
+        />
+      </div>
+    );
+  }
 
   const buckets = useMemo(() => buildBuckets(rev, days), [rev, days]);
   const periodLabel = PERIODS.find((p) => p.key === days)?.label ?? `${days}d`;

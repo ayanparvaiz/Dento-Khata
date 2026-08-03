@@ -1,10 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePatientDto, MedicalHistoryDto, UpdatePatientDto } from './dto';
+import { isPaidSub, FREE_LIMITS } from '../subscription/plans';
 
 @Injectable()
 export class PatientsService {
   constructor(private prisma: PrismaService) {}
+
+  // FREE tier is capped at FREE_LIMITS.patients; Pro is unlimited.
+  private async assertPatientQuota() {
+    const sub = await this.prisma.subscription.findFirst();
+    if (isPaidSub(sub)) return;
+    const count = await this.prisma.patient.count();
+    if (count >= FREE_LIMITS.patients) {
+      throw new ForbiddenException({
+        code: 'FREE_LIMIT_PATIENTS',
+        limit: FREE_LIMITS.patients,
+        message: `ফ্রি প্ল্যানে সর্বোচ্চ ${FREE_LIMITS.patients} জন রোগী। আরও রোগী যোগ করতে প্রো-তে আপগ্রেড করুন।`,
+      });
+    }
+  }
 
   // Sequential human-readable code: P-00001, P-00002 ...
   private async nextCode(): Promise<string> {
@@ -24,6 +39,7 @@ export class PatientsService {
   }
 
   async create(dto: CreatePatientDto) {
+    await this.assertPatientQuota();
     return this.prisma.patient.create({
       data: { code: await this.nextCode(), ...this.toData(dto) },
     });

@@ -18,8 +18,9 @@ export interface AuthUser {
 }
 
 export interface SubStatus {
-  active: boolean;
-  status: string; // PENDING | ACTIVE | TRIAL | PAST_DUE | SUSPENDED | NONE
+  active: boolean; // false ONLY when suspended
+  isPaid: boolean; // true = Pro; false = FREE tier
+  status: string; // FREE | ACTIVE | PAST_DUE | SUSPENDED
   currentPeriodEnd: string | null;
   daysLeft: number | null;
   amount: number;
@@ -50,6 +51,7 @@ interface AuthContextValue {
   signup: (payload: SignupPayload) => Promise<void>;
   logout: () => void;
   can: (cap: string) => boolean; // owner/admin = always; assistant = granted only
+  isPaid: boolean; // Pro subscription active (else FREE tier — feature-limited)
   refreshSub: () => Promise<SubStatus | null>;
 }
 
@@ -159,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     !!user && (user.role === 'OWNER' || user.role === 'ADMIN' || (user.permissions ?? []).includes(cap));
 
   return (
-    <AuthContext.Provider value={{ user, loading, sub, blocked, login, signup, logout, can, refreshSub }}>
+    <AuthContext.Provider value={{ user, loading, sub, blocked, login, signup, logout, can, isPaid: !!sub?.isPaid, refreshSub }}>
       {children}
     </AuthContext.Provider>
   );

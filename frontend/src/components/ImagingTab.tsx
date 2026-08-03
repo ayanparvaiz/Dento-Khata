@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFiles, useFileMutations, type PatientFile } from '@/lib/clinical';
+import { useAuth } from '@/lib/auth';
+import { UpgradeInline } from '@/components/UpgradePrompt';
 import { api } from '@/lib/api';
 import { fmtDate } from '@/lib/format';
 import { Button } from '@/components/ui/button';
@@ -17,6 +19,7 @@ const fileUrl = (p: string) => `${(api.defaults.baseURL || '').replace(/\/api\/?
 const isImg = (f: PatientFile) => f.fileType === 'IMAGE';
 
 export function ImagingTab({ patientId }: { patientId: string }) {
+  const { isPaid } = useAuth();
   const { data: files = [] } = useFiles(patientId);
   const m = useFileMutations(patientId);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,21 +42,25 @@ export function ImagingTab({ patientId }: { patientId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="flex flex-wrap items-end gap-3 pt-5">
-          <div>
-            <Label>Category</Label>
-            <Select className="w-44" value={category} onChange={(e) => setCategory(e.target.value)}>
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-            </Select>
-          </div>
-          <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
-          <Button onClick={() => inputRef.current?.click()} disabled={m.upload.isPending}>
-            <Upload className="h-4 w-4" /> {m.upload.isPending ? 'Uploading…' : 'Upload X-ray / photo / document'}
-          </Button>
-          <span className="text-xs text-muted-foreground">jpg / png / pdf · max 25MB · click an image to view large · tick 2 to compare</span>
-        </CardContent>
-      </Card>
+      {isPaid ? (
+        <Card>
+          <CardContent className="flex flex-wrap items-end gap-3 pt-5">
+            <div>
+              <Label>Category</Label>
+              <Select className="w-44" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </Select>
+            </div>
+            <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+            <Button onClick={() => inputRef.current?.click()} disabled={m.upload.isPending}>
+              <Upload className="h-4 w-4" /> {m.upload.isPending ? 'Uploading…' : 'Upload X-ray / photo / document'}
+            </Button>
+            <span className="text-xs text-muted-foreground">jpg / png / pdf · max 25MB · click an image to view large · tick 2 to compare</span>
+          </CardContent>
+        </Card>
+      ) : (
+        <UpgradeInline text="X-ray / ছবি সংরক্ষণ করতে প্রো দরকার" />
+      )}
 
       {compared.length === 2 && compared.every(isImg) && (
         <Card>

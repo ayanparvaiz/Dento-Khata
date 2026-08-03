@@ -18,9 +18,21 @@ export const PLANS: Plan[] = [
 
 export const DEFAULT_PLAN = PLANS[0];
 
-// Every new clinic starts on an automatic free trial of this many days.
-export const TRIAL_DAYS = 3;
-export const TRIAL_PLAN = 'TRIAL';
+// Freemium model: every new clinic starts on FREE (forever, no trial, no paywall).
+// A verified paid payment moves the plan to PAID for the purchased period.
+export const FREE_PLAN = 'FREE';
+export const PAID_PLAN = 'STANDARD';
+
+// What the FREE tier is limited to (everything else is a Pro-only feature).
+export const FREE_LIMITS = { patients: 100, users: 1 };
+
+// A subscription is "paid" (Pro) if it's on the paid plan and still within its period
+// (+grace). Otherwise the clinic is on FREE — never blocked, just feature-limited.
+export function isPaidSub(sub: { plan?: string; currentPeriodEnd: Date | null } | null): boolean {
+  if (!sub) return false;
+  const grace = (Number(process.env.SUBSCRIPTION_GRACE_DAYS) || 3) * 86_400_000;
+  return !!(sub.plan === PAID_PLAN && sub.currentPeriodEnd && Date.now() <= sub.currentPeriodEnd.getTime() + grace);
+}
 
 export function planByKey(key?: string | null): Plan {
   return PLANS.find((p) => p.key === key) || DEFAULT_PLAN;

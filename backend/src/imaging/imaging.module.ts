@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { Requires } from '../auth/permissions.guard';
+import { PaidOnly } from '../subscription/paid-only.decorator';
 import { currentTenantId } from '../tenant/tenant-context';
 
 // UPLOAD_DIR is set to an absolute persistent path at startup (see main.ts).
@@ -68,6 +69,7 @@ class ImagingController {
     return this.svc.list(id);
   }
 
+  @PaidOnly() // x-ray / image storage is a Pro feature
   @Requires('imaging.manage')
   @Post('patients/:id/files')
   @UseInterceptors(

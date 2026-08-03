@@ -8,7 +8,7 @@ import { DEFAULT_PROCEDURES } from './default-procedures';
 import { clinicSuspended } from './suspended';
 import { MetaService } from '../meta/meta.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { DEFAULT_PLAN, TRIAL_DAYS, TRIAL_PLAN } from '../subscription/plans';
+import { DEFAULT_PLAN, FREE_PLAN } from '../subscription/plans';
 
 // Simple in-memory per-IP signup throttle (anti-spam). No external dep needed.
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -100,11 +100,10 @@ export class AuthService {
           isActive: true,
         },
       });
-      // New clinics start on an automatic free trial — active immediately for TRIAL_DAYS,
-      // then the paywall kicks in. (plan=TRIAL so it's not counted as a paid Purchase.)
-      const trialEnd = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
+      // Freemium: new clinics start on FREE forever (no trial, no paywall) — feature-limited,
+      // never blocked. A verified paid payment moves them to the paid plan.
       await this.prisma.subscription.create({
-        data: { plan: TRIAL_PLAN, status: 'ACTIVE', amount: price, currentPeriodEnd: trialEnd },
+        data: { plan: FREE_PLAN, status: 'ACTIVE', amount: price, currentPeriodEnd: null },
       });
       await this.prisma.clinicSettings.create({
         data: { name: dto.clinicName, phone },

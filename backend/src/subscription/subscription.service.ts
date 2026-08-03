@@ -2,19 +2,20 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitPaymentDto } from './dto';
-import { planByKey, DEFAULT_PLAN, TRIAL_PLAN } from './plans';
+import { planByKey, DEFAULT_PLAN, isPaidSub } from './plans';
 import { MetaService } from '../meta/meta.service';
 import { TelegramService } from '../telegram/telegram.service';
 
 export interface AccessState {
-  active: boolean;
-  status: string; // PENDING | ACTIVE | TRIAL | PAST_DUE | SUSPENDED | NONE
+  active: boolean; // false ONLY when suspended → blocked. FREE and PAID are both active.
+  isPaid: boolean; // true = Pro (paid & within period). false = FREE tier.
+  status: string; // FREE | ACTIVE | PAST_DUE | SUSPENDED
   currentPeriodEnd: Date | null;
-  daysLeft: number | null; // days until expiry (incl. grace consumed → negative once past)
+  daysLeft: number | null; // days until paid expiry (null on FREE)
   amount: number;
   bkashNumber: string;
   whatsapp: string;
-  isTrial: boolean; // true while (or after) the free trial — never a paid period
+  isTrial: boolean; // legacy field — always false now (no trial in the freemium model)
 }
 
 @Injectable()
@@ -34,28 +35,21 @@ export class SubscriptionService {
     return process.env.SUPPORT_WHATSAPP || '';
   }
 
-  // Live access decision for a subscription row (null = no subscription).
+  // Live access decision. Freemium: a clinic is NEVER blocked for being unpaid — it just
+  // drops to the FREE tier (feature-limited). `active` is false ONLY when SUSPENDED by the
+  // super-admin. `isPaid` distinguishes Pro (paid & within period) from FREE.
   computeAccess(sub: { status: string; currentPeriodEnd: Date | null; amount: number; plan?: string } | null): AccessState {
-    const trial = sub?.plan === TRIAL_PLAN;
-    const base = { amount: sub?.amount ?? this.price(), bkashNumber: this.bkashNumber(), whatsapp: this.whatsapp(), isTrial: trial };
-    if (!sub) return { active: false, status: 'NONE', currentPeriodEnd: null, daysLeft: null, ...base };
+    const base = { amount: sub?.amount ?? this.price(), bkashNumber: this.bkashNumber(), whatsapp: this.whatsapp(), isTrial: false };
 
-    if (sub.status === 'SUSPENDED')
-      return { active: false, status: 'SUSPENDED', currentPeriodEnd: sub.currentPeriodEnd, daysLeft: null, ...base };
+    if (sub?.status === 'SUSPENDED')
+      return { active: false, isPaid: false, status: 'SUSPENDED', currentPeriodEnd: sub.currentPeriodEnd, daysLeft: null, ...base };
 
-    if (!sub.currentPeriodEnd)
-      return { active: false, status: sub.status || 'PENDING', currentPeriodEnd: null, daysLeft: null, ...base };
-
+    const paid = isPaidSub(sub);
     const now = Date.now();
-    const end = sub.currentPeriodEnd.getTime();
-    // No grace period on a free trial — it ends exactly on time so the paywall converts.
-    const graceMs = trial ? 0 : this.graceDays() * 86_400_000;
-    const active = now <= end + graceMs;
-    const daysLeft = Math.ceil((end - now) / 86_400_000);
-    const status = trial
-      ? (active ? 'TRIAL' : 'PAST_DUE')
-      : (active ? (now <= end ? 'ACTIVE' : 'PAST_DUE') : 'PAST_DUE');
-    return { active, status, currentPeriodEnd: sub.currentPeriodEnd, daysLeft, ...base };
+    const end = sub?.currentPeriodEnd?.getTime();
+    const daysLeft = paid && end ? Math.ceil((end - now) / 86_400_000) : null;
+    const status = paid ? (end && now <= end ? 'ACTIVE' : 'PAST_DUE') : 'FREE';
+    return { active: true, isPaid: paid, status, currentPeriodEnd: sub?.currentPeriodEnd ?? null, daysLeft, ...base };
   }
 
   // The current tenant's subscription (scoped by the request context).
@@ -75,9 +69,9 @@ export class SubscriptionService {
     let purchaseEventId: string | undefined;
     let purchaseValue: number | undefined;
 
-    if (sub && state.active && !sub.purchaseTrackedAt) {
-      // Fire Purchase ONLY for a real paid verification — never for a free trial or a
-      // comp grant (amount 0). Otherwise every trial signup would look like a sale to Meta.
+    if (sub && state.isPaid && !sub.purchaseTrackedAt) {
+      // Fire Purchase ONLY for a real paid verification — never for FREE or a comp grant
+      // (amount 0). Otherwise every free signup would look like a sale to Meta.
       const paid = await this.prisma.subscriptionPayment.findFirst({
         where: { status: 'VERIFIED', amount: { gt: 0 } }, orderBy: { verifiedAt: 'desc' },
       });

@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 import { Users, CalendarDays, CalendarRange, Stethoscope, Wallet, AlertCircle, ChevronRight, PlayCircle, X, MessageCircle } from 'lucide-react';
 import { OVERVIEW_VIDEO_ID, ytThumb } from '@/lib/tutorials';
 import { COMMUNITY_URL } from '@/lib/links';
+import { useAuth } from '@/lib/auth';
+import { ProBadge, UpgradeInline } from '@/components/UpgradePrompt';
 
 const fmtTime = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const STATUS_TONE: Record<string, string> = {
@@ -105,6 +107,7 @@ function TutorialBanner() {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const { isPaid } = useAuth();
   const { data, isError } = useDashboard();
 
   return (
@@ -178,10 +181,16 @@ export function Dashboard() {
         {/* Revenue spark + top dues */}
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle className="text-sm">Revenue · last 14 days</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-sm">Revenue · last 14 days {!isPaid && <ProBadge className="ml-1" />}</CardTitle></CardHeader>
             <CardContent>
-              <div className="mb-2 text-2xl font-bold text-emerald-700">{data ? taka((data.spark ?? []).reduce((s: number, d: any) => s + d.amount, 0)) : '—'} <span className="text-sm font-normal text-muted-foreground">last 14 days</span></div>
-              {data?.spark && <Spark data={data.spark} />}
+              {isPaid ? (
+                <>
+                  <div className="mb-2 text-2xl font-bold text-emerald-700">{data ? taka((data.spark ?? []).reduce((s: number, d: any) => s + d.amount, 0)) : '—'} <span className="text-sm font-normal text-muted-foreground">last 14 days</span></div>
+                  {data?.spark && <Spark data={data.spark} />}
+                </>
+              ) : (
+                <UpgradeInline text="আয়ের ট্রেন্ড ও অ্যানালিটিক্স দেখতে প্রো দরকার" />
+              )}
             </CardContent>
           </Card>
 

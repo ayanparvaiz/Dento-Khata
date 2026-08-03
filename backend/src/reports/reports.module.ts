@@ -1,6 +1,7 @@
 import { Controller, Get, Injectable, Module, Query } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Requires } from '../auth/permissions.guard';
+import { PaidOnly } from '../subscription/paid-only.decorator';
 
 @Injectable()
 class ReportsService {
@@ -79,6 +80,7 @@ class ReportsService {
   }
 }
 
+@PaidOnly() // full analytics is a Pro feature (FREE clinics still see dues on the patient/dashboard)
 @Controller('reports')
 class ReportsController {
   constructor(private svc: ReportsService) {}

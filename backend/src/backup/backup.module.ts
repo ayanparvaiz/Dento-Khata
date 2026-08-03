@@ -8,6 +8,7 @@ import { join } from 'path';
 import { dataPaths } from '../data';
 import { Public } from '../auth/public.decorator';
 import { NoSubscription } from '../subscription/no-subscription.decorator';
+import { PaidOnly } from '../subscription/paid-only.decorator';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { SuperAdminGuard } from '../superadmin/superadmin.guard';
@@ -116,7 +117,7 @@ class BackupController {
   }
 
   // --- Clinic-facing — the owner/admin downloads THEIR OWN data as JSON ---
-  // Works even when the subscription has lapsed (data ownership / portability).
+  @PaidOnly() // backup/export is a Pro feature
   @NoSubscription()
   @Get('export')
   async export(@CurrentUser() user: AuthUser, @Res() res: Response) {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useDrugs, usePrescriptions, useRxMutations, type RxItem } from '@/lib/clinical';
 import { useTreatment } from '@/lib/treatment';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -55,13 +56,16 @@ const emptyDraft: Draft = {
   advice: '', followNum: '', followUnit: 'দিন', planId: '',
 };
 
-async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean, withChart = false) {
+async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: boolean, withChart = false, isPaid = true) {
   const s = (await api.get('/settings')).data;
   const c = themeOf(s);
   const age = patient.dateOfBirth ? ageFromDob(patient.dateOfBirth) : '';
+  // FREE tier: no custom letterhead, no chart-on-print, and a small "Dento Khata" footer.
+  const useHeader = withHeader && isPaid;
+  const useChart = withChart && isPaid;
   // Optionally include the dental chart (fetched fresh so it matches the on-screen chart).
   let chartHtml = '';
-  if (withChart) {
+  if (useChart) {
     try { chartHtml = buildChartHtml((await api.get(`/patients/${patient.id}/chart`)).data?.teeth || [], s.toothNotation || 'FDI'); }
     catch { chartHtml = ''; }
   }
@@ -72,8 +76,10 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
   const gridRows = (d.grid.UR || d.grid.UL || d.grid.LR || d.grid.LL)
     ? `<table class="grid"><tr><td>${d.grid.UR || ''}</td><td>${d.grid.UL || ''}</td></tr><tr><td>${d.grid.LR || ''}</td><td>${d.grid.LL || ''}</td></tr></table>` : '';
   const followUp = d.followNum ? `<p><b>${bn(d.followNum)} ${d.followUnit}</b> পর আসবেন।</p>` : '';
-  const header = withHeader ? letterheadHead(s) : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka
-  const footer = withHeader ? letterheadFoot(s) : '';
+  const header = useHeader ? letterheadHead(s) : `<div style="height:150px"></div>`; // pre-printed pad-er jonno faka
+  const footer = useHeader ? letterheadFoot(s) : '';
+  // Free-tier viral watermark (removed on Pro).
+  const watermark = isPaid ? '' : `<div class="wm">Dento Khata দিয়ে তৈরি · dentokhata.com</div>`;
   const html = `<html><head><meta charset="utf-8"/><title>প্রেসক্রিপশন — ${patient.fullName}</title><style>
     @page{margin:0}
     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -102,6 +108,7 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
     .legend{margin-top:4px;display:flex;flex-wrap:wrap;gap:2px 8px;font-size:7px;color:#334155}
     .legend .lg{display:flex;align-items:center;gap:2px}
     .legend svg{width:8px;height:8px}
+    .wm{position:fixed;left:0;right:0;bottom:6mm;text-align:center;font-size:9px;color:#94a3b8;letter-spacing:.3px}
     @media print{button{display:none}}</style></head><body>
     ${header}
     <div class="pt">
@@ -124,6 +131,7 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
     </div>
     ${chartHtml ? `<div class="chartwrap">${chartHtml}</div>` : ''}
     ${footer}
+    ${watermark}
     <script>window.onload=function(){setTimeout(function(){window.print()},120)}</script></body></html>`;
   const w = window.open('', '_blank');
   if (w) { w.document.write(html); w.document.close(); w.focus(); }
@@ -131,6 +139,7 @@ async function printRx(patient: Patient, d: Draft, items: RxItem[], withHeader: 
 
 export function PrescriptionsTab({ patient }: { patient: Patient }) {
   const patientId = patient.id;
+  const { isPaid } = useAuth();
   const { data: history = [] } = usePrescriptions(patientId);
   const { data: plans = [] } = useTreatment(patientId);
   const m = useRxMutations(patientId);
@@ -215,9 +224,9 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
           <span className="text-muted-foreground">{patient.address || ''}</span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Button size="sm" variant="outline" disabled={!hasContent} onClick={() => printRx(patient, d, items, true, includeChart)}><Eye className="mr-1 h-4 w-4" />প্রিভিউ</Button>
-          <Button size="sm" disabled={!hasContent || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, true, includeChart))}><Printer className="mr-1 h-4 w-4" />সেভ ও প্রিন্ট</Button>
-          <Button size="sm" variant="outline" disabled={!hasContent || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, false, includeChart))}><Printer className="mr-1 h-4 w-4" />প্রিন্ট (হেডার ছাড়া)</Button>
+          <Button size="sm" variant="outline" disabled={!hasContent} onClick={() => printRx(patient, d, items, true, includeChart, isPaid)}><Eye className="mr-1 h-4 w-4" />প্রিভিউ</Button>
+          <Button size="sm" disabled={!hasContent || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, true, includeChart, isPaid))}><Printer className="mr-1 h-4 w-4" />সেভ ও প্রিন্ট</Button>
+          <Button size="sm" variant="outline" disabled={!hasContent || m.create.isPending} onClick={() => save(() => printRx(patient, d, items, false, includeChart, isPaid))}><Printer className="mr-1 h-4 w-4" />প্রিন্ট (হেডার ছাড়া)</Button>
           <Button size="sm" variant="outline" disabled={!hasContent || m.create.isPending} onClick={() => save()}><Save className="mr-1 h-4 w-4" />শুধু সেভ</Button>
         </div>
       </div>
@@ -342,7 +351,7 @@ export function PrescriptionsTab({ patient }: { patient: Patient }) {
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{fmtDate(rx.createdAt)}</span>
                     <div className="flex gap-1.5">
-                      <button title="প্রিন্ট" onClick={(e) => { e.stopPropagation(); printRx(patient, { ...emptyDraft, dx: rx.diagnosis || '', cc: rx.chiefComplaint || '', oe: rx.onExam || '', ix: rx.investigation || '', advice: rx.advice || '', grid: rx.examGrid ? JSON.parse(rx.examGrid) : emptyDraft.grid }, rx.items, true); }} className="text-muted-foreground hover:text-primary"><Printer className="h-4 w-4" /></button>
+                      <button title="প্রিন্ট" onClick={(e) => { e.stopPropagation(); printRx(patient, { ...emptyDraft, dx: rx.diagnosis || '', cc: rx.chiefComplaint || '', oe: rx.onExam || '', ix: rx.investigation || '', advice: rx.advice || '', grid: rx.examGrid ? JSON.parse(rx.examGrid) : emptyDraft.grid }, rx.items, true, false, isPaid); }} className="text-muted-foreground hover:text-primary"><Printer className="h-4 w-4" /></button>
                       <button title="মুছুন" onClick={(e) => { e.stopPropagation(); if (confirm('এই প্রেসক্রিপশন মুছবেন?')) m.remove.mutate(rx.id); }} className="text-muted-foreground hover:text-danger"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </div>
