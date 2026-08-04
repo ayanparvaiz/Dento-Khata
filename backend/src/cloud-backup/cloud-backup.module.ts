@@ -52,7 +52,7 @@ export class CloudBackupService {
     const files = readdirSync(dir).filter((f) => f.endsWith('.json'))
       .map((f) => ({ f, t: statSync(join(dir, f)).mtimeMs })).sort((a, b) => b.t - a.t);
     files.slice(KEEP).forEach((x) => { try { unlinkSync(join(dir, x.f)); } catch { /* ignore */ } });
-    return { ok: true, count: Math.min(files.length + 1, KEEP) };
+    return { ok: true, count: Math.min(files.length, KEEP) }; // files already includes the new one
   }
 
   async list(dto: CbDto) {
