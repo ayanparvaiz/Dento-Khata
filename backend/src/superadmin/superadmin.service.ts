@@ -7,6 +7,7 @@ import { runInTenant } from '../tenant/tenant-context';
 import { GrantDaysDto, CreateTenantAdminDto, ResetUserDto } from './dto';
 import { DEFAULT_PROCEDURES } from '../auth/default-procedures';
 import { DEFAULT_PLAN } from '../subscription/plans';
+import { IS_OFFLINE } from '../config/mode';
 
 const DAY = 86_400_000;
 
@@ -33,6 +34,7 @@ export class SuperAdminService implements OnModuleInit {
   }
 
   async login(username: string, password: string) {
+    if (IS_OFFLINE) throw new UnauthorizedException('Invalid credentials'); // no platform console offline
     const admin = await this.prisma.superAdmin.findUnique({ where: { username } });
     if (!admin || !admin.isActive) throw new UnauthorizedException('Invalid credentials');
     const ok = await bcrypt.compare(password, admin.passwordHash);

@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import { bn } from '@/lib/pricing';
 import { COMMUNITY_URL } from '@/lib/links';
+import { IS_OFFLINE } from '@/lib/mode';
 import { ProBadge } from '@/components/UpgradePrompt';
 import { ToothIcon } from '@/components/ToothLogo';
 import { TrialWelcome, TrialBanner } from '@/components/TrialBits';
@@ -93,8 +94,8 @@ export function Layout() {
           >
             <MessageCircle className="h-4 w-4" /> কমিউনিটিতে যোগ দিন
           </a>
-          {/* Plan status + upgrade/renew */}
-          {sub && (
+          {/* Plan status + upgrade/renew — online only (offline is fully paid, no subscription) */}
+          {sub && !IS_OFFLINE && (
             <NavLink
               to="/subscribe"
               onClick={() => setOpen(false)}

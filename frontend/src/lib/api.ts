@@ -1,13 +1,17 @@
 import axios from 'axios';
+import { IS_OFFLINE } from './mode';
 
-// The backend runs on the server PC at port 3000. Clients (this PC, 2nd PC, phone)
-// load the web app from that same server, so we derive the API base from the current
-// host. In Vite dev (port 5173) this resolves to the dev machine's backend on 3000.
+// API base URL. In the unified builds the backend serves the web app AND the API on the
+// SAME origin/port, so a relative "/api" is correct (works for the host PC and, offline,
+// for phones/tablets on the LAN too — they load from server:PORT and "/api" resolves there).
+// Only Vite dev (port 5173) needs to reach a separate backend on :3000.
 function resolveBaseURL(): string {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
   if (envUrl) return envUrl;
-  const { protocol, hostname } = window.location;
-  return `${protocol}//${hostname}:3000/api`;
+  if (IS_OFFLINE) return '/api';
+  const { protocol, hostname, port } = window.location;
+  if (port === '5173') return `${protocol}//${hostname}:3000/api`; // vite dev → separate backend
+  return '/api'; // served by the backend on the same origin
 }
 
 export const api = axios.create({

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { IS_OFFLINE } from '@/lib/mode';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Layout } from '@/components/Layout';
 import { Login } from '@/pages/Login';
@@ -26,7 +27,7 @@ import { SuperAdmin } from '@/pages/superadmin/SuperAdmin';
 function RootGate() {
   const { user, loading, blocked } = useAuth();
   if (loading) return <div className="grid h-full place-items-center text-muted-foreground">Loading…</div>;
-  if (!user) return <Signup />; // landing is the first page at "/"
+  if (!user) return IS_OFFLINE ? <Login /> : <Signup />; // offline has no marketing/signup landing
   if (blocked) return <Paywall />;
   return <Layout />;
 }

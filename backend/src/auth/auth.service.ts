@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, HttpException, HttpStatus, ForbiddenException } from '@nestjs/common';
+import { IS_OFFLINE } from '../config/mode';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -66,6 +67,8 @@ export class AuthService {
 
   // --- Tenant signup: create clinic + owner + pending subscription -------
   async signup(dto: SignupDto, ip = '', ua = '') {
+    // OFFLINE build has no public signup — the single clinic is created at first-run bootstrap.
+    if (IS_OFFLINE) throw new ForbiddenException('অফলাইন সংস্করণে নতুন সাইনআপ নেই।');
     this.throttleSignup(ip); // anti-spam: cap signups per IP per hour
     const phone = dto.phone.trim();
     // Phone is the login id — must be unique across the whole platform.

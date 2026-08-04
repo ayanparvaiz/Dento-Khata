@@ -13,6 +13,7 @@ import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { SuperAdminGuard } from '../superadmin/superadmin.guard';
 import { RestoreService } from './restore.service';
+import { IS_OFFLINE } from '../config/mode';
 
 const execFileAsync = promisify(execFile);
 const KEEP = 30; // keep last 30 daily dumps
@@ -25,6 +26,7 @@ export class BackupService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
 
   async onModuleInit() {
+    if (IS_OFFLINE) return; // pg_dump is Postgres-only; offline uses local + cloud JSON backups
     try { await this.backupNow(); } catch (e) { console.warn('startup backup failed', e); }
   }
 
@@ -60,6 +62,7 @@ export class BackupService implements OnModuleInit {
 
   @Cron('0 3 * * *') // daily at 03:00
   async periodic() {
+    if (IS_OFFLINE) return; // Postgres-only platform dump
     try { await this.backupNow(); } catch (e) { console.warn('scheduled backup failed', e); }
   }
 

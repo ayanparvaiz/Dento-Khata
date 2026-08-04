@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { currentStore } from '../tenant/tenant-context';
+import { IS_OFFLINE } from '../config/mode';
 
 // Models that carry a tenantId and MUST be isolated per tenant.
 // NOT here (global): Tenant, SuperAdmin, Drug.
@@ -64,8 +65,18 @@ function stampTenant(data: any, tid: string): any {
 
 // Build a PrismaClient extended with tenant isolation. The extension reads the per-request
 // AsyncLocalStorage context at QUERY time, so a single shared client is safe.
+// Offline SQLite: force a SINGLE serialized connection so concurrent requests never hit
+// SQLite's DELETE-journal lock contention (which returns empty reads / SQLITE_BUSY). Combined
+// with WAL + busy_timeout set right after connect, reads stay correct under concurrency.
+function offlineSqliteUrl(): string | undefined {
+  const url = process.env.DATABASE_URL || '';
+  if (!IS_OFFLINE || !url.startsWith('file:')) return undefined;
+  return url.includes('connection_limit=') ? url : url + (url.includes('?') ? '&' : '?') + 'connection_limit=1';
+}
+
 function buildClient() {
-  const base = new PrismaClient();
+  const offlineUrl = offlineSqliteUrl();
+  const base = new PrismaClient(offlineUrl ? { datasources: { db: { url: offlineUrl } } } : undefined);
   return base.$extends({
     query: {
       $allModels: {
@@ -109,6 +120,16 @@ export const PRISMA_FACTORY = {
   useFactory: async () => {
     const client = buildClient();
     await (client as any).$connect();
+    if (IS_OFFLINE) {
+      // Per-connection SQLite pragmas — WAL enables concurrent readers with one writer,
+      // busy_timeout waits on a lock instead of failing. With connection_limit=1 this one
+      // connection carries them for every query.
+      try {
+        await (client as any).$executeRawUnsafe('PRAGMA journal_mode=WAL;');
+        await (client as any).$executeRawUnsafe('PRAGMA busy_timeout=8000;');
+        await (client as any).$executeRawUnsafe('PRAGMA synchronous=NORMAL;');
+      } catch { /* non-SQLite or pragma unsupported → ignore */ }
+    }
     return client as unknown as PrismaService;
   },
 };
