@@ -567,3 +567,22 @@ model AuditLog {
   @@index([tenantId])
   @@index([createdAt])
 }
+
+// Platform-level (NOT tenant-scoped): offline .exe license keys. One key = one clinic PC.
+// Each key is created with the buyer's identity (phone/doctor/clinic), bound to a machine on
+// first activation, and revocable. `backupUntil` gates the paid online-backup add-on.
+model License {
+  id          String    @id @default(cuid())
+  key         String    @unique // DENTO-XXXX-XXXX-XXXX
+  clinicName  String
+  drName      String
+  phone       String
+  status      String    @default("UNUSED") // UNUSED | ACTIVE | REVOKED
+  machineId   String? // bound on first activation (one key = one PC)
+  backupUntil DateTime? // online-backup add-on entitlement (null = none)
+  activatedAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([phone])
+}

@@ -21,6 +21,7 @@ import { AppointmentsModule } from './appointments/appointments.module';
 import { SystemModule } from './system/system.module';
 import { BackupModule } from './backup/backup.module';
 import { OfflineModule } from './offline/offline.module';
+import { LicenseModule } from './license/license.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
 import { SubscriptionGuard } from './subscription/subscription.guard';
@@ -62,6 +63,7 @@ import { ErrorLogModule } from './errorlog/errorlog.module';
     TelegramModule,
     ErrorLogModule,
     OfflineModule,
+    LicenseModule,
   ],
   controllers: [AppController],
   providers: [
