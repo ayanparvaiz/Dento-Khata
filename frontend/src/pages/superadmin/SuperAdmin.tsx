@@ -70,6 +70,11 @@ interface ErrLog {
   method?: string | null; path?: string | null; message?: string | null;
   phone?: string | null; clinicName?: string | null; ip?: string | null;
 }
+interface Lic {
+  id: string; key: string; clinicName: string; drName: string; phone: string;
+  status: string; machineId?: string | null; backupUntil?: string | null;
+  activatedAt?: string | null; notes?: string | null; createdAt: string;
+}
 
 function fmtDate(s: string | null) {
   if (!s) return '—';
@@ -88,6 +93,7 @@ export function SuperAdmin() {
   const [an, setAn] = useState<Analytics | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
+  const [licenses, setLicenses] = useState<Lic[]>([]);
   const [errors, setErrors] = useState<ErrLog[]>([]);
   const [errTotal, setErrTotal] = useState(0);
   const [errSkip, setErrSkip] = useState(0);
@@ -130,17 +136,19 @@ export function SuperAdmin() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [a, t, p, er] = await Promise.all([
+      const [a, t, p, er, lic] = await Promise.all([
         superApi.get('/superadmin/analytics'),
         superApi.get('/superadmin/tenants'),
         superApi.get('/superadmin/payments/pending'),
         superApi.get(`/superadmin/errors?skip=${errSkip}&take=${ERR_TAKE}`).catch(() => ({ data: { rows: [], total: 0 } })),
+        superApi.get('/license/admin/list').catch(() => ({ data: [] })),
       ]);
       setAn(a.data);
       setTenants(t.data);
       setPending(p.data);
       setErrors(er.data.rows || []);
       setErrTotal(er.data.total || 0);
+      setLicenses(lic.data || []);
     } catch (e: any) {
       if (e?.response?.status === 403 || e?.response?.status === 401) {
         localStorage.removeItem('superToken');
@@ -368,6 +376,9 @@ export function SuperAdmin() {
             </div>
           )}
         </section>
+
+        {/* Offline licenses */}
+        <LicensePanel licenses={licenses} act={act} reload={load} />
 
         {/* Tenants */}
         <section>
@@ -712,5 +723,83 @@ function Kpi({ label, value, sub, tone }: { label: string; value: React.ReactNod
         {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+// Offline license key management — create/sell keys, see who activated (history), and
+// support: unbind a PC (let a clinic move to a new computer) or revoke/re-enable.
+function LicensePanel({ licenses, act, reload }: { licenses: Lic[]; act: (fn: () => Promise<any>) => Promise<void>; reload: () => void }) {
+  const [f, setF] = useState({ clinicName: '', drName: '', phone: '', backupMonths: '' });
+  const [creating, setCreating] = useState(false);
+  const [newKey, setNewKey] = useState('');
+  const create = async () => {
+    if (!f.clinicName.trim() || !f.drName.trim() || !f.phone.trim()) return alert('ক্লিনিক, ডাক্তার ও ফোন — তিনটাই দিন');
+    setCreating(true);
+    try {
+      const { data } = await superApi.post('/license/admin/create', {
+        clinicName: f.clinicName.trim(), drName: f.drName.trim(), phone: f.phone.trim(),
+        backupMonths: f.backupMonths ? Number(f.backupMonths) : undefined,
+      });
+      setNewKey(data.key);
+      setF({ clinicName: '', drName: '', phone: '', backupMonths: '' });
+      reload();
+    } catch (e: any) { alert(e?.response?.data?.message || 'তৈরি করা যায়নি'); }
+    finally { setCreating(false); }
+  };
+  const badge = (s: string) => s === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : s === 'REVOKED' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600';
+  const inp = 'rounded border px-2 py-1.5 text-sm';
+  return (
+    <section>
+      <h2 className="mb-2 text-lg font-semibold">অফলাইন License ({licenses.length})</h2>
+      <Card className="mb-3">
+        <CardContent className="py-4">
+          <div className="mb-1 text-xs font-medium text-muted-foreground">নতুন key তৈরি করুন (বিক্রির জন্য) — ক্রেতার পরিচয় বেঁধে যাবে</div>
+          <div className="grid gap-2 sm:grid-cols-4">
+            <input placeholder="ক্লিনিকের নাম" value={f.clinicName} onChange={(e) => setF({ ...f, clinicName: e.target.value })} className={inp} />
+            <input placeholder="ডাক্তারের নাম" value={f.drName} onChange={(e) => setF({ ...f, drName: e.target.value })} className={inp} />
+            <input placeholder="ফোন (login)" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} className={inp} inputMode="tel" />
+            <input placeholder="ব্যাকআপ মাস (ঐচ্ছিক)" value={f.backupMonths} onChange={(e) => setF({ ...f, backupMonths: e.target.value })} className={inp} inputMode="numeric" />
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <Button size="sm" onClick={create} disabled={creating}>{creating ? 'তৈরি হচ্ছে…' : '+ নতুন key'}</Button>
+            {newKey && (
+              <span className="rounded bg-teal-50 px-2 py-1 font-mono text-sm font-bold text-teal-800 ring-1 ring-teal-200">
+                {newKey} <button onClick={() => navigator.clipboard?.writeText(newKey)} className="ml-1 font-sans text-xs underline">কপি</button>
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-slate-50 text-left text-xs text-slate-500">
+              <th className="p-2">Key</th><th className="p-2">ক্লিনিক / ডাক্তার</th><th className="p-2">ফোন</th>
+              <th className="p-2">স্ট্যাটাস</th><th className="p-2">Activated</th><th className="p-2">PC</th><th className="p-2">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {licenses.length === 0 && <tr><td colSpan={7} className="p-3 text-center text-muted-foreground">কোনো key নেই।</td></tr>}
+            {licenses.map((l) => (
+              <tr key={l.id} className="border-b align-top">
+                <td className="p-2 font-mono text-xs">{l.key}</td>
+                <td className="p-2"><div className="font-medium">{l.clinicName}</div><div className="text-xs text-muted-foreground">{l.drName}</div></td>
+                <td className="p-2 font-mono text-xs">{l.phone}</td>
+                <td className="p-2"><span className={`rounded px-1.5 py-0.5 text-[10px] ${badge(l.status)}`}>{l.status}</span></td>
+                <td className="p-2 text-xs">{l.activatedAt ? fmtDate(l.activatedAt) : '—'}</td>
+                <td className="p-2 font-mono text-[10px] text-muted-foreground">{l.machineId ? l.machineId.slice(0, 10) + '…' : '—'}</td>
+                <td className="p-2">
+                  <div className="flex flex-wrap gap-1">
+                    {l.status !== 'REVOKED' && <button onClick={() => { if (confirm('এই key বাতিল করবেন?')) act(() => superApi.post(`/license/admin/${l.id}/revoke`)); }} className="rounded bg-red-50 px-2 py-0.5 text-xs text-red-700">বাতিল</button>}
+                    {l.machineId && <button onClick={() => { if (confirm('মেশিন থেকে free করবেন? তাহলে user নতুন কম্পিউটারে activate করতে পারবে।')) act(() => superApi.post(`/license/admin/${l.id}/unbind`)); }} className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">PC মুক্ত</button>}
+                    {l.status === 'REVOKED' && <button onClick={() => act(() => superApi.post(`/license/admin/${l.id}/reactivate`))} className="rounded bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">পুনরায় চালু</button>}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

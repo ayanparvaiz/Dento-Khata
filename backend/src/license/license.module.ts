@@ -87,6 +87,18 @@ export class LicenseService implements OnModuleInit {
     return this.prisma.license.update({ where: { id }, data: { status: 'REVOKED' } });
   }
 
+  // Support: free a key from its machine so the clinic can re-activate on a NEW PC
+  // (reinstall / new computer). Resets to UNUSED — the next activate binds the new machine.
+  async unbind(id: string) {
+    return this.prisma.license.update({ where: { id }, data: { status: 'UNUSED', machineId: null } });
+  }
+
+  // Support: re-enable a previously revoked key.
+  async reactivate(id: string) {
+    const lic = await this.prisma.license.findUnique({ where: { id } });
+    return this.prisma.license.update({ where: { id }, data: { status: lic?.machineId ? 'ACTIVE' : 'UNUSED' } });
+  }
+
   // ---- offline app: activate + verify ----
   async activate(dto: ActivateDto) {
     const lic = await this.prisma.license.findUnique({ where: { key: dto.key.trim().toUpperCase() } });
@@ -153,6 +165,14 @@ class LicenseController {
   @Public() @UseGuards(SuperAdminGuard)
   @Post('admin/:id/revoke')
   revoke(@Param('id') id: string) { return this.svc.revoke(id); }
+
+  @Public() @UseGuards(SuperAdminGuard)
+  @Post('admin/:id/unbind')
+  unbind(@Param('id') id: string) { return this.svc.unbind(id); }
+
+  @Public() @UseGuards(SuperAdminGuard)
+  @Post('admin/:id/reactivate')
+  reactivate(@Param('id') id: string) { return this.svc.reactivate(id); }
 }
 
 @Module({ providers: [LicenseService], controllers: [LicenseController], exports: [LicenseService] })

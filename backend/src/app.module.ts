@@ -34,6 +34,7 @@ import { MetaModule } from './meta/meta.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { ErrorLogModule } from './errorlog/errorlog.module';
+import { IS_OFFLINE, IS_ONLINE } from './config/mode';
 
 @Module({
   imports: [
@@ -62,8 +63,12 @@ import { ErrorLogModule } from './errorlog/errorlog.module';
     AnalyticsModule,
     TelegramModule,
     ErrorLogModule,
-    OfflineModule,
-    LicenseModule,
+    // Strict separation: offline-client pieces (LAN, first-run license activation) exist ONLY
+    // in the offline build; the license SERVER (key management, activate/verify) exists ONLY
+    // online. So the live SaaS server never exposes any /offline/* route, and the .exe never
+    // ships the key-management server.
+    ...(IS_OFFLINE ? [OfflineModule] : []),
+    ...(IS_ONLINE ? [LicenseModule] : []),
   ],
   controllers: [AppController],
   providers: [
