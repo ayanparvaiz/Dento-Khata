@@ -10,6 +10,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Users } from '@/pages/Users';
 import { Settings } from '@/pages/Settings';
 import { ConnectDevice } from '@/pages/ConnectDevice';
+import { OfflineEntry } from '@/pages/OfflineEntry';
 import { PatientsList } from '@/pages/patients/PatientsList';
 import { PatientForm } from '@/pages/patients/PatientForm';
 import { PatientDetail } from '@/pages/patients/PatientDetail';
@@ -28,7 +29,7 @@ import { SuperAdmin } from '@/pages/superadmin/SuperAdmin';
 function RootGate() {
   const { user, loading, blocked } = useAuth();
   if (loading) return <div className="grid h-full place-items-center text-muted-foreground">Loading…</div>;
-  if (!user) return IS_OFFLINE ? <Login /> : <Signup />; // offline has no marketing/signup landing
+  if (!user) return IS_OFFLINE ? <OfflineEntry /> : <Signup />; // offline: license-setup or login
   if (blocked) return <Paywall />;
   return <Layout />;
 }
