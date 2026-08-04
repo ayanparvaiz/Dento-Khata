@@ -147,5 +147,5 @@ class BackupController {
   }
 }
 
-@Module({ providers: [BackupService, RestoreService], controllers: [BackupController] })
+@Module({ providers: [BackupService, RestoreService], controllers: [BackupController], exports: [BackupService, RestoreService] })
 export class BackupModule {}

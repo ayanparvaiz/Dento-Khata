@@ -8,6 +8,8 @@ import { Input, Label, Select } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UpgradeInline } from '@/components/UpgradePrompt';
 import { bn } from '@/lib/pricing';
+import { IS_OFFLINE } from '@/lib/mode';
+import { COMMUNITY_URL } from '@/lib/links';
 
 interface ClinicSettings {
   name: string;
@@ -53,6 +55,7 @@ export function Settings() {
     <div className="p-6">
       <h1 className="mb-6 text-2xl font-bold">Clinic Settings</h1>
       {isAdmin && <BackupCard />}
+      {isAdmin && IS_OFFLINE && <CloudBackupCard />}
 
       <div className="grid gap-6 xl:grid-cols-2">
         {/* Clinic profile */}
@@ -257,6 +260,72 @@ function BackupCard() {
           </div>
         ) : (
           <UpgradeInline text="ডেটা ব্যাকআপ ও রিস্টোর করতে প্রো দরকার" />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Offline paid cloud-backup add-on. Entitled clinics can push to / restore from our server;
+// otherwise a contact-to-enable prompt (৳1000/yr). Offline-only.
+function CloudBackupCard() {
+  const [status, setStatus] = useState<{ entitled: boolean; backups: { id: string; date: string; sizeKB: number }[] } | null>(null);
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const load = () => api.get('/offline/cloud-backup/status').then((r) => setStatus(r.data)).catch(() => setStatus({ entitled: false, backups: [] }));
+  useEffect(() => { load(); }, []);
+
+  const upload = async () => {
+    setBusy('upload'); setErr(''); setMsg('');
+    try { await api.post('/offline/cloud-backup/upload'); setMsg('ক্লাউডে ব্যাকআপ হয়েছে ✓'); load(); }
+    catch (e: any) { setErr(e?.response?.data?.message || 'ব্যর্থ হয়েছে'); } finally { setBusy(''); }
+  };
+  const restore = async (id: string) => {
+    if (!confirm('এই ব্যাকআপ থেকে তথ্য ফিরিয়ে আনবেন? (একই তথ্য দুবার হবে না)')) return;
+    setBusy(id); setErr(''); setMsg('');
+    try { const r = await api.post('/offline/cloud-backup/restore', { id }); setMsg(`রিস্টোর সম্পন্ন ✓ — নতুন ${bn(r.data?.totals?.added || 0)}, স্কিপ ${bn(r.data?.totals?.skipped || 0)}`); }
+    catch (e: any) { setErr(e?.response?.data?.message || 'ব্যর্থ হয়েছে'); } finally { setBusy(''); }
+  };
+
+  return (
+    <Card className="mb-6 max-w-2xl">
+      <CardHeader><CardTitle>☁ ক্লাউড ব্যাকআপ</CardTitle></CardHeader>
+      <CardContent>
+        {!status ? (
+          <p className="text-sm text-muted-foreground">লোড হচ্ছে…</p>
+        ) : status.entitled ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-muted-foreground">
+                আপনার সব তথ্য নিরাপদে আমাদের সার্ভারে রাখুন — পিসি নষ্ট/হারিয়ে গেলেও ফিরে পাবেন।
+                {msg && <span className="mt-1 block font-medium text-emerald-600">{msg}</span>}
+                {err && <span className="mt-1 block text-danger">{err}</span>}
+              </div>
+              <Button onClick={upload} disabled={!!busy}>{busy === 'upload' ? 'হচ্ছে…' : 'এখনি ক্লাউডে ব্যাকআপ নিন'}</Button>
+            </div>
+            <div className="rounded-lg border border-border">
+              <div className="border-b bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-500">ক্লাউড ব্যাকআপ ({bn(status.backups.length)})</div>
+              {status.backups.length === 0 ? (
+                <p className="p-3 text-sm text-muted-foreground">এখনো কোনো ক্লাউড ব্যাকআপ নেই।</p>
+              ) : (
+                <div className="divide-y">
+                  {status.backups.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                      <span>{new Date(b.date).toLocaleString('bn-BD')} <span className="text-xs text-muted-foreground">· {bn(b.sizeKB)} KB</span></span>
+                      <Button size="sm" variant="outline" disabled={!!busy} onClick={() => restore(b.id)}>{busy === b.id ? '…' : 'রিস্টোর'}</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg bg-sky-50 p-4 text-sm ring-1 ring-sky-100">
+            <p className="font-medium text-sky-900">ক্লাউড ব্যাকআপ চালু নেই।</p>
+            <p className="mt-1 text-sky-800">তথ্য অটো আমাদের সার্ভারে রাখতে ও যেকোনো সময় ফিরে পেতে ক্লাউড ব্যাকআপ চালু করুন — মাত্র <b>৳১০০০/বছর</b>। (লোকাল ব্যাকআপ সবসময় ফ্রি।)</p>
+            <a href={COMMUNITY_URL} target="_blank" rel="noreferrer" className="mt-3 inline-block rounded-lg bg-sky-600 px-4 py-2 font-semibold text-white hover:bg-sky-700">চালু করতে যোগাযোগ করুন</a>
+          </div>
         )}
       </CardContent>
     </Card>

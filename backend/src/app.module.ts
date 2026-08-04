@@ -22,6 +22,7 @@ import { SystemModule } from './system/system.module';
 import { BackupModule } from './backup/backup.module';
 import { OfflineModule } from './offline/offline.module';
 import { LicenseModule } from './license/license.module';
+import { CloudBackupModule } from './cloud-backup/cloud-backup.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PermissionsGuard } from './auth/permissions.guard';
 import { SubscriptionGuard } from './subscription/subscription.guard';
@@ -68,7 +69,7 @@ import { IS_OFFLINE, IS_ONLINE } from './config/mode';
     // online. So the live SaaS server never exposes any /offline/* route, and the .exe never
     // ships the key-management server.
     ...(IS_OFFLINE ? [OfflineModule] : []),
-    ...(IS_ONLINE ? [LicenseModule] : []),
+    ...(IS_ONLINE ? [LicenseModule, CloudBackupModule] : []),
   ],
   controllers: [AppController],
   providers: [

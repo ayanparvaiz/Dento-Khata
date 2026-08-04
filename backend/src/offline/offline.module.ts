@@ -16,6 +16,8 @@ import { IS_OFFLINE } from '../config/mode';
 import { dataPaths } from '../data';
 import { Public } from '../auth/public.decorator';
 import { NoSubscription } from '../subscription/no-subscription.decorator';
+import { BackupModule, BackupService } from '../backup/backup.module';
+import { RestoreService } from '../backup/restore.service';
 
 // Where the offline app phones home for license activation, and the pinned public key it
 // verifies the signed activation token with (so a forged token can't unlock the app offline).
@@ -24,6 +26,9 @@ const LICENSE_PUBKEY =
   '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAX8Rc6GwMkP3uux4FpNVcVq9U9wX3Y2RrsQ9cNpWuqbY=\n-----END PUBLIC KEY-----\n';
 
 const licenseFile = () => join(dataPaths().dataDir, 'license.json');
+function readLicense(): any | null {
+  try { return existsSync(licenseFile()) ? JSON.parse(readFileSync(licenseFile(), 'utf8')) : null; } catch { return null; }
+}
 
 // Stable-per-PC fingerprint so one key binds to one machine.
 function machineId(): string {
@@ -145,9 +150,59 @@ export class OfflineLicenseService {
   }
 }
 
+// Paid cloud-backup add-on (offline side). Proxies to the online store using the stored
+// license key + machine id, and reuses the local JSON export + duplicate-proof restore.
+@Injectable()
+export class OfflineCloudBackupService {
+  constructor(private backup: BackupService, private restore: RestoreService) {}
+
+  private lic() {
+    const l = readLicense();
+    if (!l) throw new BadRequestException({ code: 'NOT_ACTIVATED', message: 'লাইসেন্স নেই।' });
+    return l;
+  }
+  private async cloud(path: string, extra: any = {}) {
+    const l = this.lic();
+    const res = await fetch(`${LICENSE_SERVER}/cloud-backup/${path}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: l.key, machineId: l.machineId, ...extra }),
+    }).catch(() => { throw new BadRequestException({ code: 'NO_INTERNET', message: 'ইন্টারনেট সংযোগ নেই।' }); });
+    const data: any = await res.json().catch(() => ({}));
+    if (!res.ok) throw new BadRequestException({ code: data.code || 'CLOUD_ERR', message: data.message || 'ক্লাউড ব্যাকআপ ব্যর্থ।' });
+    return data;
+  }
+
+  // Entitlement + list in one call (list requires an active plan on the server).
+  async status() {
+    const l = readLicense();
+    if (!l) return { entitled: false, hasLicense: false, backups: [] };
+    try {
+      const res = await fetch(`${LICENSE_SERVER}/cloud-backup/list`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: l.key, machineId: l.machineId }),
+      });
+      const data: any = await res.json().catch(() => ({}));
+      if (res.ok) return { entitled: true, hasLicense: true, backups: data.backups || [] };
+      return { entitled: false, hasLicense: true, reason: data.code || 'NO_PLAN', backups: [] };
+    } catch { return { entitled: false, hasLicense: true, reason: 'NO_INTERNET', backups: [] }; }
+  }
+
+  async upload() {
+    const data = await this.backup.exportTenantData(); // tenant-scoped (admin JWT context)
+    return this.cloud('upload', { data });
+  }
+
+  async restoreFromCloud(id: string) {
+    const { data } = await this.cloud('download', { id });
+    return this.restore.restore(data); // duplicate-proof
+  }
+}
+
+class RestoreIdDto { @IsString() id: string; }
+
 @Controller('offline')
 class OfflineController {
-  constructor(private license: OfflineLicenseService) {}
+  constructor(private license: OfflineLicenseService, private cloudBackup: OfflineCloudBackupService) {}
 
   @Get('lan')
   lan() {
@@ -180,7 +235,21 @@ class OfflineController {
     if (!IS_OFFLINE) throw new ForbiddenException('offline only');
     return this.license.complete(dto.password);
   }
+
+  // Cloud backup (paid add-on). Authenticated — export/restore run in the admin's tenant context.
+  @Get('cloud-backup/status')
+  cbStatus() { if (!IS_OFFLINE) throw new ForbiddenException('offline only'); return this.cloudBackup.status(); }
+
+  @Post('cloud-backup/upload')
+  cbUpload() { if (!IS_OFFLINE) throw new ForbiddenException('offline only'); return this.cloudBackup.upload(); }
+
+  @Post('cloud-backup/restore')
+  cbRestore(@Body() dto: RestoreIdDto) { if (!IS_OFFLINE) throw new ForbiddenException('offline only'); return this.cloudBackup.restoreFromCloud(dto.id); }
 }
 
-@Module({ providers: [OfflineBootstrapService, OfflineLicenseService], controllers: [OfflineController] })
+@Module({
+  imports: [BackupModule],
+  providers: [OfflineBootstrapService, OfflineLicenseService, OfflineCloudBackupService],
+  controllers: [OfflineController],
+})
 export class OfflineModule {}

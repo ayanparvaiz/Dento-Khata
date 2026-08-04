@@ -785,7 +785,12 @@ function LicensePanel({ licenses, act, reload }: { licenses: Lic[]; act: (fn: ()
                 <td className="p-2 font-mono text-xs">{l.key}</td>
                 <td className="p-2"><div className="font-medium">{l.clinicName}</div><div className="text-xs text-muted-foreground">{l.drName}</div></td>
                 <td className="p-2 font-mono text-xs">{l.phone}</td>
-                <td className="p-2"><span className={`rounded px-1.5 py-0.5 text-[10px] ${badge(l.status)}`}>{l.status}</span></td>
+                <td className="p-2">
+                  <span className={`rounded px-1.5 py-0.5 text-[10px] ${badge(l.status)}`}>{l.status}</span>
+                  {l.backupUntil && new Date(l.backupUntil).getTime() > Date.now() && (
+                    <span className="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700" title={`ক্লাউড ব্যাকআপ: ${fmtDate(l.backupUntil)} পর্যন্ত`}>☁ ব্যাকআপ</span>
+                  )}
+                </td>
                 <td className="p-2 text-xs">{l.activatedAt ? fmtDate(l.activatedAt) : '—'}</td>
                 <td className="p-2 font-mono text-[10px] text-muted-foreground">{l.machineId ? l.machineId.slice(0, 10) + '…' : '—'}</td>
                 <td className="p-2">
@@ -793,6 +798,7 @@ function LicensePanel({ licenses, act, reload }: { licenses: Lic[]; act: (fn: ()
                     {l.status !== 'REVOKED' && <button onClick={() => { if (confirm('এই key বাতিল করবেন?')) act(() => superApi.post(`/license/admin/${l.id}/revoke`)); }} className="rounded bg-red-50 px-2 py-0.5 text-xs text-red-700">বাতিল</button>}
                     {l.machineId && <button onClick={() => { if (confirm('মেশিন থেকে free করবেন? তাহলে user নতুন কম্পিউটারে activate করতে পারবে।')) act(() => superApi.post(`/license/admin/${l.id}/unbind`)); }} className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">PC মুক্ত</button>}
                     {l.status === 'REVOKED' && <button onClick={() => act(() => superApi.post(`/license/admin/${l.id}/reactivate`))} className="rounded bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">পুনরায় চালু</button>}
+                    <button onClick={() => { if (confirm('ক্লাউড ব্যাকআপ ১২ মাস চালু/বাড়াবেন? (৳১০০০ পেমেন্ট পাওয়ার পর)')) act(() => superApi.post(`/license/admin/${l.id}/backup`, { months: 12 })); }} className="rounded bg-sky-50 px-2 py-0.5 text-xs text-sky-700">☁ ব্যাকআপ +১২মা</button>
                   </div>
                 </td>
               </tr>

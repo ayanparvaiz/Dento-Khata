@@ -99,6 +99,14 @@ export class LicenseService implements OnModuleInit {
     return this.prisma.license.update({ where: { id }, data: { status: lic?.machineId ? 'ACTIVE' : 'UNUSED' } });
   }
 
+  // Grant/extend the paid cloud-backup add-on by N months (stacks on remaining time).
+  async grantBackup(id: string, months: number) {
+    const lic = await this.prisma.license.findUnique({ where: { id } });
+    const base = lic?.backupUntil && lic.backupUntil.getTime() > Date.now() ? lic.backupUntil.getTime() : Date.now();
+    const backupUntil = new Date(base + (months || 12) * 30 * 86_400_000);
+    return this.prisma.license.update({ where: { id }, data: { backupUntil } });
+  }
+
   // ---- offline app: activate + verify ----
   async activate(dto: ActivateDto) {
     const lic = await this.prisma.license.findUnique({ where: { key: dto.key.trim().toUpperCase() } });
@@ -173,6 +181,10 @@ class LicenseController {
   @Public() @UseGuards(SuperAdminGuard)
   @Post('admin/:id/reactivate')
   reactivate(@Param('id') id: string) { return this.svc.reactivate(id); }
+
+  @Public() @UseGuards(SuperAdminGuard)
+  @Post('admin/:id/backup')
+  grantBackup(@Param('id') id: string, @Body() body: { months?: number }) { return this.svc.grantBackup(id, Number(body?.months) || 12); }
 }
 
 @Module({ providers: [LicenseService], controllers: [LicenseController], exports: [LicenseService] })
