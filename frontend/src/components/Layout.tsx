@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   ShieldCheck,
   PlayCircle,
+  Smartphone,
   MessageCircle,
   LogOut,
   Menu,
@@ -24,13 +25,14 @@ import { ProBadge } from '@/components/UpgradePrompt';
 import { ToothIcon } from '@/components/ToothLogo';
 import { TrialWelcome, TrialBanner } from '@/components/TrialBits';
 
-const nav: { to: string; label: string; icon: any; end?: boolean; adminOnly?: boolean; cap?: string; divider?: boolean }[] = [
+const nav: { to: string; label: string; icon: any; end?: boolean; adminOnly?: boolean; cap?: string; divider?: boolean; offlineOnly?: boolean }[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/patients', label: 'Patients', icon: UsersIcon },
   { to: '/appointments', label: 'Appointments', icon: CalendarDays, cap: 'appointments.manage' },
   { to: '/charting', label: 'Dental Chart', icon: Stethoscope, cap: 'charting.manage' },
   { to: '/reports', label: 'Reports', icon: FileText, cap: 'reports.view' },
   { to: '/tutorial', label: 'Tutorial', icon: PlayCircle },
+  { to: '/connect', label: 'ডিভাইস যুক্ত করুন', icon: Smartphone, adminOnly: true, offlineOnly: true },
   { to: '/catalog', label: 'Catalog', icon: Pill, adminOnly: true },
   { to: '/users', label: 'Users & Roles', icon: ShieldCheck, adminOnly: true },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
@@ -40,7 +42,10 @@ export function Layout() {
   const { user, logout, can, sub, isPaid } = useAuth();
   const [open, setOpen] = useState(false); // mobile drawer
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER';
-  const items = nav.filter((n) => (n.adminOnly ? isAdmin : n.cap ? can(n.cap) : true));
+  const items = nav.filter((n) => {
+    if (n.offlineOnly && !IS_OFFLINE) return false; // device-connect is offline (LAN) only
+    return n.adminOnly ? isAdmin : n.cap ? can(n.cap) : true;
+  });
 
   return (
     <div className="flex h-full">

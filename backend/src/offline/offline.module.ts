@@ -1,10 +1,33 @@
-import { Injectable, Logger, Module, OnModuleInit } from '@nestjs/common';
+import { Controller, Get, Injectable, Logger, Module, OnModuleInit } from '@nestjs/common';
+import { networkInterfaces } from 'os';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { runInTenant } from '../tenant/tenant-context';
 import { DEFAULT_PROCEDURES } from '../auth/default-procedures';
 import { PAID_PLAN } from '../subscription/plans';
 import { IS_OFFLINE } from '../config/mode';
+
+// Offline-only: tells the frontend the LAN address(es) other devices (phones/tablets on the
+// same WiFi) use to reach this server PC. The app shows these + a QR so staff can connect
+// without hunting for the IP. Empty/ignored online.
+@Controller('offline')
+class OfflineController {
+  @Get('lan')
+  lan() {
+    const port = Number(process.env.PORT) || 3000;
+    const addrs: string[] = [];
+    const ifaces = networkInterfaces();
+    for (const name of Object.keys(ifaces)) {
+      for (const net of ifaces[name] || []) {
+        // IPv4, not loopback → a real LAN address like 192.168.x.x / 10.x / 172.16-31.x
+        if (net.family === 'IPv4' && !net.internal) addrs.push(net.address);
+      }
+    }
+    // Prefer common private ranges first (192.168 → 10 → others).
+    addrs.sort((a, b) => (a.startsWith('192.168.') ? -1 : b.startsWith('192.168.') ? 1 : 0));
+    return { enabled: IS_OFFLINE, port, addresses: addrs, urls: addrs.map((a) => `http://${a}:${port}`) };
+  }
+}
 
 // OFFLINE first-run bootstrap. The .exe has no public signup, so on the very first launch
 // (empty database) we create the single clinic + its owner account, settings and starter
@@ -50,5 +73,5 @@ export class OfflineBootstrapService implements OnModuleInit {
   }
 }
 
-@Module({ providers: [OfflineBootstrapService] })
+@Module({ providers: [OfflineBootstrapService], controllers: [OfflineController] })
 export class OfflineModule {}

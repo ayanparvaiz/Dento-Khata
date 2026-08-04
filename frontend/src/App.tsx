@@ -9,6 +9,7 @@ import { Paywall } from '@/pages/Paywall';
 import { Dashboard } from '@/pages/Dashboard';
 import { Users } from '@/pages/Users';
 import { Settings } from '@/pages/Settings';
+import { ConnectDevice } from '@/pages/ConnectDevice';
 import { PatientsList } from '@/pages/patients/PatientsList';
 import { PatientForm } from '@/pages/patients/PatientForm';
 import { PatientDetail } from '@/pages/patients/PatientDetail';
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="charting" element={<ChartingHome />} />
             <Route path="reports" element={<Reports />} />
             <Route path="tutorial" element={<Tutorial />} />
+            {IS_OFFLINE && <Route path="connect" element={<ConnectDevice />} />}
             <Route path="subscribe" element={<Subscribe />} />
             <Route path="subscribe" element={<Paywall />} />
             <Route path="catalog" element={<ProtectedRoute roles={['ADMIN']}><Catalog /></ProtectedRoute>} />
