@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Injectable, Param, Patch, Post, Query, UseGuards, Module } from '@nestjs/common';
+import { INSENSITIVE } from '../config/mode';
 import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../auth/roles.decorator';
@@ -19,7 +20,7 @@ class ProceduresService {
     return this.prisma.procedure.findMany({
       where: {
         isActive: true,
-        ...(search ? { OR: [{ name: { contains: search, mode: 'insensitive' as const } }, { code: { contains: search, mode: 'insensitive' as const } }] } : {}),
+        ...(search ? { OR: [{ name: { contains: search, ...INSENSITIVE } }, { code: { contains: search, ...INSENSITIVE } }] } : {}),
       },
       orderBy: { category: 'asc' },
     });

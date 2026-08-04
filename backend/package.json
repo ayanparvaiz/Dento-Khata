@@ -10,6 +10,8 @@
     "start:prod": "node dist/main",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:sqlite": "node scripts/make-sqlite-schema.mjs && prisma generate --schema prisma/schema.sqlite.prisma",
+    "db:sqlite:push": "prisma db push --schema prisma/schema.sqlite.prisma --accept-data-loss",
     "prisma:studio": "prisma studio",
     "db:seed": "ts-node prisma/seed.ts",
     "seed:demo": "DEMO_RESET=1 ts-node prisma/seed.ts"

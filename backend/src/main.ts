@@ -7,6 +7,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { dataPaths } from './data';
+import { IS_OFFLINE } from './config/mode';
 
 async function bootstrap() {
   // Persistent uploads/backups dir (OUTSIDE the app install dir). The DB is PostgreSQL
@@ -17,14 +18,21 @@ async function bootstrap() {
   process.env.UPLOAD_DIR = uploadsDir;
   console.log(`Uploads: ${uploadsDir}`);
 
-  // Apply pending schema migrations (safe + idempotent on updates).
+  // Bring the DB schema up to date. ONLINE (Postgres): migrate deploy. OFFLINE (SQLite):
+  // db push against the generated SQLite schema (no migration history needed for a local file).
   try {
     const binName = process.platform === 'win32' ? 'prisma.cmd' : 'prisma';
     const prismaBin = join(process.cwd(), 'node_modules', '.bin', binName);
-    execSync(`"${prismaBin}" migrate deploy`, { stdio: 'ignore', env: process.env, shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh' });
-    console.log('Migrations applied (migrate deploy).');
+    const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+    if (IS_OFFLINE) {
+      execSync(`"${prismaBin}" db push --schema prisma/schema.sqlite.prisma --skip-generate --accept-data-loss`, { stdio: 'ignore', env: process.env, shell });
+      console.log('SQLite schema synced (db push).');
+    } else {
+      execSync(`"${prismaBin}" migrate deploy`, { stdio: 'ignore', env: process.env, shell });
+      console.log('Migrations applied (migrate deploy).');
+    }
   } catch {
-    console.warn('migrate deploy skipped/failed — continuing on existing schema.');
+    console.warn('schema sync skipped/failed — continuing on existing schema.');
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });

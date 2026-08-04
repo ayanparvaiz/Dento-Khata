@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { INSENSITIVE } from '../config/mode';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePatientDto, MedicalHistoryDto, UpdatePatientDto } from './dto';
 import { isPaidSub, FREE_LIMITS } from '../subscription/plans';
@@ -50,9 +51,9 @@ export class PatientsService {
       ? {
           isActive: true,
           OR: [
-            { fullName: { contains: search, mode: 'insensitive' as const } },
-            { phone: { contains: search, mode: 'insensitive' as const } },
-            { code: { contains: search, mode: 'insensitive' as const } },
+            { fullName: { contains: search, ...INSENSITIVE } },
+            { phone: { contains: search, ...INSENSITIVE } },
+            { code: { contains: search, ...INSENSITIVE } },
           ],
         }
       : { isActive: true };

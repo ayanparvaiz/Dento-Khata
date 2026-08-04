@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Injectable, Module, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { INSENSITIVE } from '../config/mode';
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../auth/roles.decorator';
@@ -28,7 +29,7 @@ class DrugsService {
     // NOTE: Postgres string matching is case-SENSITIVE by default → use mode:'insensitive'
     // (SQLite's LIKE was case-insensitive, so this only mattered after the Postgres switch).
     const brandMatches = await this.prisma.drug.findMany({
-      where: { isActive: true, name: { startsWith: search, mode: 'insensitive' } },
+      where: { isActive: true, name: { startsWith: search, ...INSENSITIVE } },
       select: { generic: true },
     });
     const generics = [...new Set(brandMatches.map((d) => d.generic).filter(Boolean))] as string[];
@@ -36,8 +37,8 @@ class DrugsService {
       where: {
         isActive: true,
         OR: [
-          { name: { startsWith: search, mode: 'insensitive' } }, // brand starts with query
-          { generic: { startsWith: search, mode: 'insensitive' } }, // searching by generic name
+          { name: { startsWith: search, ...INSENSITIVE } }, // brand starts with query
+          { generic: { startsWith: search, ...INSENSITIVE } }, // searching by generic name
           ...(generics.length ? [{ generic: { in: generics } }] : []), // alternatives
         ],
       },

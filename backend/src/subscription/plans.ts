@@ -1,6 +1,8 @@
 // Subscription package catalog — the single source of truth for pricing.
 // The clinic picks one on the paywall; its price + duration drive the payment record,
 // the operator alert, and (on verify) how many days of access are granted.
+import { IS_OFFLINE } from '../config/mode';
+
 export interface Plan {
   key: string;
   label: string; // Bangla label shown on the paywall
@@ -30,7 +32,9 @@ export const FREE_LIMITS = { patients: 100, users: 1, plansPerPatient: 1 };
 
 // A subscription is "paid" (Pro) if it's on the paid plan and still within its period
 // (+grace). Otherwise the clinic is on FREE — never blocked, just feature-limited.
+// OFFLINE build is fully paid (one-time .exe) → always unlocked, no free/Pro split.
 export function isPaidSub(sub: { plan?: string; currentPeriodEnd: Date | null } | null): boolean {
+  if (IS_OFFLINE) return true;
   if (!sub) return false;
   const grace = (Number(process.env.SUBSCRIPTION_GRACE_DAYS) || 3) * 86_400_000;
   return !!(sub.plan === PAID_PLAN && sub.currentPeriodEnd && Date.now() <= sub.currentPeriodEnd.getTime() + grace);

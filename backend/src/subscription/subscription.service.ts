@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitPaymentDto } from './dto';
 import { planByKey, DEFAULT_PLAN, isPaidSub } from './plans';
+import { IS_OFFLINE } from '../config/mode';
 import { MetaService } from '../meta/meta.service';
 import { TelegramService } from '../telegram/telegram.service';
 
@@ -40,6 +41,10 @@ export class SubscriptionService {
   // super-admin. `isPaid` distinguishes Pro (paid & within period) from FREE.
   computeAccess(sub: { status: string; currentPeriodEnd: Date | null; amount: number; plan?: string } | null): AccessState {
     const base = { amount: sub?.amount ?? this.price(), bkashNumber: this.bkashNumber(), whatsapp: this.whatsapp(), isTrial: false };
+
+    // OFFLINE build = fully paid .exe → always active + Pro, no subscription concept.
+    if (IS_OFFLINE)
+      return { active: true, isPaid: true, status: 'ACTIVE', currentPeriodEnd: null, daysLeft: null, ...base };
 
     if (sub?.status === 'SUSPENDED')
       return { active: false, isPaid: false, status: 'SUSPENDED', currentPeriodEnd: sub.currentPeriodEnd, daysLeft: null, ...base };
