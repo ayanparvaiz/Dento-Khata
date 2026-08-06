@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, PasswordInput } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { ToothIcon } from '@/components/ToothLogo';
+import { SUPPORT_PHONE } from '@/lib/links';
 import { KeyRound, ShieldCheck } from 'lucide-react';
 
 interface Clinic { clinicName: string; drName: string; phone: string }
@@ -77,6 +78,11 @@ export function LicenseSetup() {
                 <KeyRound className="mr-1.5 h-4 w-4" /> {busy ? 'যাচাই হচ্ছে…' : 'যাচাই করুন'}
               </Button>
               <p className="text-center text-xs text-muted-foreground">প্রথমবার চালু করতে একবার ইন্টারনেট লাগবে।</p>
+              <div className="mt-1 rounded-lg bg-slate-50 p-2.5 text-center text-xs text-slate-600 ring-1 ring-slate-100">
+                সমস্যা হলে সাপোর্টে যোগাযোগ করুন —{' '}
+                <a href={`https://wa.me/88${SUPPORT_PHONE}`} target="_blank" rel="noreferrer" className="font-semibold text-emerald-600 hover:underline">{SUPPORT_PHONE}</a>{' '}
+                (WhatsApp)
+              </div>
             </form>
           ) : (
             <form onSubmit={complete} className="space-y-4">

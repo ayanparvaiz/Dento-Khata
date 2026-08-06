@@ -1,13 +1,36 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { execSync, execFileSync } from 'child_process';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { dataPaths } from './data';
 import { IS_OFFLINE } from './config/mode';
+
+// OFFLINE data safety: snapshot the SQLite database (+ its WAL/SHM sidecars) BEFORE any
+// schema change, so a software update can never lose data. The DB lives in the user's data
+// dir (outside the app), so updating the app never touches it; this is the extra belt-and-braces.
+// Keeps the last 20 snapshots in <data>/db-backups.
+function snapshotSqliteBeforeMigrate() {
+  const url = process.env.DATABASE_URL || '';
+  if (!url.startsWith('file:')) return;
+  const dbPath = url.replace(/^file:/, '').split('?')[0];
+  if (!existsSync(dbPath)) return; // fresh install → nothing to protect yet
+  const bakDir = join(dataPaths().dataDir, 'db-backups');
+  mkdirSync(bakDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  for (const suf of ['', '-wal', '-shm']) {
+    if (existsSync(dbPath + suf)) copyFileSync(dbPath + suf, join(bakDir, `dento-${stamp}.db${suf}`));
+  }
+  const snaps = readdirSync(bakDir).filter((f) => /^dento-.*\.db$/.test(f))
+    .map((f) => ({ f, t: statSync(join(bakDir, f)).mtimeMs })).sort((a, b) => b.t - a.t);
+  snaps.slice(20).forEach((x) => {
+    for (const suf of ['', '-wal', '-shm']) { try { unlinkSync(join(bakDir, x.f + suf)); } catch { /* ignore */ } }
+  });
+  console.log(`DB snapshot saved before schema sync: dento-${stamp}.db`);
+}
 
 async function bootstrap() {
   // Persistent uploads/backups dir (OUTSIDE the app install dir). The DB is PostgreSQL
@@ -22,6 +45,7 @@ async function bootstrap() {
   // db push against the generated SQLite schema (no migration history needed for a local file).
   try {
     if (IS_OFFLINE) {
+      snapshotSqliteBeforeMigrate(); // safety net: back up the DB before touching the schema
       // Run Prisma's CLI JS directly with THIS node (the bundled runtime) — the .bin/prisma
       // shebang would look for `node` on PATH, which the packaged .exe/.app doesn't provide.
       const prismaCli = join(process.cwd(), 'node_modules', 'prisma', 'build', 'index.js');
