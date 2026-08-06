@@ -5,9 +5,19 @@
 // Tauri bundles resources/ into the installer; at runtime the Rust shell spawns
 // `bin/node backend/dist/main.js` with APP_MODE=offline + a SQLite db in the user's app-data.
 import { execSync } from 'child_process';
-import { cpSync, mkdirSync, rmSync, copyFileSync, existsSync, chmodSync } from 'fs';
+import { cpSync, mkdirSync, rmSync, copyFileSync, existsSync, chmodSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+
+// Recursively delete files matching a suffix (e.g. source maps — they expose the TS source).
+function stripFiles(dir, suffix) {
+  if (!existsSync(dir)) return;
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) stripFiles(p, suffix);
+    else if (name.endsWith(suffix)) unlinkSync(p);
+  }
+}
 
 const desktop = join(dirname(fileURLToPath(import.meta.url)), '..');
 const root = join(desktop, '..');
@@ -32,6 +42,10 @@ cpSync(join(backend, 'prisma'), join(resBackend, 'prisma'), { recursive: true })
 copyFileSync(join(backend, 'package.json'), join(resBackend, 'package.json'));
 mkdirSync(join(res, 'frontend'), { recursive: true });
 cpSync(join(frontend, 'dist'), join(res, 'frontend', 'dist'), { recursive: true });
+
+// Don't ship source maps — they expose the original TypeScript/source in a sold product.
+stripFiles(join(resBackend, 'dist'), '.map');
+stripFiles(join(res, 'frontend', 'dist'), '.map');
 
 // Flat, self-contained production node_modules (the backend uses pnpm, whose symlinked
 // node_modules can't be bundled). prisma (a devDep) is added so runtime `db push` works.
