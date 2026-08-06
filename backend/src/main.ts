@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
@@ -21,18 +21,19 @@ async function bootstrap() {
   // Bring the DB schema up to date. ONLINE (Postgres): migrate deploy. OFFLINE (SQLite):
   // db push against the generated SQLite schema (no migration history needed for a local file).
   try {
-    const binName = process.platform === 'win32' ? 'prisma.cmd' : 'prisma';
-    const prismaBin = join(process.cwd(), 'node_modules', '.bin', binName);
-    const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
     if (IS_OFFLINE) {
-      execSync(`"${prismaBin}" db push --schema prisma/schema.sqlite.prisma --skip-generate --accept-data-loss`, { stdio: 'ignore', env: process.env, shell });
+      // Run Prisma's CLI JS directly with THIS node (the bundled runtime) — the .bin/prisma
+      // shebang would look for `node` on PATH, which the packaged .exe/.app doesn't provide.
+      const prismaCli = join(process.cwd(), 'node_modules', 'prisma', 'build', 'index.js');
+      execFileSync(process.execPath, [prismaCli, 'db', 'push', '--schema', 'prisma/schema.sqlite.prisma', '--skip-generate', '--accept-data-loss'], { stdio: 'ignore', env: process.env });
       console.log('SQLite schema synced (db push).');
     } else {
-      execSync(`"${prismaBin}" migrate deploy`, { stdio: 'ignore', env: process.env, shell });
+      const prismaBin = join(process.cwd(), 'node_modules', '.bin', 'prisma');
+      execSync(`"${prismaBin}" migrate deploy`, { stdio: 'ignore', env: process.env, shell: '/bin/sh' });
       console.log('Migrations applied (migrate deploy).');
     }
-  } catch {
-    console.warn('schema sync skipped/failed — continuing on existing schema.');
+  } catch (e) {
+    console.warn('schema sync skipped/failed — continuing on existing schema.', (e as Error)?.message || '');
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });

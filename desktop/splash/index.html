@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dento Khata</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: grid; place-items: center; background: #0f766e; color: #fff;
+      font-family: 'Hind Siliguri', 'Noto Sans Bengali', system-ui, sans-serif;
+    }
+    .box { text-align: center; }
+    .tooth { width: 72px; height: 72px; margin: 0 auto 16px; display: grid; place-items: center;
+      background: #fff; border-radius: 20px; }
+    h1 { font-size: 22px; margin: 0 0 6px; font-weight: 800; }
+    p { margin: 0; opacity: .85; font-size: 14px; }
+    .spin { margin-top: 18px; width: 26px; height: 26px; border: 3px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%; animation: r 1s linear infinite; display: inline-block; }
+    @keyframes r { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="tooth">
+      <svg width="44" height="44" viewBox="0 0 192 192"><path fill="#0f766e" d="M96 42 C74 42 58 42 52 63 C48 79 52 96 58 118 C62 134 66 150 74 150 C82 150 82 132 88 122 C91 117 101 117 104 122 C110 132 110 150 118 150 C126 150 130 134 134 118 C140 96 144 79 140 63 C134 42 118 42 96 42 Z"/></svg>
+    </div>
+    <h1>Dento Khata</h1>
+    <p>চালু হচ্ছে, একটু অপেক্ষা করুন…</p>
+    <div class="spin"></div>
+  </div>
+</body>
+</html>
