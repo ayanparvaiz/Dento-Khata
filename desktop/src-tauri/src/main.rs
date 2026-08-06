@@ -12,8 +12,52 @@ const PORT: u16 = 8123;
 // Holds the spawned backend process so we can kill it when the app closes.
 struct Backend(Mutex<Option<Child>>);
 
+// Check for a signed update on startup; if there is one, ask the doctor (in Bangla) and,
+// on yes, download + install + relaunch. Data is untouched (it lives in the data dir, and
+// the new version snapshots the DB before any schema change), so this is always safe.
+async fn check_for_update(handle: tauri::AppHandle) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    use tauri_plugin_updater::UpdaterExt;
+
+    let updater = match handle.updater() {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+    let update = match updater.check().await {
+        Ok(Some(u)) => u,
+        _ => return, // no update, offline, or check failed → do nothing (never blocks)
+    };
+    let msg = format!(
+        "নতুন সংস্করণ ({}) পাওয়া গেছে। এখন আপডেট করবেন?\n\nআপনার সব তথ্য সম্পূর্ণ নিরাপদ থাকবে।",
+        update.version
+    );
+    let yes = handle
+        .dialog()
+        .message(msg)
+        .title("আপডেট আছে")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "এখন আপডেট করুন".to_string(),
+            "পরে".to_string(),
+        ))
+        .blocking_show();
+    if !yes {
+        return;
+    }
+    if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+        handle
+            .dialog()
+            .message("আপডেট সম্পন্ন হয়েছে। অ্যাপটি আবার চালু হচ্ছে।")
+            .title("সম্পন্ন")
+            .blocking_show();
+        handle.restart();
+    }
+}
+
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Backend(Mutex::new(None)))
         .setup(|app| {
             let res = app.path().resource_dir()?;
@@ -59,6 +103,12 @@ fn main() {
                     "window.location.replace('http://127.0.0.1:{}')",
                     PORT
                 ));
+            });
+
+            // Check for updates in the background (never blocks the app).
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                check_for_update(handle).await;
             });
 
             Ok(())

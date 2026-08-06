@@ -20,9 +20,16 @@
     ],
     "security": { "csp": null }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://dento.devcenter.dev/update/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU1REYzRkUzRjAxRUFBMjAKUldRZ3FoN3c0ei9mVldFSkJmKzYrMXVUU3VIbjRVcEsrVkp6MkJaMnNzNEZ4eFI2YzZtRkZEeGcK"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "resources": ["resources"],
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "macOS": {

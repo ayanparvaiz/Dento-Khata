@@ -7,7 +7,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { dataPaths } from './data';
-import { IS_OFFLINE } from './config/mode';
+import { IS_OFFLINE, IS_ONLINE } from './config/mode';
 
 // OFFLINE data safety: snapshot the SQLite database (+ its WAL/SHM sidecars) BEFORE any
 // schema change, so a software update can never lose data. The DB lives in the user's data
@@ -74,12 +74,20 @@ async function bootstrap() {
   // Serve uploaded x-rays / photos / documents from the persistent uploads dir.
   app.useStaticAssets(uploadsDir, { prefix: '/uploads/' });
 
+  // Offline desktop auto-update feed (online server only): the .exe/.app checks
+  // /update/latest.json here and downloads the signed installer listed in it.
+  if (IS_ONLINE) {
+    const updateDir = join(dataPaths().dataDir, 'update');
+    mkdirSync(updateDir, { recursive: true });
+    app.useStaticAssets(updateDir, { prefix: '/update/' });
+  }
+
   // Single-URL serve: backend also serves the built frontend + SPA fallback (one port).
   const frontendDist = join(process.cwd(), '..', 'frontend', 'dist');
   if (existsSync(frontendDist)) {
     app.useStaticAssets(frontendDist);
     const express = app.getHttpAdapter().getInstance();
-    express.get(/^(?!\/api|\/uploads).*/, (_req: any, res: any) => {
+    express.get(/^(?!\/api|\/uploads|\/update).*/, (_req: any, res: any) => {
       res.sendFile(join(frontendDist, 'index.html'));
     });
   }

@@ -25,14 +25,17 @@ jobs:
           (cd backend && npm install --legacy-peer-deps --no-audit --no-fund)
           (cd frontend && npm install --no-audit --no-fund)
           (cd desktop && npm install --no-audit --no-fund)
-      - name: Build (universal .dmg + .app)
+      - name: Build (universal .dmg + .app, signed for updates)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cd desktop && npm run tauri -- build --target universal-apple-darwin
       - uses: actions/upload-artifact@v4
         with:
           name: DentoKhata-macOS
           path: |
             desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+            desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz*
 
   windows:
     runs-on: windows-latest
@@ -55,12 +58,16 @@ jobs:
           cd backend; npm install --legacy-peer-deps --no-audit --no-fund
           cd ../frontend; npm install --no-audit --no-fund
           cd ../desktop; npm install --no-audit --no-fund
-      - name: Build (.exe + .msi)
+      - name: Build (.exe + .msi, signed for updates)
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cd desktop; npm run tauri -- build
       - uses: actions/upload-artifact@v4
         with:
           name: DentoKhata-Windows
           path: |
-            desktop/src-tauri/target/release/bundle/nsis/*.exe
+            desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+            desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip*
             desktop/src-tauri/target/release/bundle/msi/*.msi

@@ -32,3 +32,27 @@ npm run tauri -- build --target universal-apple-darwin
 
 Note: the `.app`/`.dmg`/`.exe` are **unsigned** — for public release you'll want an Apple
 Developer cert (notarization) and a Windows code-signing cert; until then users approve it once.
+
+## Releasing an update (auto-update)
+
+The app checks `https://dento.devcenter.dev/update/latest.json` on startup and, if a newer
+signed version is there, asks the doctor (in Bangla) and installs it — **data is never touched**
+(it lives in the user's data dir, and the new version snapshots the SQLite DB before any schema
+change).
+
+To publish a new version:
+
+1. Bump `version` in `src-tauri/tauri.conf.json` and `package.json`.
+2. Push a tag `desktop-vX.Y.Z` → CI builds **signed** installers (uses the `TAURI_SIGNING_PRIVATE_KEY`
+   repo secret) and updater artifacts (`.app.tar.gz`, `.nsis.zip` + `.sig`).
+3. Download both artifacts, then generate the feed:
+   ```bash
+   node scripts/make-update-manifest.mjs 0.2.0 ./artifacts https://dento.devcenter.dev/update > latest.json
+   ```
+4. Upload `latest.json` + the installer files to the server:
+   ```bash
+   scp latest.json *.app.tar.gz *.nsis.zip dentist@dentist.devcenter.dev:/home/dentist/dento-data/update/
+   ```
+
+Installed apps pick it up on their next launch. Keep the private signing key
+(`TAURI_SIGNING_PRIVATE_KEY`) safe — losing it means you can't publish updates.
