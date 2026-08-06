@@ -5,6 +5,7 @@
   "description": "Dento Khata offline desktop app (Tauri) — bundles the backend + frontend into one installer.",
   "scripts": {
     "prepare-backend": "node scripts/prepare-backend.mjs",
+    "release": "node scripts/release.mjs",
     "tauri": "tauri"
   },
   "devDependencies": {

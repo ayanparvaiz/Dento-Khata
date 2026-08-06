@@ -71,3 +71,28 @@ jobs:
             desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
             desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip*
             desktop/src-tauri/target/release/bundle/msi/*.msi
+
+  # After both builds: generate the update feed and push everything to the server, so all
+  # installed apps auto-update. Runs ONLY for a `desktop-vX.Y.Z` tag (never on a code push).
+  publish:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - name: Build update feed + upload to server
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#desktop-v}"
+          node desktop/scripts/make-update-manifest.mjs "$VERSION" artifacts https://dento.devcenter.dev/update > latest.json
+          mkdir -p upload && cp latest.json upload/
+          find artifacts -type f \( -name '*.app.tar.gz' -o -name '*.nsis.zip' -o -name '*.dmg' -o -name '*-setup.exe' \) -exec cp {} upload/ \;
+          echo "Uploading:"; ls -la upload
+          mkdir -p ~/.ssh && printf '%s\n' "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id upload/* dentist@dentist.devcenter.dev:/home/dentist/dento-data/update/
+          echo "✅ Published v$VERSION — installed apps will auto-update."

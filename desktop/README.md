@@ -40,19 +40,20 @@ signed version is there, asks the doctor (in Bangla) and installs it — **data 
 (it lives in the user's data dir, and the new version snapshots the SQLite DB before any schema
 change).
 
-To publish a new version:
+### Publishing is ONE command
 
-1. Bump `version` in `src-tauri/tauri.conf.json` and `package.json`.
-2. Push a tag `desktop-vX.Y.Z` → CI builds **signed** installers (uses the `TAURI_SIGNING_PRIVATE_KEY`
-   repo secret) and updater artifacts (`.app.tar.gz`, `.nsis.zip` + `.sig`).
-3. Download both artifacts, then generate the feed:
-   ```bash
-   node scripts/make-update-manifest.mjs 0.2.0 ./artifacts https://dento.devcenter.dev/update > latest.json
-   ```
-4. Upload `latest.json` + the installer files to the server:
-   ```bash
-   scp latest.json *.app.tar.gz *.nsis.zip dentist@dentist.devcenter.dev:/home/dentist/dento-data/update/
-   ```
+After making your code changes (committed), just run:
 
-Installed apps pick it up on their next launch. Keep the private signing key
-(`TAURI_SIGNING_PRIVATE_KEY`) safe — losing it means you can't publish updates.
+```bash
+cd desktop && npm run release 0.2.0
+```
+
+That bumps the version, tags `desktop-v0.2.0`, and pushes. GitHub CI then automatically:
+builds + **signs** the macOS + Windows installers → writes `latest.json` → **uploads everything
+to the server** (`dento-data/update/`). Every installed offline app auto-updates on its next
+launch. You don't download or upload anything by hand.
+
+It runs ONLY on a `desktop-v*` tag (from `npm run release`) — a normal code push never triggers a build.
+
+**Secrets used by CI (already set):** `TAURI_SIGNING_PRIVATE_KEY` (signs updates — keep a safe
+backup; losing it means no more updates) and `SERVER_SSH_KEY` (uploads to the server).
