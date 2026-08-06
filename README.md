@@ -115,3 +115,9 @@ Dento Khata
 
 
 ```
+
+
+## offline version update korar time e ei command ti run korte hboe. taile automatic update distribute hobe server + user end e. 
+```
+cd desktop && npm run release 0.2.0
+```
