@@ -69,8 +69,7 @@ jobs:
           name: DentoKhata-Windows
           path: |
             desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
-            desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip*
-            desktop/src-tauri/target/release/bundle/msi/*.msi
+            desktop/src-tauri/target/release/bundle/nsis/*-setup.exe.sig
 
   # After both builds: generate the update feed and push everything to the server, so all
   # installed apps auto-update. Runs ONLY for a `desktop-vX.Y.Z` tag (never on a code push).
@@ -89,10 +88,18 @@ jobs:
           SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
           VERSION="${GITHUB_REF_NAME#desktop-v}"
-          node desktop/scripts/make-update-manifest.mjs "$VERSION" artifacts https://dento.devcenter.dev/update > latest.json
-          mkdir -p upload && cp latest.json upload/
-          find artifacts -type f \( -name '*.app.tar.gz' -o -name '*.nsis.zip' -o -name '*.dmg' -o -name '*-setup.exe' \) -exec cp {} upload/ \;
-          echo "Uploading:"; ls -la upload
+          mkdir -p upload
+          # Rename to STABLE, no-space names (scp-safe + permanent download URLs).
+          MAC_TAR=$(find artifacts -name '*.app.tar.gz' | head -1)
+          MAC_SIG=$(find artifacts -name '*.app.tar.gz.sig' | head -1)
+          MAC_DMG=$(find artifacts -name '*.dmg' | head -1)
+          WIN_EXE=$(find artifacts -name '*-setup.exe' | head -1)
+          WIN_SIG=$(find artifacts -name '*-setup.exe.sig' | head -1)
+          [ -n "$MAC_TAR" ] && cp "$MAC_TAR" upload/DentoKhata.app.tar.gz
+          [ -n "$MAC_DMG" ] && cp "$MAC_DMG" upload/DentoKhata.dmg
+          [ -n "$WIN_EXE" ] && cp "$WIN_EXE" upload/DentoKhata-setup.exe
+          node desktop/scripts/make-update-manifest.mjs "$VERSION" "$(cat "$MAC_SIG" 2>/dev/null)" "$(cat "$WIN_SIG" 2>/dev/null)" https://dento.devcenter.dev/update > upload/latest.json
+          echo "Uploading:"; ls -la upload; echo "--- manifest ---"; cat upload/latest.json
           mkdir -p ~/.ssh && printf '%s\n' "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id upload/* dentist@dentist.devcenter.dev:/home/dentist/dento-data/update/
           echo "✅ Published v$VERSION — installed apps will auto-update."
