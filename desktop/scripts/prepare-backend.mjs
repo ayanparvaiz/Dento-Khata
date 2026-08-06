@@ -39,7 +39,7 @@ console.log('▶ installing production dependencies into the bundle');
 run('npm install --omit=dev --legacy-peer-deps --no-audit --no-fund --loglevel=error', resBackend);
 run('npm install prisma@6 --no-save --legacy-peer-deps --no-audit --no-fund --loglevel=error', resBackend);
 console.log('▶ generating SQLite Prisma client for the bundle');
-run('./node_modules/.bin/prisma generate --schema prisma/schema.sqlite.prisma', resBackend);
+run('npx --no-install prisma generate --schema prisma/schema.sqlite.prisma', resBackend);
 
 // Node runtime for the target. We ship the OFFICIAL standalone Node binary (nodejs.org) —
 // NOT the local/homebrew node, which is only a thin wrapper linking to a shared libnode.

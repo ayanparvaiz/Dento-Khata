@@ -1,33 +1,34 @@
-# Desktop (Tauri) — Windows installer
+# Desktop — Dento Khata offline app (Tauri)
 
-Wraps the React frontend in a lightweight native Windows window (Tauri = small,
-low-RAM, runs on old PCs). This produces the single `.exe` / `.msi` installer.
+One installer that bundles **everything**: the NestJS backend, a standalone Node runtime,
+SQLite, and the frontend. Installs like a normal app; no separate server, no Node on the PC.
 
-> **Status:** config scaffolded. Building requires the Rust toolchain, which is not
-> yet installed on this machine. The steps below produce the installer once Rust is set up.
+- Runs `APP_MODE=offline` — SQLite database + uploads in the user's app-data dir.
+- Serves the UI + API on one local port, so phones/tablets on the same WiFi connect too (LAN).
+- macOS build is **universal** (Intel + Apple Silicon) so old Macs work.
 
-## One-time setup (on the build PC, internet needed once)
+## How it works
 
-1. Install Rust: https://rustup.rs  (`rustup-init.exe` on Windows)
-2. Install Tauri CLI: `pnpm add -D @tauri-apps/cli`
-3. Generate app icons (creates `src-tauri/icons/`): `pnpm tauri icon ../frontend/public/icon.svg`
+`src-tauri/src/main.rs` spawns the bundled backend (`bin/node-<arch>` running
+`backend/dist/main.js`), waits for its port, then points the window at it, and kills it on
+close. `scripts/prepare-backend.mjs` assembles `src-tauri/resources/` (backend + a flat
+production `node_modules` + Prisma SQLite client + the official Node binaries + frontend).
 
-## Build the installer
+## Build the installers
 
+**Easiest — GitHub Actions (no local Windows needed):** run the *Build Desktop App* workflow
+(Actions tab, "Run workflow"). It produces:
+- `DentoKhata-macOS` — universal `.dmg` + `.app`
+- `DentoKhata-Windows` — `.exe` (NSIS) + `.msi`
+
+**Locally (macOS):**
 ```bash
-cd desktop
-pnpm tauri build
+# one-time: install Rust (https://rustup.rs) and macOS targets
+rustup target add x86_64-apple-darwin aarch64-apple-darwin
+cd backend && npm i --legacy-peer-deps && cd ../frontend && npm i && cd ../desktop && npm i
+npm run tauri -- build --target universal-apple-darwin
+# → src-tauri/target/universal-apple-darwin/release/bundle/{dmg,macos}/
 ```
 
-Output: `desktop/src-tauri/target/release/bundle/` → `.msi` and `.exe` (NSIS) installers.
-
-## Architecture reminder
-
-- The **server PC** runs the backend (`backend/`, port 3000) + SQLite + (optionally) this
-  desktop app. Run the backend as an auto-start service so it's always available.
-- The **2nd PC** installs this desktop app (or just opens the server's LAN IP in a browser).
-- The **phone** opens `http://<server-LAN-IP>:5173` (dev) or the served build, then
-  "Add to Home Screen" → PWA. Phones do **not** use Tauri.
-
-See [../docs/01-ARCHITECTURE.md](../docs/01-ARCHITECTURE.md) for the full offline LAN setup
-(static IP, firewall, daily backup).
+Note: the `.app`/`.dmg`/`.exe` are **unsigned** — for public release you'll want an Apple
+Developer cert (notarization) and a Windows code-signing cert; until then users approve it once.
