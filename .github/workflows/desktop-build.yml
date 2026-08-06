@@ -18,6 +18,8 @@ jobs:
         with: { node-version: '22' }
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: 'x86_64-apple-darwin,aarch64-apple-darwin' }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: 'desktop/src-tauri -> target' }
       - name: Install dependencies
         run: |
           (cd backend && npm install --legacy-peer-deps --no-audit --no-fund)
@@ -39,6 +41,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: 'desktop/src-tauri -> target' }
       - name: Fetch standalone node.exe (bundled into the app)
         shell: pwsh
         run: |
