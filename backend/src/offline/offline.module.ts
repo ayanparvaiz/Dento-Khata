@@ -11,6 +11,7 @@ import { IsString, MinLength } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { runInTenant } from '../tenant/tenant-context';
 import { DEFAULT_PROCEDURES } from '../auth/default-procedures';
+import { seedDrugs } from '../data/drug-catalog';
 import { PAID_PLAN } from '../subscription/plans';
 import { IS_OFFLINE } from '../config/mode';
 import { dataPaths } from '../data';
@@ -63,6 +64,14 @@ export class OfflineBootstrapService implements OnModuleInit {
 
   async onModuleInit() {
     if (!IS_OFFLINE) return;
+    // Seed the global drug catalog into the local SQLite DB so prescriptions have the full
+    // medicine list (online seeds this at deploy; offline must do it itself). Idempotent.
+    try {
+      const n = await seedDrugs(this.prisma, { skipIfAny: true });
+      this.log.log(`Drug catalog ready (${n} drugs).`);
+    } catch (e) {
+      this.log.error(`Drug seed failed: ${(e as Error).message}`);
+    }
     // Dev shortcut only: create a clinic without a license (never in a real .exe build).
     if (process.env.OFFLINE_SKIP_LICENSE === '1') {
       const existing = await this.prisma.tenant.findFirst();
