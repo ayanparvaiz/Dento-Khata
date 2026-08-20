@@ -1,13 +1,16 @@
 name: Build Desktop App
 
-# Builds the offline desktop installers:
-#   macOS  → universal .dmg + .app (Intel + Apple Silicon)
-#   Windows→ .exe (NSIS) + .msi
-# Run manually from the Actions tab, or by pushing a tag like `desktop-v0.1.0`.
+# Builds the offline installers and publishes them straight to the server (no GitHub artifact
+# storage — avoids the artifact quota). macOS → universal .dmg + .app; Windows → .exe.
+# Runs ONLY on a `desktop-vX.Y.Z` tag (from `npm run release`) — never on a plain code push.
 on:
   workflow_dispatch:
   push:
     tags: ['desktop-v*']
+
+env:
+  SERVER: dentist@dentist.devcenter.dev
+  UPDATE_DIR: /home/dentist/dento-data/update
 
 jobs:
   macos:
@@ -25,18 +28,23 @@ jobs:
           (cd backend && npm install --legacy-peer-deps --no-audit --no-fund)
           (cd frontend && npm install --no-audit --no-fund)
           (cd desktop && npm install --no-audit --no-fund)
-      - name: Build (universal .dmg + .app, signed for updates)
+      - name: Build (universal .dmg + .app, signed)
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cd desktop && npm run tauri -- build --target universal-apple-darwin
-      - uses: actions/upload-artifact@v4
-        with:
-          retention-days: 1
-          name: DentoKhata-macOS
-          path: |
-            desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz*
+      - name: Upload to server staging
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && printf '%s\n' "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
+          B=desktop/src-tauri/target/universal-apple-darwin/release/bundle
+          SCP="scp -o StrictHostKeyChecking=no -i ~/.ssh/id"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id "$SERVER" "mkdir -p $UPDATE_DIR/staging"
+          $SCP "$(ls $B/macos/*.app.tar.gz)" "$SERVER:$UPDATE_DIR/staging/DentoKhata.app.tar.gz"
+          $SCP "$(ls $B/macos/*.app.tar.gz.sig)" "$SERVER:$UPDATE_DIR/staging/DentoKhata.app.tar.gz.sig"
+          $SCP "$(ls $B/dmg/*.dmg)" "$SERVER:$UPDATE_DIR/staging/DentoKhata.dmg"
 
   windows:
     runs-on: windows-latest
@@ -59,22 +67,25 @@ jobs:
           cd backend; npm install --legacy-peer-deps --no-audit --no-fund
           cd ../frontend; npm install --no-audit --no-fund
           cd ../desktop; npm install --no-audit --no-fund
-      - name: Build (.exe + .msi, signed for updates)
+      - name: Build (.exe, signed)
         shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cd desktop; npm run tauri -- build
-      - uses: actions/upload-artifact@v4
-        with:
-          retention-days: 1
-          name: DentoKhata-Windows
-          path: |
-            desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
-            desktop/src-tauri/target/release/bundle/nsis/*-setup.exe.sig
+      - name: Upload to server staging
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && printf '%s\n' "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
+          B=desktop/src-tauri/target/release/bundle/nsis
+          SCP="scp -o StrictHostKeyChecking=no -i ~/.ssh/id"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id "$SERVER" "mkdir -p $UPDATE_DIR/staging"
+          $SCP "$(ls $B/*-setup.exe)" "$SERVER:$UPDATE_DIR/staging/DentoKhata-setup.exe"
+          $SCP "$(ls $B/*-setup.exe.sig)" "$SERVER:$UPDATE_DIR/staging/DentoKhata-setup.exe.sig"
 
-  # After both builds: generate the update feed and push everything to the server, so all
-  # installed apps auto-update. Runs ONLY for a `desktop-vX.Y.Z` tag (never on a code push).
+  # Assemble the update feed from the staged files and publish (tag builds only).
   publish:
     needs: [macos, windows]
     runs-on: ubuntu-latest
@@ -83,25 +94,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
-      - uses: actions/download-artifact@v4
-        with: { path: artifacts }
-      - name: Build update feed + upload to server
+      - name: Build latest.json + publish
         env:
           SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
           VERSION="${GITHUB_REF_NAME#desktop-v}"
-          mkdir -p upload
-          # Rename to STABLE, no-space names (scp-safe + permanent download URLs).
-          MAC_TAR=$(find artifacts -name '*.app.tar.gz' | head -1)
-          MAC_SIG=$(find artifacts -name '*.app.tar.gz.sig' | head -1)
-          MAC_DMG=$(find artifacts -name '*.dmg' | head -1)
-          WIN_EXE=$(find artifacts -name '*-setup.exe' | head -1)
-          WIN_SIG=$(find artifacts -name '*-setup.exe.sig' | head -1)
-          [ -n "$MAC_TAR" ] && cp "$MAC_TAR" upload/DentoKhata.app.tar.gz
-          [ -n "$MAC_DMG" ] && cp "$MAC_DMG" upload/DentoKhata.dmg
-          [ -n "$WIN_EXE" ] && cp "$WIN_EXE" upload/DentoKhata-setup.exe
-          node desktop/scripts/make-update-manifest.mjs "$VERSION" "$(cat "$MAC_SIG" 2>/dev/null)" "$(cat "$WIN_SIG" 2>/dev/null)" https://dento.devcenter.dev/update > upload/latest.json
-          echo "Uploading:"; ls -la upload; echo "--- manifest ---"; cat upload/latest.json
           mkdir -p ~/.ssh && printf '%s\n' "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id upload/* dentist@dentist.devcenter.dev:/home/dentist/dento-data/update/
-          echo "✅ Published v$VERSION — installed apps will auto-update."
+          SSH="ssh -o StrictHostKeyChecking=no -i ~/.ssh/id $SERVER"
+          MAC_SIG=$($SSH "cat $UPDATE_DIR/staging/DentoKhata.app.tar.gz.sig")
+          WIN_SIG=$($SSH "cat $UPDATE_DIR/staging/DentoKhata-setup.exe.sig")
+          node desktop/scripts/make-update-manifest.mjs "$VERSION" "$MAC_SIG" "$WIN_SIG" https://dento.devcenter.dev/update > latest.json
+          echo "--- manifest ---"; cat latest.json
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id latest.json "$SERVER:$UPDATE_DIR/latest.json"
+          # move staged installers into place (overwrites the stable names), then clean up
+          $SSH "cd $UPDATE_DIR && mv -f staging/* . && rmdir staging 2>/dev/null || true; ls -la"
+          echo "✅ Published v$VERSION"
