@@ -32,6 +32,7 @@ jobs:
         run: cd desktop && npm run tauri -- build --target universal-apple-darwin
       - uses: actions/upload-artifact@v4
         with:
+          retention-days: 1
           name: DentoKhata-macOS
           path: |
             desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
@@ -66,6 +67,7 @@ jobs:
         run: cd desktop; npm run tauri -- build
       - uses: actions/upload-artifact@v4
         with:
+          retention-days: 1
           name: DentoKhata-Windows
           path: |
             desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
