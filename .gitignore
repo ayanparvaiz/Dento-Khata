@@ -28,6 +28,14 @@ backend/uploads/*
 e2e/shots/
 e2e/test-results/
 
+# npm lockfiles — this repo installs with pnpm locally and plain `npm install` in CI;
+# a stray package-lock.json (from a one-off `npm install`) would silently change what CI
+# resolves. `npm run release` does `git add -A`, so keep it out of reach.
+package-lock.json
+
+# agent/editor notes — not part of the product
+CLAUDE.md
+
 # misc
 .DS_Store
 *.log

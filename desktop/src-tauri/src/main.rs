@@ -1,11 +1,23 @@
 // Prevents an extra console window on Windows in release.
+// NOTE: this only covers THIS executable — a spawned console program (node.exe) still gets
+// its own console unless we ask for none. See CREATE_NO_WINDOW below.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::fs::File;
 use std::net::TcpStream;
-use std::process::{Child, Command};
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{Manager, WindowEvent};
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+// CreateProcess flag: run the console-subsystem `node.exe` with no console window.
+// Without it Windows hands the backend its own black terminal, and closing that terminal
+// kills the backend — which leaves the app pointing at a dead server.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 const PORT: u16 = 8123;
 
@@ -77,15 +89,28 @@ fn main() {
             std::fs::create_dir_all(&data_dir).ok();
             let db_url = format!("file:{}", data_dir.join("dento.db").display());
 
-            let child = Command::new(&node)
-                .arg("dist/main.js")
+            let mut cmd = Command::new(&node);
+            cmd.arg("dist/main.js")
                 .current_dir(&backend_dir)
                 .env("APP_MODE", "offline")
                 .env("DATABASE_URL", db_url)
                 .env("DATA_DIR", data_dir.to_string_lossy().to_string())
-                .env("PORT", PORT.to_string())
-                .spawn()
-                .expect("failed to start the Dento Khata backend");
+                .env("PORT", PORT.to_string());
+
+            // The backend has no visible console any more, so keep its output in the data dir —
+            // otherwise a failed start-up leaves nothing to diagnose. Rewritten each launch.
+            if let Ok(log) = File::create(data_dir.join("backend.log")) {
+                if let Ok(errors) = log.try_clone() {
+                    cmd.stdout(Stdio::from(log)).stderr(Stdio::from(errors));
+                }
+            }
+
+            // Windows only: no console window for the backend (and none for the processes it
+            // starts, e.g. the Prisma schema sync — they inherit this windowless console).
+            #[cfg(windows)]
+            cmd.creation_flags(CREATE_NO_WINDOW);
+
+            let child = cmd.spawn().expect("failed to start the Dento Khata backend");
 
             app.state::<Backend>().0.lock().unwrap().replace(child);
 

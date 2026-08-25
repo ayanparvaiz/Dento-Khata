@@ -49,7 +49,8 @@ async function bootstrap() {
       // Run Prisma's CLI JS directly with THIS node (the bundled runtime) — the .bin/prisma
       // shebang would look for `node` on PATH, which the packaged .exe/.app doesn't provide.
       const prismaCli = join(process.cwd(), 'node_modules', 'prisma', 'build', 'index.js');
-      execFileSync(process.execPath, [prismaCli, 'db', 'push', '--schema', 'prisma/schema.sqlite.prisma', '--skip-generate', '--accept-data-loss'], { stdio: 'ignore', env: process.env });
+      // windowsHide: belt-and-braces so the desktop app can never flash a console here.
+      execFileSync(process.execPath, [prismaCli, 'db', 'push', '--schema', 'prisma/schema.sqlite.prisma', '--skip-generate', '--accept-data-loss'], { stdio: 'ignore', env: process.env, windowsHide: true });
       console.log('SQLite schema synced (db push).');
     } else {
       const prismaBin = join(process.cwd(), 'node_modules', '.bin', 'prisma');
