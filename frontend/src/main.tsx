@@ -2,8 +2,13 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
+import { installExternalLinkHandler } from '@/lib/external';
 import App from './App';
 import './index.css';
+
+// Desktop app only: send outside links (WhatsApp, tutorials) to the real browser instead of
+// letting them replace the single app window. No-op in a normal browser.
+installExternalLinkHandler();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

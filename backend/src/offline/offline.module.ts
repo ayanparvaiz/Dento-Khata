@@ -3,6 +3,7 @@ import {
   OnModuleInit, Post,
 } from '@nestjs/common';
 import { networkInterfaces, hostname, platform, arch, cpus, totalmem } from 'os';
+import { spawn } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import * as crypto from 'crypto';
@@ -208,6 +209,28 @@ export class OfflineCloudBackupService {
 }
 
 class RestoreIdDto { @IsString() id: string; }
+class OpenExternalDto { @IsString() url: string; }
+
+// The desktop app is a single webview with no tabs and no back button, so a normal
+// target="_blank" link replaces the app itself and strands the doctor. The frontend sends
+// those links here instead and we hand them to the machine's default browser.
+function openInDefaultBrowser(rawUrl: string) {
+  let url: URL;
+  try { url = new URL(rawUrl); } catch { throw new BadRequestException('Invalid URL'); }
+  // Only ever hand the OS a web address — never a file:// path or a custom scheme.
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new BadRequestException('Only http/https links');
+
+  // No shell anywhere: the URL is passed as a single argument, so nothing in it can be
+  // interpreted as a command. windowsHide keeps the console-less app console-less.
+  const [cmd, args] =
+    process.platform === 'win32' ? ['explorer.exe', [url.href]]
+      : process.platform === 'darwin' ? ['open', [url.href]]
+        : ['xdg-open', [url.href]];
+  const child = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true });
+  child.on('error', (e) => Logger.warn(`could not open ${url.href}: ${e.message}`, 'OpenExternal'));
+  child.unref(); // explorer.exe exits non-zero by design — never wait on it
+  return { opened: url.href };
+}
 
 @Controller('offline')
 class OfflineController {
@@ -254,6 +277,15 @@ class OfflineController {
 
   @Post('cloud-backup/restore')
   cbRestore(@Body() dto: RestoreIdDto) { if (!IS_OFFLINE) throw new ForbiddenException('offline only'); return this.cloudBackup.restoreFromCloud(dto.id); }
+
+  // Open a link in the PC's default browser. Public + NoSubscription because the licence
+  // screen shows the support WhatsApp link before anyone can log in.
+  @Public() @NoSubscription()
+  @Post('open-external')
+  openExternal(@Body() dto: OpenExternalDto) {
+    if (!IS_OFFLINE) throw new ForbiddenException('offline only');
+    return openInDefaultBrowser(dto.url);
+  }
 }
 
 @Module({
