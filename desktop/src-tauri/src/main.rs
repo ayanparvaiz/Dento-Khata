@@ -24,6 +24,16 @@ const PORT: u16 = 8123;
 // Holds the spawned backend process so we can kill it when the app closes.
 struct Backend(Mutex<Option<Child>>);
 
+// Stop the bundled backend and wait for it to actually be gone. Waiting matters on Windows:
+// until the process has exited, it still holds its files open and nothing may overwrite them.
+fn stop_backend(handle: &tauri::AppHandle) {
+    let running = handle.state::<Backend>().0.lock().unwrap().take();
+    if let Some(mut child) = running {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
 // Check for a signed update on startup; if there is one, ask the doctor (in Bangla) and,
 // on yes, download + install + relaunch. Data is untouched (it lives in the data dir, and
 // the new version snapshots the DB before any schema change), so this is always safe.
@@ -55,13 +65,37 @@ async fn check_for_update(handle: tauri::AppHandle) {
     if !yes {
         return;
     }
-    if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
-        handle
-            .dialog()
-            .message("আপডেট সম্পন্ন হয়েছে। অ্যাপটি আবার চালু হচ্ছে।")
-            .title("সম্পন্ন")
-            .blocking_show();
-        handle.restart();
+    // Download FIRST, while the backend keeps serving the window. If the download fails the
+    // app is still fully working — nothing has been touched yet.
+    let package = match update.download(|_, _| {}, || {}).await {
+        Ok(bytes) => bytes,
+        Err(_) => return,
+    };
+
+    // Only now stop the backend. The installer replaces resources/backend/**, and Windows
+    // refuses to overwrite a file a running process holds open — the Prisma query engine
+    // (query_engine-windows.dll.node) is loaded by the backend, so leaving it running made
+    // the installer stop with "Error opening file for writing".
+    stop_backend(&handle);
+
+    match update.install(package) {
+        Ok(()) => {
+            handle
+                .dialog()
+                .message("আপডেট সম্পন্ন হয়েছে। অ্যাপটি আবার চালু হচ্ছে।")
+                .title("সম্পন্ন")
+                .blocking_show();
+            handle.restart();
+        }
+        // The backend is already stopped here, so the window has nothing behind it. Say so
+        // rather than leaving the doctor staring at a blank app.
+        Err(_) => {
+            handle
+                .dialog()
+                .message("আপডেট সম্পূর্ণ হয়নি। অ্যাপটি বন্ধ করে আবার চালু করুন।\n\nআপনার সব তথ্য অক্ষত আছে।")
+                .title("আপডেট ব্যর্থ")
+                .blocking_show();
+        }
     }
 }
 
@@ -140,16 +174,7 @@ fn main() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::Destroyed = event {
-                if let Some(mut child) = window
-                    .app_handle()
-                    .state::<Backend>()
-                    .0
-                    .lock()
-                    .unwrap()
-                    .take()
-                {
-                    let _ = child.kill();
-                }
+                stop_backend(window.app_handle());
             }
         })
         .run(tauri::generate_context!())

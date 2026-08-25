@@ -1,6 +1,6 @@
 {
   "name": "dento-khata-desktop",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "Dento Khata offline desktop app (Tauri) — bundles the backend + frontend into one installer.",
   "scripts": {
