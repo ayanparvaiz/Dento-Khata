@@ -220,10 +220,12 @@ function openInDefaultBrowser(rawUrl: string) {
   // Only ever hand the OS a web address — never a file:// path or a custom scheme.
   if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new BadRequestException('Only http/https links');
 
-  // No shell anywhere: the URL is passed as a single argument, so nothing in it can be
-  // interpreted as a command. windowsHide keeps the console-less app console-less.
+  // Windows: rundll32 is the only launcher that survives an "&" in the query string —
+  // measured, not assumed. explorer.exe silently does nothing, and `cmd /c start` opens the
+  // browser but truncates the URL at the first "&" (so it would quietly load the wrong page).
+  // No shell anywhere either: the URL is one argument, so nothing in it can become a command.
   const [cmd, args] =
-    process.platform === 'win32' ? ['explorer.exe', [url.href]]
+    process.platform === 'win32' ? ['rundll32.exe', ['url.dll,FileProtocolHandler', url.href]]
       : process.platform === 'darwin' ? ['open', [url.href]]
         : ['xdg-open', [url.href]];
   const child = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true });
