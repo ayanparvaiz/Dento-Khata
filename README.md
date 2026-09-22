@@ -53,16 +53,40 @@ over LAN. Single database = single source of truth = no sync conflicts.
 
 ## Run (development)
 
-Two processes. Open two terminals:
+From the repository root, a single command starts both processes:
+
+```bash
+pnpm install:all   # installs backend + frontend
+pnpm dev           # runs api + web together, colour-tagged
+```
+
+First run only, from `backend/`:
+
+```bash
+pnpm prisma migrate dev
+pnpm db:seed
+```
+
+<details>
+<summary>Or start the two processes in separate terminals</summary>
 
 ```bash
 # Terminal 1 — backend (server PC)
 cd backend
-pnpm start:dev        # http://0.0.0.0:3000/api   (first time: pnpm install, pnpm prisma migrate dev, pnpm db:seed)
+pnpm start:dev        # http://0.0.0.0:3000/api
 
 # Terminal 2 — frontend
 cd frontend
 pnpm dev              # http://localhost:5173  + Network http://<server-LAN-IP>:5173
+```
+
+</details>
+
+## Run (production)
+
+```bash
+pnpm build         # frontend, then backend
+pnpm start         # build + serve from the server PC
 ```
 
 Other devices (2nd PC, phone) open the **Network** URL shown by Vite, e.g.
